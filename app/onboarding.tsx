@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
 import { type Language, t } from "../src/lib/i18n";
-import { colors, radius, spacing } from "../src/lib/theme";
+import { colors, font, radius, spacing } from "../src/lib/theme";
 
 export default function Onboarding() {
   const [lang, setLang] = useState<Language>("en");
@@ -100,9 +100,7 @@ function LanguageOption({
       onPress={onPress}
       style={[styles.langOption, selected && styles.langOptionSelected]}
     >
-      <Text
-        style={[styles.langLabel, selected && styles.langLabelSelected]}
-      >
+      <Text style={[styles.langLabel, selected && styles.langLabelSelected]}>
         {label}
       </Text>
     </Pressable>
@@ -121,9 +119,9 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  title: { fontSize: 30, fontWeight: "300", color: colors.text },
+  title: { fontSize: 30, fontWeight: "300", color: colors.text, ...font.light },
   block: { gap: spacing.sm },
-  label: { fontSize: 16, color: colors.textMuted },
+  label: { fontSize: 16, color: colors.textMuted, ...font.regular },
   langRow: { flexDirection: "row", gap: spacing.sm },
   langOption: {
     flex: 1,
@@ -138,7 +136,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     backgroundColor: colors.accentSoft,
   },
-  langLabel: { fontSize: 18, color: colors.text },
+  langLabel: { fontSize: 18, color: colors.text, ...font.regular },
   langLabelSelected: { color: colors.accent, fontWeight: "500" },
   input: {
     borderWidth: 1,
@@ -149,6 +147,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 17,
     color: colors.text,
+    ...font.regular,
   },
   button: {
     backgroundColor: colors.accent,
@@ -158,5 +157,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
   buttonPressed: { opacity: 0.85 },
-  buttonLabel: { color: "#fff", fontSize: 17, fontWeight: "500" },
+  buttonLabel: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "500",
+    ...font.medium,
+  },
 });

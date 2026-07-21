@@ -39,7 +39,9 @@ export const lookupDefinition = createTool({
   inputSchema: z.object({
     word: z
       .string()
-      .describe("The term to define, in Hindi or romanized form (e.g. 'jeevan')."),
+      .describe(
+        "The term to define, in Hindi or romanized form (e.g. 'jeevan').",
+      ),
   }),
   execute: async (ctx: ToolCtx, { word }): Promise<string> => {
     return await ctx.runAction(internal.md.lookupParibhasha, { word });

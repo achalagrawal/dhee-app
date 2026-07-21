@@ -9,7 +9,10 @@ import { DEFAULT_MD_MCP_URL } from "../config";
 // runtime instead of forcing "use node".
 
 type JsonRpcResponse = {
-  result?: { content?: Array<{ type: string; text?: string }>; isError?: boolean };
+  result?: {
+    content?: Array<{ type: string; text?: string }>;
+    isError?: boolean;
+  };
   error?: { code: number; message: string };
 };
 
@@ -22,7 +25,9 @@ function parseSsePayload(body: string): JsonRpcResponse {
 
   const payload = dataLines[dataLines.length - 1];
   if (!payload) {
-    throw new Error(`MCP returned no data frame. Raw body: ${body.slice(0, 200)}`);
+    throw new Error(
+      `MCP returned no data frame. Raw body: ${body.slice(0, 200)}`,
+    );
   }
   return JSON.parse(payload) as JsonRpcResponse;
 }

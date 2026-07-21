@@ -11,8 +11,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
+import { OfflineBanner } from "../src/components/OfflineBanner";
 import { t } from "../src/lib/i18n";
-import { colors, radius, spacing } from "../src/lib/theme";
+import { colors, font, radius, spacing } from "../src/lib/theme";
 import { useLanguage } from "../src/lib/useLanguage";
 
 export default function Threads() {
@@ -43,6 +44,8 @@ export default function Threads() {
         </View>
       </View>
 
+      <OfflineBanner lang={lang} />
+
       {status === "LoadingFirstPage" ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} />
@@ -50,9 +53,7 @@ export default function Threads() {
       ) : results.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>{t(lang, "noConversations")}</Text>
-          <Text style={styles.emptyHint}>
-            {t(lang, "noConversationsHint")}
-          </Text>
+          <Text style={styles.emptyHint}>{t(lang, "noConversationsHint")}</Text>
         </View>
       ) : (
         <FlatList
@@ -66,7 +67,10 @@ export default function Threads() {
           renderItem={({ item }) => (
             <Pressable
               onPress={() => router.push(`/chat/${item._id}`)}
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              style={({ pressed }) => [
+                styles.row,
+                pressed && styles.rowPressed,
+              ]}
             >
               <Text style={styles.rowTitle} numberOfLines={1}>
                 {item.title?.trim() || t(lang, "newConversation")}
@@ -104,9 +108,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.xs,
   },
-  title: { fontSize: 28, fontWeight: "300", color: colors.text },
+  title: { fontSize: 28, fontWeight: "300", color: colors.text, ...font.light },
   headerActions: { flexDirection: "row" },
-  headerLink: { fontSize: 15, color: colors.accent },
+  headerLink: { fontSize: 15, color: colors.accent, ...font.regular },
   centered: {
     flex: 1,
     alignItems: "center",
@@ -114,8 +118,13 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.xs,
   },
-  emptyTitle: { fontSize: 17, color: colors.text },
-  emptyHint: { fontSize: 15, color: colors.textMuted, textAlign: "center" },
+  emptyTitle: { fontSize: 17, color: colors.text, ...font.regular },
+  emptyHint: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: "center",
+    ...font.regular,
+  },
   list: { paddingHorizontal: spacing.md, gap: spacing.sm },
   row: {
     backgroundColor: colors.surface,
@@ -126,8 +135,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   rowPressed: { opacity: 0.7 },
-  rowTitle: { fontSize: 17, color: colors.text },
-  rowSummary: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
+  rowTitle: { fontSize: 17, color: colors.text, ...font.regular },
+  rowSummary: {
+    fontSize: 14,
+    color: colors.textMuted,
+    lineHeight: 20,
+    ...font.regular,
+  },
   footer: {
     padding: spacing.md,
     gap: spacing.sm,
@@ -141,7 +155,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaPressed: { opacity: 0.85 },
-  ctaLabel: { color: "#fff", fontSize: 17, fontWeight: "500" },
+  ctaLabel: { color: "#fff", fontSize: 17, fontWeight: "500", ...font.medium },
   signOut: { alignItems: "center", paddingVertical: spacing.xs },
-  signOutLabel: { color: colors.textMuted, fontSize: 14 },
+  signOutLabel: { color: colors.textMuted, fontSize: 14, ...font.regular },
 });

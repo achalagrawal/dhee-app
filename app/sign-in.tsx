@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { t } from "../src/lib/i18n";
-import { colors, radius, spacing } from "../src/lib/theme";
+import { colors, font, radius, spacing } from "../src/lib/theme";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
@@ -177,15 +177,17 @@ const styles = StyleSheet.create({
     fontWeight: "300",
     color: colors.text,
     letterSpacing: 1,
+    ...font.light,
   },
   tagline: {
     marginTop: spacing.sm,
     fontSize: 17,
     lineHeight: 25,
     color: colors.textMuted,
+    ...font.regular,
   },
   form: { marginTop: spacing.xl * 1.5, gap: spacing.md },
-  label: { fontSize: 15, color: colors.textMuted },
+  label: { fontSize: 15, color: colors.textMuted, ...font.regular },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -195,11 +197,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 17,
     color: colors.text,
+    ...font.regular,
   },
   codeInput: {
     fontSize: 24,
     letterSpacing: 8,
     textAlign: "center",
+    ...font.regular,
   },
   button: {
     backgroundColor: colors.accent,
@@ -211,8 +215,18 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
   buttonPressed: { opacity: 0.85 },
-  buttonLabel: { color: "#fff", fontSize: 17, fontWeight: "500" },
+  buttonLabel: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "500",
+    ...font.medium,
+  },
   textButton: { alignItems: "center", paddingVertical: spacing.sm },
-  textButtonLabel: { color: colors.textMuted, fontSize: 15 },
-  error: { color: colors.danger, fontSize: 15, textAlign: "center" },
+  textButtonLabel: { color: colors.textMuted, fontSize: 15, ...font.regular },
+  error: {
+    color: colors.danger,
+    fontSize: 15,
+    textAlign: "center",
+    ...font.regular,
+  },
 });

@@ -1,3 +1,5 @@
+import { fontStack } from "./fonts";
+
 export const colors = {
   bg: "#fbfaf8",
   surface: "#ffffff",
@@ -24,3 +26,9 @@ export const radius = {
   md: 16,
   lg: 24,
 };
+
+export const font = {
+  regular: { fontFamily: fontStack.regular },
+  medium: { fontFamily: fontStack.medium },
+  light: { fontFamily: fontStack.light },
+} as const;

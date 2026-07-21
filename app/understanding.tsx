@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
 import { t } from "../src/lib/i18n";
-import { colors, radius, spacing } from "../src/lib/theme";
+import { colors, font, radius, spacing } from "../src/lib/theme";
 import { useLanguage } from "../src/lib/useLanguage";
 
 export default function Understanding() {
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  back: { fontSize: 16, color: colors.accent },
+  back: { fontSize: 16, color: colors.accent, ...font.regular },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: {
     padding: spacing.lg,
@@ -203,16 +203,27 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  title: { fontSize: 28, fontWeight: "300", color: colors.text },
-  intro: { fontSize: 15, lineHeight: 22, color: colors.textMuted },
+  title: { fontSize: 28, fontWeight: "300", color: colors.text, ...font.light },
+  intro: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textMuted,
+    ...font.regular,
+  },
   empty: {
     fontSize: 15,
     color: colors.textMuted,
     paddingVertical: spacing.xl,
     textAlign: "center",
+    ...font.regular,
   },
   section: { gap: spacing.sm, marginTop: spacing.md },
-  sectionTitle: { fontSize: 13, color: colors.textMuted, letterSpacing: 1 },
+  sectionTitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    letterSpacing: 1,
+    ...font.regular,
+  },
   sectionBody: { gap: spacing.sm },
   card: {
     backgroundColor: colors.surface,
@@ -223,16 +234,31 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   cardMain: { gap: spacing.xs },
-  cardText: { fontSize: 16, lineHeight: 23, color: colors.text },
-  badge: { fontSize: 12, color: colors.textMuted },
-  actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.md },
-  actionMuted: { fontSize: 15, color: colors.textMuted },
-  actionAccent: { fontSize: 15, color: colors.accent, fontWeight: "500" },
-  delete: { fontSize: 15, color: colors.danger },
+  cardText: {
+    fontSize: 16,
+    lineHeight: 23,
+    color: colors.text,
+    ...font.regular,
+  },
+  badge: { fontSize: 12, color: colors.textMuted, ...font.regular },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: spacing.md,
+  },
+  actionMuted: { fontSize: 15, color: colors.textMuted, ...font.regular },
+  actionAccent: {
+    fontSize: 15,
+    color: colors.accent,
+    fontWeight: "500",
+    ...font.medium,
+  },
+  delete: { fontSize: 15, color: colors.danger, ...font.regular },
   editInput: {
     fontSize: 16,
     lineHeight: 23,
     color: colors.text,
     minHeight: 60,
+    ...font.regular,
   },
 });

@@ -74,7 +74,9 @@ const extractionSchema = z.object({
       z.object({
         conceptSlug: z
           .string()
-          .describe("Short kebab-case identifier, e.g. 'expectation-and-disappointment'."),
+          .describe(
+            "Short kebab-case identifier, e.g. 'expectation-and-disappointment'.",
+          ),
         plainLanguageLabel: z
           .string()
           .describe(

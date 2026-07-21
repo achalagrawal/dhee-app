@@ -15,8 +15,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
+import { OfflineBanner } from "../../src/components/OfflineBanner";
 import { t } from "../../src/lib/i18n";
-import { colors, radius, spacing } from "../../src/lib/theme";
+import { colors, font, radius, spacing } from "../../src/lib/theme";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 export default function Chat() {
@@ -58,6 +59,8 @@ export default function Chat() {
             <Text style={styles.back}>‹ {t(lang, "conversations")}</Text>
           </Pressable>
         </View>
+
+        <OfflineBanner lang={lang} />
 
         {status === "LoadingFirstPage" ? (
           <View style={styles.centered}>
@@ -136,14 +139,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  back: { fontSize: 16, color: colors.accent },
+  back: { fontSize: 16, color: colors.accent, ...font.regular },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
   },
-  empty: { fontSize: 17, color: colors.textMuted, textAlign: "center" },
+  empty: {
+    fontSize: 17,
+    color: colors.textMuted,
+    textAlign: "center",
+    ...font.regular,
+  },
   list: { padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: "row" },
   rowUser: { justifyContent: "flex-end" },
@@ -160,13 +168,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  textUser: { color: colors.userBubbleText, fontSize: 16, lineHeight: 24 },
-  textAssistant: { color: colors.text, fontSize: 16, lineHeight: 24 },
+  textUser: {
+    color: colors.userBubbleText,
+    fontSize: 16,
+    lineHeight: 24,
+    ...font.regular,
+  },
+  textAssistant: {
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 24,
+    ...font.regular,
+  },
   error: {
     color: colors.danger,
     fontSize: 14,
     textAlign: "center",
     paddingBottom: spacing.xs,
+    ...font.regular,
   },
   composer: {
     flexDirection: "row",
@@ -188,6 +207,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     fontSize: 16,
     color: colors.text,
+    ...font.regular,
   },
   sendBtn: {
     paddingHorizontal: spacing.md,
@@ -197,5 +217,5 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendBtnPressed: { opacity: 0.85 },
-  sendLabel: { color: "#fff", fontSize: 16, fontWeight: "500" },
+  sendLabel: { color: "#fff", fontSize: 16, fontWeight: "500", ...font.medium },
 });

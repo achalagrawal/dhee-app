@@ -21,12 +21,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.17",
+    "@ai-sdk/anthropic": "^3.0.99",
     "@convex-dev/agent": "^0.6.4",
     "@convex-dev/auth": "^0.0.94",
     "@convex-dev/workflow": "^0.4.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "ai": "^7.0.33",
+    "ai": "^6.0.232",
     "convex": "^1.42.3",
     "expo": "^57.0.7",
     "expo-constants": "~18.0.0",
@@ -52,5 +52,11 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "@ai-sdk/provider": "3.0.14",
+      "@ai-sdk/provider-utils": "4.0.40"
+    }
   }
 }

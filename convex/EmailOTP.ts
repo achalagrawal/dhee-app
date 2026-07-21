@@ -19,6 +19,11 @@ const sendVerificationRequest = (async (
   { identifier: email, token }: { identifier: string; token: string },
   ctx: ActionCtx,
 ): Promise<void> => {
+  // Dev convenience: surface the code in the Convex logs so a developer can
+  // sign in without opening the inbox. Never logs outside dev.
+  if (process.env.CONVEX_CLOUD_URL?.includes("127.0.0.1")) {
+    console.log(`[dev] OTP for ${email}: ${token}`);
+  }
   await ctx.runAction(internal.email.sendOtpEmail, {
     to: email,
     subject: `${token} is your Dhee code`,

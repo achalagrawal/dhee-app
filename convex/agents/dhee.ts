@@ -1,5 +1,6 @@
 import { Agent, stepCountIs } from "@convex-dev/agent";
 import { components } from "../_generated/api";
+import { mdTools } from "../tools/md";
 import { defaultAgentConfig } from "./config";
 
 // Dhee's identity + the two product rules.
@@ -32,8 +33,8 @@ You are a companion. Not a teacher. Not a therapist. A friend who sees a little 
 export const dhee = new Agent(components.agent, {
   name: "Dhee",
   instructions: DHEE_INSTRUCTIONS,
-  // Cap tool-use loops. Bumped once MCP tools are wired in M2 so the agent
-  // can do a search → read a page → answer without hitting the ceiling.
+  tools: mdTools,
+  // Enough headroom to search, read a page for context, then answer.
   stopWhen: stepCountIs(5),
   ...defaultAgentConfig,
 });

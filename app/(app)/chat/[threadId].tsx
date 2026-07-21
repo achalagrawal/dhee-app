@@ -14,11 +14,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api } from "../../convex/_generated/api";
-import { OfflineBanner } from "../../src/components/OfflineBanner";
-import { t } from "../../src/lib/i18n";
-import { colors, font, radius, spacing } from "../../src/lib/theme";
-import { useLanguage } from "../../src/lib/useLanguage";
+import { api } from "../../../convex/_generated/api";
+import { OfflineBanner } from "../../../src/components/OfflineBanner";
+import { t } from "../../../src/lib/i18n";
+import { colors, font, radius, spacing } from "../../../src/lib/theme";
+import { useLanguage } from "../../../src/lib/useLanguage";
 
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();

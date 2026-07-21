@@ -3,10 +3,12 @@ import {
   getThreadMetadata,
   listUIMessages,
   syncStreams,
+  updateThreadMetadata,
   vStreamArgs,
 } from "@convex-dev/agent";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { z } from "zod";
 import { components, internal } from "./_generated/api";
 import {
   type ActionCtx,
@@ -129,7 +131,110 @@ export const streamReply = internalAction({
       { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
     );
     await result.consumeStream();
+
+    // Title the thread once there's a real exchange to summarize. Without
+    // this every row in the conversation list reads "New conversation" and
+    // history is unnavigable.
+    await ctx.scheduler.runAfter(0, internal.chat.titleThread, { threadId });
     return null;
+  },
+});
+
+export const titleThread = internalAction({
+  args: { threadId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId }) => {
+    const meta = await getThreadMetadata(ctx, components.agent, { threadId });
+    // First reply wins; later turns leave the established title alone.
+    if (meta.title?.trim()) return null;
+
+    const { object } = await dhee.generateObject(
+      ctx,
+      { threadId },
+      {
+        // Deliberately not the Dhee persona: this call should not reach for
+        // corpus tools or answer anything, just label what was said.
+        system:
+          "You write short labels for saved conversations. Write in the same language the person used. Use their own plain words — never introduce specialized or philosophical vocabulary. The title is for finding this conversation again in a list.",
+        schema: z.object({
+          title: z
+            .string()
+            .describe(
+              "At most six words naming what this conversation is about, from the person's point of view. No quotes, no trailing punctuation.",
+            ),
+          summary: z
+            .string()
+            .describe("One plain sentence describing what was discussed."),
+        }),
+        prompt:
+          "Write a title and one-sentence summary for the conversation so far.",
+      },
+      { storageOptions: { saveMessages: "none" } },
+    );
+
+    await updateThreadMetadata(ctx, components.agent, {
+      threadId,
+      patch: { title: object.title, summary: object.summary },
+    });
+    return null;
+  },
+});
+
+export const renameThread = mutation({
+  args: { threadId: v.string(), title: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId, title }) => {
+    await authorizeThread(ctx, threadId);
+    const trimmed = title.trim();
+    if (!trimmed) throw new Error("A conversation needs a name.");
+    await updateThreadMetadata(ctx, components.agent, {
+      threadId,
+      patch: { title: trimmed.slice(0, 120) },
+    });
+    return null;
+  },
+});
+
+export const deleteThread = mutation({
+  args: { threadId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    // Async deletion pages through messages and streams, so a long
+    // conversation doesn't blow the mutation's time budget.
+    await dhee.deleteThreadAsync(ctx, { threadId });
+    const meta = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .unique();
+    if (meta) await ctx.db.delete(meta._id);
+    return null;
+  },
+});
+
+// Deletes conversations only. What Dhee has learned about the person lives
+// in the user-model tables and is cleared separately by
+// `understanding.forgetEverything`, so each can be chosen on its own.
+export const deleteAllThreads = mutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    const { page } = await ctx.runQuery(
+      components.agent.threads.listThreadsByUserId,
+      { userId, paginationOpts: { cursor: null, numItems: 500 } },
+    );
+    for (const thread of page) {
+      await dhee.deleteThreadAsync(ctx, { threadId: thread._id });
+    }
+    const metas = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread")
+      .collect();
+    for (const meta of metas) {
+      if (meta.userId === userId) await ctx.db.delete(meta._id);
+    }
+    return page.length;
   },
 });
 

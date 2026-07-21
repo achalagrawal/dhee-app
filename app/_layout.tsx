@@ -1,16 +1,16 @@
-import { ConvexProvider } from "convex/react";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { convex } from "../src/lib/convex";
+import { convex, secureStorage } from "../src/lib/convex";
 
 export default function RootLayout() {
   return (
-    <ConvexProvider client={convex}>
+    <ConvexAuthProvider client={convex} storage={secureStorage}>
       <SafeAreaProvider>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
       </SafeAreaProvider>
-    </ConvexProvider>
+    </ConvexAuthProvider>
   );
 }

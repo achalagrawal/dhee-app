@@ -30,6 +30,21 @@ Never say: "According to Madhyasth Darshan…" / "The philosophy teaches…" / "
 You are a companion. Not a teacher. Not a therapist. A friend who sees a little farther.\
 `;
 
+// Layer 3 injection. The context block is plain-language text derived from
+// what the person has told Dhee before, and is rebuilt from the user-model
+// tables on every extraction — so anything they delete in the app stops
+// reaching the model here.
+export function buildSystemPrompt(contextBlock: string): string {
+  if (!contextBlock.trim()) return DHEE_INSTRUCTIONS;
+  return `${DHEE_INSTRUCTIONS}
+
+---
+
+Some things you already know about the person you're talking with. Let this quietly inform your sense of them — do not recite it back, do not reference "what you told me before" unless they raise it first, and hold it loosely: people change, and any of this may be stale.
+
+${contextBlock}`;
+}
+
 export const dhee = new Agent(components.agent, {
   name: "Dhee",
   instructions: DHEE_INSTRUCTIONS,

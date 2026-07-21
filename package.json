@@ -22,10 +22,12 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.99",
+    "@auth/core": "0.41.1",
     "@convex-dev/agent": "^0.6.4",
     "@convex-dev/auth": "^0.0.94",
     "@convex-dev/workflow": "^0.4.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@oslojs/crypto": "^1.0.1",
     "ai": "^6.0.232",
     "convex": "^1.42.3",
     "expo": "^57.0.7",
@@ -33,6 +35,7 @@
     "expo-font": "~14.0.0",
     "expo-linking": "~8.0.0",
     "expo-router": "^57.0.7",
+    "expo-secure-store": "^57.0.1",
     "expo-splash-screen": "~31.0.0",
     "expo-status-bar": "~3.0.0",
     "react": "19.2.0",
@@ -43,6 +46,7 @@
     "react-native-safe-area-context": "~5.4.0",
     "react-native-screens": "~4.13.0",
     "react-native-web": "~0.21.0",
+    "resend": "^6.18.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

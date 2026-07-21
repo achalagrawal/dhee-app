@@ -1,0 +1,96 @@
+export type Language = "en" | "hi";
+
+// Small hand-rolled dictionary. The app has few enough strings that a
+// dependency would cost more than it saves — and every string here is
+// user-facing chrome, not content, which always comes from the model in
+// whatever language the person wrote in.
+const strings = {
+  en: {
+    appName: "Dhee",
+    tagline: "A companion for the questions you're sitting with.",
+    signInTitle: "Sign in",
+    signInSubtitle: "We'll email you a six-digit code.",
+    emailPlaceholder: "you@example.com",
+    sendCode: "Send code",
+    codeTitle: "Check your email",
+    codeSubtitle: "Enter the code we sent to",
+    codePlaceholder: "123456",
+    verify: "Continue",
+    back: "Back",
+    onboardingTitle: "Before we begin",
+    namePrompt: "What should Dhee call you?",
+    namePlaceholder: "Your name (optional)",
+    languagePrompt: "Which language feels most like home?",
+    start: "Start",
+    conversations: "Conversations",
+    newConversation: "New conversation",
+    noConversations: "Nothing here yet.",
+    noConversationsHint: "Start a conversation whenever you're ready.",
+    emptyChat: "Ask anything you're sitting with.",
+    inputPlaceholder: "Type a message",
+    send: "Send",
+    understanding: "Dhee's understanding of you",
+    understandingIntro:
+      "Everything Dhee has picked up from your conversations. Edit or delete anything — it takes effect right away.",
+    inquiries: "Questions you're sitting with",
+    observations: "About you",
+    concepts: "Ideas you've explored",
+    nothingYet: "Nothing yet. This fills in as you talk.",
+    delete: "Delete",
+    save: "Save",
+    cancel: "Cancel",
+    edit: "Edit",
+    signOut: "Sign out",
+    somethingWentWrong: "Something went wrong.",
+    retry: "Try again",
+    offline: "You're offline. Messages will send when you reconnect.",
+    sending: "Sending…",
+  },
+  hi: {
+    appName: "धी",
+    tagline: "उन सवालों का साथी, जिनके साथ आप जी रहे हैं।",
+    signInTitle: "साइन इन करें",
+    signInSubtitle: "हम आपको छह अंकों का कोड ईमेल करेंगे।",
+    emailPlaceholder: "you@example.com",
+    sendCode: "कोड भेजें",
+    codeTitle: "अपना ईमेल देखें",
+    codeSubtitle: "वह कोड डालें जो हमने भेजा है",
+    codePlaceholder: "123456",
+    verify: "आगे बढ़ें",
+    back: "वापस",
+    onboardingTitle: "शुरू करने से पहले",
+    namePrompt: "धी आपको क्या कहकर बुलाए?",
+    namePlaceholder: "आपका नाम (वैकल्पिक)",
+    languagePrompt: "कौन सी भाषा आपको अपनी लगती है?",
+    start: "शुरू करें",
+    conversations: "बातचीत",
+    newConversation: "नई बातचीत",
+    noConversations: "अभी कुछ नहीं है।",
+    noConversationsHint: "जब मन हो, बात शुरू कीजिए।",
+    emptyChat: "जो भी मन में है, पूछिए।",
+    inputPlaceholder: "कुछ लिखिए",
+    send: "भेजें",
+    understanding: "धी आपको कैसे समझता है",
+    understandingIntro:
+      "आपकी बातचीत से धी ने जो समझा है, सब यहाँ है। कुछ भी बदलें या हटाएँ — तुरंत लागू होगा।",
+    inquiries: "आपके सवाल",
+    observations: "आपके बारे में",
+    concepts: "जिन बातों पर आपने सोचा",
+    nothingYet: "अभी कुछ नहीं। बातचीत के साथ यह भरता जाएगा।",
+    delete: "हटाएँ",
+    save: "सहेजें",
+    cancel: "रहने दें",
+    edit: "बदलें",
+    signOut: "साइन आउट",
+    somethingWentWrong: "कुछ गड़बड़ हुई।",
+    retry: "फिर कोशिश करें",
+    offline: "आप ऑफ़लाइन हैं। कनेक्ट होते ही संदेश चला जाएगा।",
+    sending: "भेजा जा रहा है…",
+  },
+} as const;
+
+export type StringKey = keyof (typeof strings)["en"];
+
+export function t(lang: Language, key: StringKey): string {
+  return strings[lang][key];
+}

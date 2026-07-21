@@ -46,11 +46,15 @@ conflict with the `@ai-sdk/provider` / `@ai-sdk/provider-utils` pnpm overrides
 in `package.json` — those exist to stop a v5 copy being hoisted, which breaks
 the `LanguageModel` type.
 
-SES is called by signing SigV4 requests directly over `fetch`
-(`convex/lib/ses.ts`) rather than pulling `@aws-sdk/client-sesv2`. The SDK
-would add several MB and force the auth provider into Convex's Node runtime;
-SendEmail is one JSON POST. The signing primitives are checked against AWS's
-published test vectors — run `pnpm test`.
+Sign-in mail goes out over **SMTP** (`convex/email.ts`), which is why that one
+module is `"use node"` — SMTP needs a TLS socket and Convex's default V8
+runtime only has `fetch`. Convex Auth passes `ctx` into
+`sendVerificationRequest`, so the V8 provider hops to the Node action.
+
+Worth knowing if you swap credentials: **SES SMTP credentials are not IAM API
+credentials.** An SES SMTP password is derived one-way from an IAM secret key,
+so it cannot sign SigV4 requests against the SES HTTP API. If you ever want the
+HTTP API instead, you need the original IAM secret, not the SMTP password.
 
 ## Repo layout
 
@@ -74,16 +78,29 @@ Then set the secrets Convex needs (these live in the deployment, not in a file):
 ```bash
 npx convex env set OPENROUTER_API_KEY sk-or-v1-...
 
-# Sign-in emails. AUTH_EMAIL_FROM must be an identity you have verified in
-# SES, and a new SES account is sandboxed until you request production
-# access — until then it can only send to verified addresses.
-npx convex env set AWS_REGION ap-south-1
-npx convex env set AWS_ACCESS_KEY_ID AKIA...
-npx convex env set AWS_SECRET_ACCESS_KEY ...
-npx convex env set AUTH_EMAIL_FROM "Dhee <hello@yourdomain.com>"
+# Sign-in emails over SMTP. With SES, EMAIL_USERNAME/EMAIL_PASSWORD are the
+# SMTP credentials from the SES console (not an IAM key pair), and
+# AUTH_EMAIL_FROM must be an identity verified in SES. A new SES account is
+# sandboxed until you request production access — until then it can only
+# send to verified addresses.
+npx convex env set EMAIL_HOST email-smtp.ap-south-1.amazonaws.com
+npx convex env set EMAIL_PORT 465
+npx convex env set EMAIL_USERNAME ...
+npx convex env set EMAIL_PASSWORD ...
+npx convex env set AUTH_EMAIL_FROM "Dhee <noreply@yourdomain.com>"
 ```
 
-The IAM user needs only `ses:SendEmail` on the sending identity.
+Check the connection without mailing anyone:
+
+```bash
+npx convex run devEmail:smtpCheck '{}'
+```
+
+And confirm the model and corpus tools work after any `CHAT_MODEL` change:
+
+```bash
+npx convex run dev:smokeTest '{}'
+```
 
 Auth also needs a JWT keypair. If `npx convex env list` doesn't already show
 `JWT_PRIVATE_KEY` and `JWKS`, generate them with `npx @convex-dev/auth`.
@@ -99,10 +116,9 @@ pnpm web                 # or: pnpm ios / pnpm android
 | Variable | Where | Purpose |
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | Convex deployment | Model access for chat and extraction |
-| `AWS_REGION` | Convex deployment | SES region, e.g. `ap-south-1` |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Convex deployment | IAM credentials with `ses:SendEmail` |
-| `AWS_SESSION_TOKEN` | Convex deployment | Only when using temporary credentials |
-| `AUTH_EMAIL_FROM` | Convex deployment | Sender address; must be verified in SES |
+| `EMAIL_HOST`, `EMAIL_PORT` | Convex deployment | SMTP endpoint; 465 uses implicit TLS, 587 STARTTLS |
+| `EMAIL_USERNAME`, `EMAIL_PASSWORD` | Convex deployment | SMTP credentials (leave unset for unauthenticated relay) |
+| `AUTH_EMAIL_FROM` | Convex deployment | Sender address; must be verified with your provider |
 | `JWT_PRIVATE_KEY`, `JWKS` | Convex deployment | Convex Auth token signing |
 | `SITE_URL` | Convex deployment | Base URL for auth links |
 | `MD_MCP_URL` | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one) |

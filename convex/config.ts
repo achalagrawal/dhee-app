@@ -7,7 +7,7 @@
 //
 // Keep this file free of secrets — those live in Convex env vars.
 
-export const CHAT_MODEL = "anthropic/claude-sonnet-4.6";
+export const CHAT_MODEL = "anthropic/claude-sonnet-5";
 
 // How many user↔assistant turns should elapse between memory-extraction runs.
 export const MEMORY_EXTRACTION_INTERVAL_TURNS = 4;

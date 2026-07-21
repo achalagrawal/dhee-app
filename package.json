@@ -19,7 +19,7 @@
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
     "typecheck": "tsc --noEmit && tsc --noEmit -p convex",
-    "test": "node --experimental-strip-types --no-warnings convex/lib/ses.test.mjs"
+    "smoke": "convex run dev:smokeTest '{}' && convex run devEmail:smtpCheck '{}'"
   },
   "dependencies": {
     "@auth/core": "0.41.1",
@@ -41,6 +41,7 @@
     "expo-secure-store": "^57.0.1",
     "expo-splash-screen": "~57.0.4",
     "expo-status-bar": "~57.0.1",
+    "nodemailer": "^7.0.13",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.0",
@@ -54,6 +55,7 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@types/node": "^26.1.1",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "~19.2.0",
     "prettier": "^3.9.6",
     "typescript": "~6.0.3"

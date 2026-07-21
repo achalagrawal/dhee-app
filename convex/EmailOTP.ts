@@ -1,14 +1,13 @@
 import { Email } from "@convex-dev/auth/providers/Email";
 import { generateRandomString, type RandomReader } from "@oslojs/crypto/random";
-import { Resend as ResendAPI } from "resend";
+import { sendEmailViaSes } from "./lib/ses";
 
 // Six digits, not eight — this gets typed on a phone keyboard, often by
 // someone who is not in a patient mood.
 const CODE_LENGTH = 6;
 
-export const ResendOTP = Email({
-  id: "resend-otp",
-  apiKey: process.env.AUTH_RESEND_KEY,
+export const EmailOTP = Email({
+  id: "email-otp",
   maxAge: 60 * 15,
   async generateVerificationToken() {
     const random: RandomReader = {
@@ -18,11 +17,16 @@ export const ResendOTP = Email({
     };
     return generateRandomString(random, "0123456789", CODE_LENGTH);
   },
-  async sendVerificationRequest({ identifier: email, provider, token }) {
-    const resend = new ResendAPI(provider.apiKey);
-    const { error } = await resend.emails.send({
-      from: process.env.AUTH_EMAIL_FROM ?? "Dhee <onboarding@resend.dev>",
-      to: [email],
+  async sendVerificationRequest({ identifier: email, token }) {
+    const from = process.env.AUTH_EMAIL_FROM;
+    if (!from) {
+      throw new Error(
+        "AUTH_EMAIL_FROM is not set. It must be an identity verified in SES.",
+      );
+    }
+    await sendEmailViaSes({
+      to: email,
+      from,
       subject: `${token} is your Dhee code`,
       text: [
         `Your sign-in code is ${token}`,
@@ -31,8 +35,5 @@ export const ResendOTP = Email({
         "If you didn't ask for this, you can ignore this email.",
       ].join("\n"),
     });
-    if (error) {
-      throw new Error(JSON.stringify(error));
-    }
   },
 });

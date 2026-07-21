@@ -18,10 +18,10 @@
     "android": "expo start --android",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p convex",
+    "test": "node --experimental-strip-types --no-warnings convex/lib/ses.test.mjs"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.99",
     "@auth/core": "0.41.1",
     "@convex-dev/agent": "^0.6.4",
     "@convex-dev/auth": "^0.0.94",
@@ -29,6 +29,7 @@
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/noto-sans-devanagari": "^0.4.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@openrouter/ai-sdk-provider": "^2.10.0",
     "@oslojs/crypto": "^1.0.1",
     "ai": "^6.0.232",
     "convex": "^1.42.3",
@@ -48,7 +49,6 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.25.2",
     "react-native-web": "~0.21.0",
-    "resend": "^6.18.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

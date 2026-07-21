@@ -31,18 +31,26 @@ the moment raw passages come back.
 ## Stack
 
 - **Backend**: [Convex](https://convex.dev) with the [Agent component](https://docs.convex.dev/agents) for threads, messages, and streaming; [Workflows](https://docs.convex.dev/agents/workflows) for background memory extraction.
-- **LLM**: Anthropic via the Vercel AI SDK (`@ai-sdk/anthropic`). The model id is a single constant in `convex/config.ts`.
+- **LLM**: [OpenRouter](https://openrouter.ai) via the Vercel AI SDK. The model slug is a single constant in `convex/config.ts`, so switching providers — including to open-weight models — is a one-line change.
 - **App**: [Expo](https://expo.dev) (managed, Expo Router) — iOS, Android, and web from one TypeScript codebase.
 - **Retrieval**: Madhyasth Darshan corpus over MCP at `https://md-mcp.achal.xyz/mcp`, called from Convex actions.
-- **Auth**: [Convex Auth](https://labs.convex.dev/auth) with email OTP via Resend.
+- **Auth**: [Convex Auth](https://labs.convex.dev/auth) with email OTP delivered through AWS SES.
 
-### Version constraint worth knowing
+### Version constraints worth knowing
 
-`@convex-dev/agent` 0.6 requires **AI SDK v6** (`ai@^6`, `@ai-sdk/anthropic@^3`),
-not v7, and renamed `args`→`inputSchema` and `handler`→`execute` on
-`createTool`. `package.json` pins `@ai-sdk/provider` and `@ai-sdk/provider-utils`
-via pnpm overrides to stop a v5 copy being hoisted, which breaks the
-`LanguageModel` type.
+`@convex-dev/agent` 0.6 requires **AI SDK v6**, not v7, and renamed
+`args`→`inputSchema` and `handler`→`execute` on `createTool`. That constrains
+the OpenRouter provider too: **`@openrouter/ai-sdk-provider` must stay on v2.x**
+(v3 requires AI SDK v7). v2 ships no runtime dependencies, so it doesn't
+conflict with the `@ai-sdk/provider` / `@ai-sdk/provider-utils` pnpm overrides
+in `package.json` — those exist to stop a v5 copy being hoisted, which breaks
+the `LanguageModel` type.
+
+SES is called by signing SigV4 requests directly over `fetch`
+(`convex/lib/ses.ts`) rather than pulling `@aws-sdk/client-sesv2`. The SDK
+would add several MB and force the auth provider into Convex's Node runtime;
+SendEmail is one JSON POST. The signing primitives are checked against AWS's
+published test vectors — run `pnpm test`.
 
 ## Repo layout
 
@@ -64,10 +72,18 @@ pnpm convex:dev          # provisions a local backend, writes .env.local
 Then set the secrets Convex needs (these live in the deployment, not in a file):
 
 ```bash
-npx convex env set ANTHROPIC_API_KEY sk-ant-...
-npx convex env set AUTH_RESEND_KEY re_...          # for sign-in emails
+npx convex env set OPENROUTER_API_KEY sk-or-v1-...
+
+# Sign-in emails. AUTH_EMAIL_FROM must be an identity you have verified in
+# SES, and a new SES account is sandboxed until you request production
+# access — until then it can only send to verified addresses.
+npx convex env set AWS_REGION ap-south-1
+npx convex env set AWS_ACCESS_KEY_ID AKIA...
+npx convex env set AWS_SECRET_ACCESS_KEY ...
 npx convex env set AUTH_EMAIL_FROM "Dhee <hello@yourdomain.com>"
 ```
+
+The IAM user needs only `ses:SendEmail` on the sending identity.
 
 Auth also needs a JWT keypair. If `npx convex env list` doesn't already show
 `JWT_PRIVATE_KEY` and `JWKS`, generate them with `npx @convex-dev/auth`.
@@ -82,9 +98,11 @@ pnpm web                 # or: pnpm ios / pnpm android
 
 | Variable | Where | Purpose |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Convex deployment | Model access for chat and extraction |
-| `AUTH_RESEND_KEY` | Convex deployment | Resend key for sign-in code emails |
-| `AUTH_EMAIL_FROM` | Convex deployment | Sender address (defaults to Resend's onboarding address) |
+| `OPENROUTER_API_KEY` | Convex deployment | Model access for chat and extraction |
+| `AWS_REGION` | Convex deployment | SES region, e.g. `ap-south-1` |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Convex deployment | IAM credentials with `ses:SendEmail` |
+| `AWS_SESSION_TOKEN` | Convex deployment | Only when using temporary credentials |
+| `AUTH_EMAIL_FROM` | Convex deployment | Sender address; must be verified in SES |
 | `JWT_PRIVATE_KEY`, `JWKS` | Convex deployment | Convex Auth token signing |
 | `SITE_URL` | Convex deployment | Base URL for auth links |
 | `MD_MCP_URL` | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one) |

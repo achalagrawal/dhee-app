@@ -31,7 +31,7 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
-      await signIn("resend-otp", { email: email.trim() });
+      await signIn("email-otp", { email: email.trim() });
       setStep("code");
     } catch {
       setError(t(lang, "somethingWentWrong"));
@@ -45,7 +45,7 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
-      await signIn("resend-otp", { email: email.trim(), code: code.trim() });
+      await signIn("email-otp", { email: email.trim(), code: code.trim() });
     } catch {
       setError(t(lang, "somethingWentWrong"));
       setBusy(false);

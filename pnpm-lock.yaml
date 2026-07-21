@@ -12,9 +12,6 @@ importers:
 
   .:
     dependencies:
-      '@ai-sdk/anthropic':
-        specifier: ^3.0.99
-        version: 3.0.99(zod@4.4.3)
       '@auth/core':
         specifier: 0.41.1
         version: 0.41.1
@@ -36,6 +33,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
+      '@openrouter/ai-sdk-provider':
+        specifier: ^2.10.0
+        version: 2.10.0(ai@6.0.232(zod@4.4.3))(zod@4.4.3)
       '@oslojs/crypto':
         specifier: ^1.0.1
         version: 1.0.1
@@ -93,9 +93,6 @@ importers:
       react-native-web:
         specifier: ~0.21.0
         version: 0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      resend:
-        specifier: ^6.18.0
-        version: 6.18.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -120,12 +117,6 @@ packages:
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
-
-  '@ai-sdk/anthropic@3.0.99':
-    resolution: {integrity: sha512-/q4MW3nfwpIHDhfcPcaW6PF8twF7WhfMWVhKMgmFTwFo8oCoFUebp/+Rt4YVSu1a/rEzm7Ap4sQXhfmmzF5xuw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/gateway@3.0.154':
     resolution: {integrity: sha512-pKJmMnTxdTOfo+iz7pCAgmnMt4uan2yIw8nChFVIk3yYBeX2A9p2MCGyP8jZ1zpqSYXBmczQZU7Pjvlj1aLbIQ==}
@@ -979,6 +970,13 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
+  '@openrouter/ai-sdk-provider@2.10.0':
+    resolution: {integrity: sha512-FMsAEjLUt5pWuRE2LDC/LCvVrFjLlrEzUITH5+5SZtfq7KZ2wrOHjQVxzz92sju8S9ltpzW87CLW8/b0oBXVCw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: ^6.0.0
+      zod: ^3.25.0 || ^4.0.0
+
   '@opentelemetry/api@1.9.1':
     resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
     engines: {node: '>=8.0.0'}
@@ -1304,9 +1302,6 @@ packages:
 
   '@sinclair/typebox@0.27.12':
     resolution: {integrity: sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g==}
-
-  '@stablelib/base64@1.0.1':
-    resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2053,9 +2048,6 @@ packages:
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
-  fast-sha256@1.3.0:
-    resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==}
-
   fast-uri@3.1.4:
     resolution: {integrity: sha512-8JnbkQ4juDyvYs4mgFGQqg4yCYtFDtUtmp2QIQq11ZZe5CFQ5wcqm1rqDgAh/QdMySuBnPzMUiJUNZG5N/AiQw==}
 
@@ -2733,9 +2725,6 @@ packages:
     resolution: {integrity: sha512-NCrCHhWmnQklfH4MtJMRjZ2a8c80qXeMlQMv2uVp9ISJMTt562SbGd6n2oq0PaPgKm7Z6pL9E2UlLIhC+SHL3w==}
     engines: {node: '>=4.0.0'}
 
-  postal-mime@2.7.5:
-    resolution: {integrity: sha512-GNEXKvWFQnbgO5NlrGzVa0FmWzBZ24PersAWErttSg1Hjpf0ATxTwS5DOMGaOpTG6bUh5cTr7xi0jAD942wCJA==}
-
   postcss-value-parser@4.2.0:
     resolution: {integrity: sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ==}
 
@@ -2976,15 +2965,6 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  resend@6.18.0:
-    resolution: {integrity: sha512-EjxZ9AVzywJgOlUoIJe9ytBWVrfbUtJbjeoLnRSvpU1sv97Hh9DSwhw+k8kiujrG4Rg4bzTBsjlmwWWuoOxSug==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@react-email/render': '*'
-    peerDependenciesMeta:
-      '@react-email/render':
-        optional: true
-
   resolve-from@5.0.0:
     resolution: {integrity: sha512-qYg9KP24dD5qka9J47d0aVky0N+b4fTU89LN9iDnjB5waksiC49rvMB0PrUJQGoTmH50XPiqOvAjDfaijGxYZw==}
     engines: {node: '>=8'}
@@ -3135,9 +3115,6 @@ packages:
 
   standard-navigation@0.0.5:
     resolution: {integrity: sha512-YAmzwAiiQVocZxO/VGPFiQHcu5pKiz09QIGC0MK6aRMoa3E0QkoTQgcqJr7ZZ3OMiNhu4DkaGElFI5htjOIDbw==}
-
-  standardwebhooks@1.0.0:
-    resolution: {integrity: sha512-BbHGOQK9olHPMvQNHWul6MYlrRTAOKn03rOe4A8O3CLWhNf4YHBqq2HJKKC+sfqpxiBY52pNeesD6jIiLDz8jg==}
 
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==}
@@ -3453,12 +3430,6 @@ packages:
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
-
-  '@ai-sdk/anthropic@3.0.99(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.14
-      '@ai-sdk/provider-utils': 4.0.40(zod@4.4.3)
-      zod: 4.4.3
 
   '@ai-sdk/gateway@3.0.154(zod@4.4.3)':
     dependencies:
@@ -4541,6 +4512,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@openrouter/ai-sdk-provider@2.10.0(ai@6.0.232(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      ai: 6.0.232(zod@4.4.3)
+      zod: 4.4.3
+
   '@opentelemetry/api@1.9.1': {}
 
   '@oslojs/asn1@1.0.0':
@@ -4890,8 +4866,6 @@ snapshots:
       '@types/react': 19.2.17
 
   '@sinclair/typebox@0.27.12': {}
-
-  '@stablelib/base64@1.0.1': {}
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -5727,8 +5701,6 @@ snapshots:
 
   fast-deep-equal@3.1.3: {}
 
-  fast-sha256@1.3.0: {}
-
   fast-uri@3.1.4: {}
 
   fb-dotslash@0.5.8: {}
@@ -6414,8 +6386,6 @@ snapshots:
 
   pngjs@3.4.0: {}
 
-  postal-mime@2.7.5: {}
-
   postcss-value-parser@4.2.0: {}
 
   postcss@8.5.21:
@@ -6707,11 +6677,6 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  resend@6.18.0:
-    dependencies:
-      postal-mime: 2.7.5
-      standardwebhooks: 1.0.0
-
   resolve-from@5.0.0: {}
 
   resolve-workspace-root@2.0.1: {}
@@ -6886,11 +6851,6 @@ snapshots:
       type-fest: 0.7.1
 
   standard-navigation@0.0.5: {}
-
-  standardwebhooks@1.0.0:
-    dependencies:
-      '@stablelib/base64': 1.0.1
-      fast-sha256: 1.3.0
 
   statuses@1.5.0: {}
 

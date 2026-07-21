@@ -1,4 +1,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
+import { Redirect } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -16,6 +18,7 @@ import { colors, font, radius, spacing } from "../src/lib/theme";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -46,11 +49,19 @@ export default function SignIn() {
     setError(null);
     try {
       await signIn("email-otp", { email: email.trim(), code: code.trim() });
+      // Success falls through to the redirect below once isAuthenticated
+      // flips; busy stays true so the button can't be pressed twice while
+      // the session settles.
     } catch {
       setError(t(lang, "somethingWentWrong"));
       setBusy(false);
     }
   };
+
+  // signIn resolves before this screen knows where to go. Bounce to the index
+  // route, which decides between onboarding and the thread list. Without this
+  // a successful sign-in leaves the person watching a spinner forever.
+  if (isAuthenticated) return <Redirect href="/" />;
 
   return (
     <SafeAreaView style={styles.safe}>

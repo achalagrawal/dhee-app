@@ -24,7 +24,9 @@ android/
 .env.*.local
 
 # Convex
-convex/_generated/
+# convex/_generated is committed so CI builds (Vercel) can resolve the
+# generated API without running codegen. Regenerate with `convex dev` /
+# `convex codegen` after schema or function-signature changes.
 
 # Misc
 .DS_Store

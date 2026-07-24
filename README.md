@@ -24,7 +24,7 @@ understanding of you" screen are all in place.
 2. **Perspective, not information.** A good reply widens the frame by a degree.
    Warm, unhurried, conversational. Never a lecture.
 
-Both rules are enforced in the system prompt (`convex/agents/dhee.ts`) *and*
+Both rules are enforced in the system prompt (`convex/agents/dhee.ts`) _and_
 restated in every retrieval tool description, so the reminder is in context at
 the moment raw passages come back.
 
@@ -113,16 +113,16 @@ pnpm web                 # or: pnpm ios / pnpm android
 
 ### Environment variables
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `OPENROUTER_API_KEY` | Convex deployment | Model access for chat and extraction |
-| `EMAIL_HOST`, `EMAIL_PORT` | Convex deployment | SMTP endpoint; 465 uses implicit TLS, 587 STARTTLS |
-| `EMAIL_USERNAME`, `EMAIL_PASSWORD` | Convex deployment | SMTP credentials (leave unset for unauthenticated relay) |
-| `AUTH_EMAIL_FROM` | Convex deployment | Sender address; must be verified with your provider |
-| `JWT_PRIVATE_KEY`, `JWKS` | Convex deployment | Convex Auth token signing |
-| `SITE_URL` | Convex deployment | Base URL for auth links |
-| `MD_MCP_URL` | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one) |
-| `EXPO_PUBLIC_CONVEX_URL` | `.env.local` | Written automatically by `convex dev` |
+| Variable                           | Where             | Purpose                                                    |
+| ---------------------------------- | ----------------- | ---------------------------------------------------------- |
+| `OPENROUTER_API_KEY`               | Convex deployment | Model access for chat and extraction                       |
+| `EMAIL_HOST`, `EMAIL_PORT`         | Convex deployment | SMTP endpoint; 465 uses implicit TLS, 587 STARTTLS         |
+| `EMAIL_USERNAME`, `EMAIL_PASSWORD` | Convex deployment | SMTP credentials (leave unset for unauthenticated relay)   |
+| `AUTH_EMAIL_FROM`                  | Convex deployment | Sender address; must be verified with your provider        |
+| `JWT_PRIVATE_KEY`, `JWKS`          | Convex deployment | Convex Auth token signing                                  |
+| `SITE_URL`                         | Convex deployment | Base URL for auth links                                    |
+| `MD_MCP_URL`                       | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one) |
+| `EXPO_PUBLIC_CONVEX_URL`           | `.env.local`      | Written automatically by `convex dev`                      |
 
 ### Seed data
 
@@ -133,6 +133,39 @@ npx convex run seed:demo
 Creates a demo person, a seeded conversation, and the user-model rows that
 conversation would have produced — so the understanding screen has content on
 first open. Re-running replaces the previous demo data.
+
+## Development
+
+### Checks
+
+Three commands, also run by CI on every push and PR:
+
+```bash
+pnpm typecheck     # tsc for the app + the convex project
+pnpm test          # vitest + convex-test (in-memory — no backend needed)
+pnpm format:check  # prettier --check .   (pnpm format to fix)
+```
+
+Backend tests live next to the code as `convex/**/*.test.ts` and run against
+[`convex-test`](https://github.com/get-convex/convex-test), so they need no
+running Convex deployment, no secrets, and never call a model. The shared harness
+is `convex/test.setup.ts`.
+
+### CI/CD
+
+- **CI** — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the three
+  checks above. It needs no secrets (`convex/_generated` is committed and tests
+  are in-memory), so it's green on forks.
+- **CD** — deployment is handled by **Vercel**, which runs `convex deploy` as
+  part of the web build (see [`vercel.json`](vercel.json)) on push to `main`.
+  GitHub Actions deliberately does not deploy.
+
+### Building toward the final design
+
+Feature work follows a tracked, spec-driven loop. Start at
+[`docs/build/FEATURES.md`](docs/build/FEATURES.md) (what's done / what's next) and
+[`docs/build/README.md`](docs/build/README.md) (the per-feature workflow). See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Memory model
 
@@ -151,6 +184,11 @@ screen removes it from the next reply's context.
 Extraction is deliberately conservative and never records health conditions,
 political views, sexual details, other people's names, or financial specifics.
 The prompt states that an empty result is a correct and common answer.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the checks your change must
+pass, and the build workflow.
 
 ## License
 

@@ -9,11 +9,11 @@
       "@convex/*": ["./convex/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ],
-  "exclude": ["node_modules", "convex/_generated"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": [
+    "node_modules",
+    "convex/_generated",
+    "convex/**/*.test.ts",
+    "convex/test.setup.ts"
+  ]
 }

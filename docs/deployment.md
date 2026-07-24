@@ -1,117 +1,81 @@
 # Deployment & environments
 
-Dhee runs two environments, both hosted on Vercel with the Convex backend
-deployed from the Vercel build (`vercel.json`). GitHub Actions does **not** deploy
-(it only runs CI — see `.github/workflows/ci.yml`).
+Dhee runs **one hosted environment**: production. It lives on Vercel, with the
+Convex backend deployed from the Vercel build (`vercel.json`). GitHub Actions
+does **not** deploy — it only runs CI (see `.github/workflows/ci.yml`).
 
 ## Topology
 
-| Environment | Git branch  | Domain         | Convex deployment                     | Vercel env |
-| ----------- | ----------- | -------------- | ------------------------------------- | ---------- |
-| Production  | `main`      | `dhee.app`     | production                            | Production |
-| Staging     | `dev`       | `dev.dhee.app` | preview deployment named `dev`        | Preview    |
-| PR previews | any PR head | `*.vercel.app` | preview deployment named after branch | Preview    |
+| Environment | Where it runs               | Git branch | Domain     | Convex deployment      |
+| ----------- | --------------------------- | ---------- | ---------- | ---------------------- |
+| Development | your machine (`convex dev`) | any        | localhost  | your local/dev backend |
+| Production  | Vercel                      | `main`     | `dhee.app` | the production backend |
 
-How it works: the build runs
-`npx convex deploy --cmd 'pnpm expo export -p web' --cmd-url-env-var-name EXPO_PUBLIC_CONVEX_URL`.
-`convex deploy` chooses its target **from the deploy key it's given**, and injects
-that deployment's URL into `EXPO_PUBLIC_CONVEX_URL` for the web build:
+There is no staging environment and no per-PR preview. Feature work happens
+locally against your own Convex dev deployment; merging to `main` ships.
 
-- With a **production** deploy key (Vercel Production env) → deploys to the
-  production Convex deployment.
-- With a **preview** deploy key (Vercel Preview env) → creates/updates a Convex
-  **preview deployment named after the git branch** (`VERCEL_GIT_COMMIT_REF`), so
-  `dev` → a `dev` preview deployment, and each PR gets its own.
+## How the production build works
 
-So the same `vercel.json` serves all environments; only the per-environment
-`CONVEX_DEPLOY_KEY` differs. Preview deployments are available on the free Convex
-plan; note they are **auto-cleaned 5 days after creation** (14 days on Pro), so a
-long-lived `dev` staging needs to be redeployed periodically (any push to `dev`).
+Vercel runs:
 
-## One-time setup
-
-Steps that require dashboard / DNS / secret access are marked **[you]** — they
-can't be scripted from the repo. Do them in order.
-
-### 1. Convex — preview deploy key + preview env vars **[you]**
-
-In the Convex dashboard for the Dhee project:
-
-1. **Generate a Preview Deploy Key**: Project Settings → Deploy Keys → _Generate
-   Preview Deploy Key_. Copy it.
-2. **Set default env vars for preview deployments** (Settings → Environment
-   Variables → the "Preview" defaults section) so staging/PR backends have what
-   they need — mirror production's:
-   `OPENROUTER_API_KEY`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USERNAME`,
-   `EMAIL_PASSWORD`, `AUTH_EMAIL_FROM`, `JWT_PRIVATE_KEY`, `JWKS`,
-   `MD_MCP_URL` (optional), and `SITE_URL=https://dev.dhee.app`.
-   (Reusing the production `JWT_PRIVATE_KEY`/`JWKS` for staging is fine.)
-3. Make sure the **production** deployment's `SITE_URL` is `https://dhee.app`.
-
-### 2. Vercel — per-environment deploy keys **[you]**
-
-The `CONVEX_DEPLOY_KEY` is currently set for **Production only**, which is why
-preview builds fail. Add the preview key (values are secrets — enter them
-yourself; never commit them):
-
-```bash
-# From the repo root (already linked to the dhee-app project).
-vercel env add CONVEX_DEPLOY_KEY preview     # paste the Convex *preview* deploy key
-
-# Remove the static preview value so the build-time injection is authoritative:
-vercel env rm EXPO_PUBLIC_CONVEX_URL preview
+```
+npx convex deploy --cmd 'pnpm expo export -p web' --cmd-url-env-var-name EXPO_PUBLIC_CONVEX_URL
 ```
 
-Adding the preview key alone turns the failing Vercel CI check green.
+`convex deploy` picks its target **from the `CONVEX_DEPLOY_KEY` it's given** —
+set in Vercel for the Production environment only, holding a Convex _production_
+deploy key. It pushes the backend, then sets `EXPO_PUBLIC_CONVEX_URL` to that
+deployment's URL and runs the Expo web export inside it. The frontend bundle
+therefore can't point at the wrong backend: one key decides both halves.
 
-### 3. Git — create the long-lived `dev` branch
+## Preview deployments are off
 
-After the preview key exists (so its first build succeeds):
+`vercel.json` disables automatic deployments for every branch except `main`:
 
-```bash
-git branch dev main
-git push -u origin dev
+```json
+"git": { "deploymentEnabled": { "*": false, "main": true } }
 ```
 
-Vercel builds `dev` as a Preview; Convex creates a `dev` preview deployment.
+(A branch matching several rules deploys if any rule is `true`, so `main` wins
+over the `*` rule.) Pushes and PRs get no Vercel build and no deployment check —
+correctness is enforced by CI, and you review changes by running the app locally.
 
-### 4. Vercel — domains **[you]**
+Two things follow from this:
 
-In the dhee-app project → Settings:
+- Vercel's Preview environment has no `CONVEX_DEPLOY_KEY`, and doesn't need one.
+  A leftover `EXPO_PUBLIC_CONVEX_URL` in Preview is inert; remove it if you like
+  (`vercel env rm EXPO_PUBLIC_CONVEX_URL preview`).
+- The setting is read from `vercel.json` **on the branch being pushed**, so a
+  branch cut before this landed still deploys until it picks up `main`.
+
+To re-enable previews later: drop the `git` block, generate a Convex _preview_
+deploy key (dashboard → Project Settings → Deploy Keys), add it to Vercel's
+Preview environment, and set the Preview default env vars in Convex so preview
+backends have credentials. Each branch then gets its own throwaway Convex
+deployment, auto-cleaned 5 days after creation (14 on Pro).
+
+## Remaining setup
+
+`dhee.app` has no DNS record pointing at Vercel yet — until it does, production
+is only reachable at its `*.vercel.app` URL. In the dhee-app project:
 
 1. **Git → Production Branch** = `main` (confirm).
-2. **Domains**:
-   - Add **`dhee.app`** (and optionally `www.dhee.app` redirecting to it) and
-     assign it to **Production**. Set `dhee.app` as the primary production domain.
-   - Change **`dev.dhee.app`** so its **Git Branch = `dev`** (it currently serves
-     Production). Now it tracks the `dev` staging deployment.
-
-### 5. DNS **[you]**
-
-`dhee.app` currently has no Vercel record. At the DNS provider (nameservers are
-Google), add what Vercel shows for each domain — typically:
-
-- `A  dhee.app  76.76.21.21`
-- `CNAME  dev  cname.vercel-dns.com.` (for `dev.dhee.app`)
-- `CNAME  www  cname.vercel-dns.com.` (if using `www.dhee.app`)
+2. **Domains** → add `dhee.app` (optionally `www.dhee.app` redirecting to it) and
+   assign it to Production; make `dhee.app` the primary production domain.
+   `dev.dhee.app` is unused now — remove it, or leave it aliased to production.
+3. **DNS** (nameservers are Google) — add what Vercel shows, typically:
+   - `A  dhee.app  76.76.21.21`
+   - `CNAME  www  cname.vercel-dns.com.` (if using `www.dhee.app`)
 
 Vercel verifies automatically once the records propagate.
 
 > The waitlist lives on a separate domain (`dhee.co`) and a separate Vercel
 > project (`dhee-waitlist`); none of the above touches it.
 
-## Verifying
-
-- Push to `dev` → `https://dev.dhee.app` serves the app against the `dev` Convex
-  preview deployment.
-- Merge to `main` → `https://dhee.app` serves the app against the production
-  Convex deployment.
-- The Vercel check on PRs goes green (previews now have a deploy key).
-
 ## Day-to-day
 
-- Feature work: branch → PR (gets its own preview) → merge to `main`.
-- To refresh staging: merge/push to `dev` (also keeps the preview deployment from
-  being auto-cleaned).
-- Secrets are never in the repo; they live in Convex (backend) and Vercel (build)
-  per environment.
+- Feature work: branch → PR → CI green → merge to `main` → production ships.
+- Local backend: `npx convex dev`. Seed reviewable data with
+  `npx convex run seed:demo`.
+- Secrets are never in the repo. Backend secrets live in the Convex deployment's
+  environment variables; the deploy key lives in Vercel.

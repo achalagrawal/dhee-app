@@ -49,3 +49,6 @@ yarn-error.log*
 
 expo-env.d.ts
 # @end expo-cli
+
+# Local Vercel CLI link (project id / OIDC token)
+.vercel

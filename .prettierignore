@@ -1,0 +1,7 @@
+# Generated / vendored — not ours to format
+node_modules/
+dist/
+.expo/
+.vercel/
+convex/_generated/
+pnpm-lock.yaml

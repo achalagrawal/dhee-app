@@ -22,5 +22,7 @@
     "noEmit": true
   },
   "include": ["./**/*"],
-  "exclude": ["./_generated"]
+  /* Test files use Vite-only APIs (import.meta.glob) and import component
+   * source; they are type-checked by Vitest's toolchain, not this project. */
+  "exclude": ["./_generated", "./**/*.test.ts", "./test.setup.ts"]
 }

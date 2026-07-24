@@ -157,8 +157,11 @@ is `convex/test.setup.ts`.
   checks above. It needs no secrets (`convex/_generated` is committed and tests
   are in-memory), so it's green on forks.
 - **CD** — deployment is handled by **Vercel**, which runs `convex deploy` as
-  part of the web build (see [`vercel.json`](vercel.json)) on push to `main`.
-  GitHub Actions deliberately does not deploy.
+  part of the web build (see [`vercel.json`](vercel.json)). Two environments:
+  `main` → production at [dhee.app](https://dhee.app), and the `dev` branch →
+  staging at [dev.dhee.app](https://dev.dhee.app); PRs get their own previews.
+  GitHub Actions deliberately does not deploy. Full setup:
+  [`docs/deployment.md`](docs/deployment.md).
 
 ### Building toward the final design
 

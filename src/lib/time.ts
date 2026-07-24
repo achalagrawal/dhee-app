@@ -26,3 +26,37 @@ export function relativeTime(when: number, lang: Language): string {
         : "numeric",
   });
 }
+
+export type TimeBucket = "today" | "yesterday" | "previous7" | "older";
+
+// Which history section a timestamp belongs to. Buckets are day-based, so a
+// conversation from earlier today stays under "Today" regardless of the hour.
+export function timeBucket(when: number): TimeBucket {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const dayMs = 86_400_000;
+  const start = startOfToday.getTime();
+  if (when >= start) return "today";
+  if (when >= start - dayMs) return "yesterday";
+  if (when >= start - 7 * dayMs) return "previous7";
+  return "older";
+}
+
+// Group time-ordered items (newest first) into history buckets, preserving
+// order and dropping empty sections.
+export function groupByTime<T>(
+  items: T[],
+  getTime: (item: T) => number,
+): { bucket: TimeBucket; items: T[] }[] {
+  const order: TimeBucket[] = ["today", "yesterday", "previous7", "older"];
+  const map = new Map<TimeBucket, T[]>();
+  for (const item of items) {
+    const b = timeBucket(getTime(item));
+    const list = map.get(b) ?? [];
+    list.push(item);
+    map.set(b, list);
+  }
+  return order
+    .filter((b) => (map.get(b)?.length ?? 0) > 0)
+    .map((b) => ({ bucket: b, items: map.get(b) as T[] }));
+}

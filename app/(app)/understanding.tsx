@@ -1,6 +1,5 @@
 import { useMutation, useQuery } from "convex/react";
-import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -10,14 +9,16 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
-import { t } from "../../src/lib/i18n";
-import { colors, font, radius, spacing } from "../../src/lib/theme";
+import { AppShell } from "../../src/components/AppShell";
+import { type Language, t } from "../../src/lib/i18n";
+import { useTheme } from "../../src/lib/ThemeContext";
+import { type Colors, font, radius } from "../../src/lib/theme";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 export default function Understanding() {
+  const { colors } = useTheme();
   const lang = useLanguage();
   const data = useQuery(api.understanding.overview);
 
@@ -27,13 +28,15 @@ export default function Understanding() {
   const deleteInquiry = useMutation(api.understanding.deleteInquiry);
   const deleteConcept = useMutation(api.understanding.deleteConcept);
 
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   if (data === undefined) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <AppShell>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} />
         </View>
-      </SafeAreaView>
+      </AppShell>
     );
   }
 
@@ -43,13 +46,7 @@ export default function Understanding() {
     data.concepts.length === 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.back}>‹ {t(lang, "conversations")}</Text>
-        </Pressable>
-      </View>
-
+    <AppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>{t(lang, "understanding")}</Text>
         <Text style={styles.intro}>{t(lang, "understandingIntro")}</Text>
@@ -59,12 +56,13 @@ export default function Understanding() {
         ) : null}
 
         {data.inquiries.length > 0 ? (
-          <Section title={t(lang, "inquiries")}>
+          <Section title={t(lang, "inquiries")} colors={colors}>
             {data.inquiries.map((row) => (
               <EditableRow
                 key={row._id}
                 value={row.question}
                 lang={lang}
+                colors={colors}
                 onSave={(question) => editInquiry({ id: row._id, question })}
                 onDelete={() => deleteInquiry({ id: row._id })}
               />
@@ -73,13 +71,14 @@ export default function Understanding() {
         ) : null}
 
         {data.observations.length > 0 ? (
-          <Section title={t(lang, "observations")}>
+          <Section title={t(lang, "observations")} colors={colors}>
             {data.observations.map((row) => (
               <EditableRow
                 key={row._id}
                 value={row.text}
                 badge={row.confidence === "inferred" ? row.kind : undefined}
                 lang={lang}
+                colors={colors}
                 onSave={(text) => editObservation({ id: row._id, text })}
                 onDelete={() => deleteObservation({ id: row._id })}
               />
@@ -88,33 +87,51 @@ export default function Understanding() {
         ) : null}
 
         {data.concepts.length > 0 ? (
-          <Section title={t(lang, "concepts")}>
+          <Section title={t(lang, "concepts")} colors={colors}>
             {data.concepts.map((row: Doc<"conceptsTouched">) => (
               <View key={row._id} style={styles.card}>
                 <Text style={styles.cardText}>{row.plainLanguageLabel}</Text>
-                <Pressable onPress={() => deleteConcept({ id: row._id })}>
-                  <Text style={styles.delete}>{t(lang, "delete")}</Text>
-                </Pressable>
+                <View style={styles.actions}>
+                  <Pressable
+                    onPress={() => deleteConcept({ id: row._id })}
+                    hitSlop={6}
+                  >
+                    <Text style={styles.delete}>{t(lang, "delete")}</Text>
+                  </Pressable>
+                </View>
               </View>
             ))}
           </Section>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </AppShell>
   );
 }
 
 function Section({
   title,
+  colors,
   children,
 }: {
   title: string;
+  colors: Colors;
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionBody}>{children}</View>
+    <View style={{ gap: 8, marginTop: 20 }}>
+      <Text
+        style={{
+          fontSize: 12.5,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          color: colors.textFaint,
+          marginLeft: 4,
+          ...font.semibold,
+        }}
+      >
+        {title}
+      </Text>
+      <View style={{ gap: 8 }}>{children}</View>
     </View>
   );
 }
@@ -123,21 +140,24 @@ function EditableRow({
   value,
   badge,
   lang,
+  colors,
   onSave,
   onDelete,
 }: {
   value: string;
   badge?: string;
-  lang: "en" | "hi";
+  lang: Language;
+  colors: Colors;
   onSave: (next: string) => void;
   onDelete: () => void;
 }) {
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
   if (editing) {
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { borderColor: colors.accent }]}>
         <TextInput
           style={styles.editInput}
           value={draft}
@@ -151,6 +171,7 @@ function EditableRow({
               setEditing(false);
               setDraft(value);
             }}
+            hitSlop={6}
           >
             <Text style={styles.actionMuted}>{t(lang, "cancel")}</Text>
           </Pressable>
@@ -160,6 +181,7 @@ function EditableRow({
               if (next) onSave(next);
               setEditing(false);
             }}
+            hitSlop={6}
           >
             <Text style={styles.actionAccent}>{t(lang, "save")}</Text>
           </Pressable>
@@ -175,10 +197,10 @@ function EditableRow({
         <Text style={styles.cardText}>{value}</Text>
       </View>
       <View style={styles.actions}>
-        <Pressable onPress={() => setEditing(true)}>
+        <Pressable onPress={() => setEditing(true)} hitSlop={6}>
           <Text style={styles.actionMuted}>{t(lang, "edit")}</Text>
         </Pressable>
-        <Pressable onPress={onDelete}>
+        <Pressable onPress={onDelete} hitSlop={6}>
           <Text style={styles.delete}>{t(lang, "delete")}</Text>
         </Pressable>
       </View>
@@ -186,79 +208,74 @@ function EditableRow({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  back: { fontSize: 16, color: colors.accent, ...font.regular },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  scroll: {
-    padding: spacing.lg,
-    gap: spacing.md,
-    maxWidth: 640,
-    width: "100%",
-    alignSelf: "center",
-  },
-  title: { fontSize: 28, fontWeight: "300", color: colors.text, ...font.light },
-  intro: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.textMuted,
-    ...font.regular,
-  },
-  empty: {
-    fontSize: 15,
-    color: colors.textMuted,
-    paddingVertical: spacing.xl,
-    textAlign: "center",
-    ...font.regular,
-  },
-  section: { gap: spacing.sm, marginTop: spacing.md },
-  sectionTitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    letterSpacing: 1,
-    ...font.regular,
-  },
-  sectionBody: { gap: spacing.sm },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  cardMain: { gap: spacing.xs },
-  cardText: {
-    fontSize: 16,
-    lineHeight: 23,
-    color: colors.text,
-    ...font.regular,
-  },
-  badge: { fontSize: 12, color: colors.textMuted, ...font.regular },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: spacing.md,
-  },
-  actionMuted: { fontSize: 15, color: colors.textMuted, ...font.regular },
-  actionAccent: {
-    fontSize: 15,
-    color: colors.accent,
-    fontWeight: "500",
-    ...font.medium,
-  },
-  delete: { fontSize: 15, color: colors.danger, ...font.regular },
-  editInput: {
-    fontSize: 16,
-    lineHeight: 23,
-    color: colors.text,
-    minHeight: 60,
-    ...font.regular,
-  },
-});
+function makeStyles(colors: Colors) {
+  return StyleSheet.create({
+    centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+    scroll: {
+      maxWidth: 640,
+      width: "100%",
+      alignSelf: "center",
+      paddingHorizontal: 18,
+      paddingTop: 24,
+      paddingBottom: 48,
+    },
+    title: {
+      fontSize: 28,
+      letterSpacing: -0.4,
+      color: colors.text,
+      ...font.medium,
+    },
+    intro: {
+      fontSize: 15.5,
+      lineHeight: 23,
+      color: colors.textSoft,
+      marginTop: 10,
+      ...font.regular,
+    },
+    empty: {
+      fontSize: 15,
+      color: colors.textFaint,
+      paddingVertical: 32,
+      textAlign: "center",
+      ...font.regular,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      gap: 10,
+    },
+    cardMain: { gap: 4 },
+    cardText: {
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.text,
+      ...font.regular,
+    },
+    badge: {
+      fontSize: 11.5,
+      letterSpacing: 0.3,
+      textTransform: "uppercase",
+      color: colors.textFaint,
+      ...font.medium,
+    },
+    actions: { flexDirection: "row", justifyContent: "flex-end", gap: 18 },
+    actionMuted: { fontSize: 14.5, color: colors.textSoft, ...font.regular },
+    actionAccent: {
+      fontSize: 14.5,
+      color: colors.accentStrong,
+      ...font.medium,
+    },
+    delete: { fontSize: 14.5, color: colors.danger, ...font.regular },
+    editInput: {
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.text,
+      minHeight: 60,
+      textAlignVertical: "top",
+      ...font.regular,
+    },
+  });
+}

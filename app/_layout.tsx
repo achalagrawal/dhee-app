@@ -4,9 +4,11 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { convex, secureStorage } from "../src/lib/convex";
 import { fontMap } from "../src/lib/fonts";
+import { ThemeProvider, useTheme } from "../src/lib/ThemeContext";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -25,10 +27,28 @@ export default function RootLayout() {
 
   return (
     <ConvexAuthProvider client={convex} storage={secureStorage}>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }} />
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <Themed />
+        </SafeAreaProvider>
+      </ThemeProvider>
     </ConvexAuthProvider>
+  );
+}
+
+// Keeps the app background and status bar in step with the resolved theme so
+// there's no light flash behind screens during navigation in dark mode.
+function Themed() {
+  const { mode, colors } = useTheme();
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      />
+    </View>
   );
 }

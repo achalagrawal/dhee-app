@@ -1,7 +1,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { Redirect } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -14,9 +14,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { t } from "../src/lib/i18n";
-import { colors, font, radius, spacing } from "../src/lib/theme";
+import { useTheme } from "../src/lib/ThemeContext";
+import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
 export default function SignIn() {
+  const { colors } = useTheme();
   const { signIn } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
   const [step, setStep] = useState<"email" | "code">("email");
@@ -24,6 +26,7 @@ export default function SignIn() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // Sign-in happens before we know the person's language preference, so this
   // screen is English-only by necessity. Onboarding is where they choose.
@@ -80,7 +83,7 @@ export default function SignIn() {
                 <TextInput
                   style={styles.input}
                   placeholder={t(lang, "emailPlaceholder")}
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textFaint}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -95,6 +98,8 @@ export default function SignIn() {
                   onPress={submitEmail}
                   disabled={!email.trim()}
                   busy={busy}
+                  styles={styles}
+                  colors={colors}
                 />
               </>
             ) : (
@@ -105,7 +110,7 @@ export default function SignIn() {
                 <TextInput
                   style={[styles.input, styles.codeInput]}
                   placeholder={t(lang, "codePlaceholder")}
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textFaint}
                   value={code}
                   onChangeText={setCode}
                   keyboardType="number-pad"
@@ -120,6 +125,8 @@ export default function SignIn() {
                   onPress={submitCode}
                   disabled={!code.trim()}
                   busy={busy}
+                  styles={styles}
+                  colors={colors}
                 />
                 <Pressable
                   onPress={() => {
@@ -147,11 +154,15 @@ function PrimaryButton({
   onPress,
   disabled,
   busy,
+  styles,
+  colors,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   busy?: boolean;
+  styles: ReturnType<typeof makeStyles>;
+  colors: Colors;
 }) {
   return (
     <Pressable
@@ -164,7 +175,7 @@ function PrimaryButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={colors.onAccent} />
       ) : (
         <Text style={styles.buttonLabel}>{label}</Text>
       )}
@@ -172,72 +183,72 @@ function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  flex: { flex: 1 },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    maxWidth: 480,
-    width: "100%",
-    alignSelf: "center",
-  },
-  wordmark: {
-    fontSize: 44,
-    fontWeight: "300",
-    color: colors.text,
-    letterSpacing: 1,
-    ...font.light,
-  },
-  tagline: {
-    marginTop: spacing.sm,
-    fontSize: 17,
-    lineHeight: 25,
-    color: colors.textMuted,
-    ...font.regular,
-  },
-  form: { marginTop: spacing.xl * 1.5, gap: spacing.md },
-  label: { fontSize: 15, color: colors.textMuted, ...font.regular },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    fontSize: 17,
-    color: colors.text,
-    ...font.regular,
-  },
-  codeInput: {
-    fontSize: 24,
-    letterSpacing: 8,
-    textAlign: "center",
-    ...font.regular,
-  },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 54,
-  },
-  buttonDisabled: { opacity: 0.4 },
-  buttonPressed: { opacity: 0.85 },
-  buttonLabel: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "500",
-    ...font.medium,
-  },
-  textButton: { alignItems: "center", paddingVertical: spacing.sm },
-  textButtonLabel: { color: colors.textMuted, fontSize: 15, ...font.regular },
-  error: {
-    color: colors.danger,
-    fontSize: 15,
-    textAlign: "center",
-    ...font.regular,
-  },
-});
+function makeStyles(colors: Colors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    flex: { flex: 1 },
+    content: {
+      flex: 1,
+      justifyContent: "center",
+      paddingHorizontal: spacing.lg,
+      maxWidth: 480,
+      width: "100%",
+      alignSelf: "center",
+    },
+    wordmark: {
+      fontSize: 44,
+      color: colors.text,
+      letterSpacing: 1,
+      ...font.medium,
+    },
+    tagline: {
+      marginTop: spacing.sm,
+      fontSize: 17,
+      lineHeight: 25,
+      color: colors.textSoft,
+      ...font.regular,
+    },
+    form: { marginTop: spacing.xl * 1.5, gap: spacing.md },
+    label: { fontSize: 15, color: colors.textSoft, ...font.regular },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 14,
+      fontSize: 17,
+      color: colors.text,
+      ...font.regular,
+    },
+    codeInput: {
+      fontSize: 24,
+      letterSpacing: 8,
+      textAlign: "center",
+      ...font.regular,
+    },
+    button: {
+      backgroundColor: colors.accent,
+      borderRadius: radius.md,
+      paddingVertical: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 54,
+    },
+    buttonDisabled: { opacity: 0.4 },
+    buttonPressed: { opacity: 0.85 },
+    buttonLabel: {
+      color: colors.onAccent,
+      fontSize: 17,
+      ...font.medium,
+    },
+    textButton: { alignItems: "center", paddingVertical: spacing.sm },
+    textButtonLabel: { color: colors.textSoft, fontSize: 15, ...font.regular },
+    error: {
+      color: colors.danger,
+      fontSize: 15,
+      textAlign: "center",
+      ...font.regular,
+    },
+  });
+}

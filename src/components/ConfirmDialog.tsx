@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { type Language, t } from "../lib/i18n";
-import { colors, font, radius, spacing } from "../lib/theme";
+import { useTheme } from "../lib/ThemeContext";
+import { font, radius, spacing } from "../lib/theme";
 
 // React Native's Alert has no web implementation, and every destructive
 // action in this app needs a confirmation that works on all three targets.
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { colors } = useTheme();
   return (
     <Modal
       visible={visible}
@@ -30,9 +32,19 @@ export function ConfirmDialog({
     >
       <Pressable style={styles.backdrop} onPress={onCancel}>
         {/* Swallow taps on the card so only the backdrop dismisses. */}
-        <Pressable style={styles.card} onPress={() => {}}>
-          <Text style={styles.title}>{title}</Text>
-          {body ? <Text style={styles.body}>{body}</Text> : null}
+        <Pressable
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+          onPress={() => {}}
+        >
+          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          {body ? (
+            <Text style={[styles.body, { color: colors.textSoft }]}>
+              {body}
+            </Text>
+          ) : null}
           <View style={styles.actions}>
             <Pressable
               onPress={onCancel}
@@ -41,17 +53,19 @@ export function ConfirmDialog({
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={styles.cancelLabel}>{t(lang, "cancel")}</Text>
+              <Text style={[styles.cancelLabel, { color: colors.textSoft }]}>
+                {t(lang, "cancel")}
+              </Text>
             </Pressable>
             <Pressable
               onPress={onConfirm}
               style={({ pressed }) => [
                 styles.button,
-                styles.danger,
+                { backgroundColor: colors.danger },
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={styles.dangerLabel}>
+              <Text style={[styles.dangerLabel, { color: colors.onAccent }]}>
                 {confirmLabel ?? t(lang, "confirm")}
               </Text>
             </Pressable>
@@ -65,7 +79,7 @@ export function ConfirmDialog({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(28,27,25,0.35)",
+    backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
@@ -73,18 +87,13 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 380,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  title: { fontSize: 17, color: colors.text, ...font.medium },
-  body: {
-    fontSize: 15,
-    color: colors.textMuted,
-    lineHeight: 21,
-    ...font.regular,
-  },
+  title: { fontSize: 17, ...font.semibold },
+  body: { fontSize: 15, lineHeight: 21, ...font.regular },
   actions: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -94,10 +103,9 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
   },
   pressed: { opacity: 0.7 },
-  danger: { backgroundColor: colors.danger },
-  cancelLabel: { fontSize: 15, color: colors.textMuted, ...font.regular },
-  dangerLabel: { fontSize: 15, color: "#fff", ...font.medium },
+  cancelLabel: { fontSize: 15, ...font.regular },
+  dangerLabel: { fontSize: 15, ...font.medium },
 });

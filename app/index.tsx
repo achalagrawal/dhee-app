@@ -31,7 +31,7 @@ function OnboardingGate() {
   const profile = useQuery(api.users.currentProfile);
   if (profile === undefined) return <Splash />;
   if (!profile?.onboarded) return <Redirect href="/onboarding" />;
-  return <Redirect href="/threads" />;
+  return <Redirect href="/home" />;
 }
 
 function Splash() {

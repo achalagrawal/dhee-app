@@ -26,6 +26,7 @@
     "@convex-dev/agent": "^0.6.4",
     "@convex-dev/auth": "^0.0.94",
     "@convex-dev/workflow": "^0.4.4",
+    "@expo-google-fonts/hanken-grotesk": "^0.4.3",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/noto-sans-devanagari": "^0.4.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -34,6 +35,7 @@
     "ai": "^6.0.232",
     "convex": "^1.42.3",
     "expo": "^57.0.7",
+    "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.6",
     "expo-font": "~57.0.1",
     "expo-linking": "~57.0.3",
@@ -49,6 +51,7 @@
     "react-native-reanimated": "~4.5.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.25.2",
+    "react-native-svg": "15.15.4",
     "react-native-web": "~0.21.0",
     "zod": "^4.4.3"
   },

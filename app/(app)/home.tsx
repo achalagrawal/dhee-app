@@ -2,7 +2,6 @@ import { useMutation, useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -37,11 +36,11 @@ export default function Home() {
   const send = async () => {
     const prompt = draft.trim();
     if (!prompt || busy) return;
-    // True "don't save" incognito needs a non-persisting chat path on the
-    // backend; until that exists, refuse to send rather than silently save a
-    // conversation the banner promised wouldn't be kept.
+    // Incognito hands the prompt to the ephemeral chat, which never touches a
+    // thread — nothing about it is saved.
     if (incognito) {
-      Alert.alert(t(lang, "incognito"), t(lang, "comingSoon"));
+      setDraft("");
+      router.push({ pathname: "/chat/incognito", params: { prompt } });
       return;
     }
     setBusy(true);

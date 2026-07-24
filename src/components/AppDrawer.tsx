@@ -239,7 +239,7 @@ export function AppDrawer() {
           ]}
         >
           <Pressable style={styles.accountBtn} onPress={() => go("/settings")}>
-            <Avatar name={account?.name} size={30} />
+            <Avatar name={account?.name} size={30} uri={account?.avatarUrl} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text
                 numberOfLines={1}

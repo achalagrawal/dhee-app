@@ -1,4 +1,4 @@
-import { usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -29,6 +29,8 @@ export default function History() {
   const [menuThread, setMenuThread] = useState<{
     id: string;
     title?: string;
+    starred: boolean;
+    pinned: boolean;
   } | null>(null);
 
   const { results, status, loadMore } = usePaginatedQuery(
@@ -36,13 +38,84 @@ export default function History() {
     {},
     { initialNumItems: 30 },
   );
+  const flags = useQuery(api.chat.threadFlags);
 
-  const groups = useMemo(
-    () => groupByTime(results, (thr) => thr._creationTime),
-    [results],
+  const flagMap = useMemo(() => {
+    const m = new Map<string, { starred: boolean; pinned: boolean }>();
+    for (const f of flags ?? [])
+      m.set(f.threadId, { starred: f.starred, pinned: f.pinned });
+    return m;
+  }, [flags]);
+
+  // Starred conversations get their own section at the top and are dropped
+  // from the recency groups so they aren't listed twice. Within each recency
+  // group, pinned conversations float to the top.
+  const starred = useMemo(
+    () => results.filter((thr) => flagMap.get(thr._id)?.starred),
+    [results, flagMap],
   );
+  const groups = useMemo(() => {
+    const rest = results.filter((thr) => !flagMap.get(thr._id)?.starred);
+    return groupByTime(rest, (thr) => thr._creationTime).map((g) => ({
+      ...g,
+      items: [...g.items].sort(
+        (a, b) =>
+          Number(!!flagMap.get(b._id)?.pinned) -
+          Number(!!flagMap.get(a._id)?.pinned),
+      ),
+    }));
+  }, [results, flagMap]);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const renderRow = (thr: (typeof results)[number], showBorder: boolean) => {
+    const flag = flagMap.get(thr._id);
+    return (
+      <Pressable
+        key={thr._id}
+        onPress={() => router.push(`/chat/${thr._id}`)}
+        style={({ pressed }) => [
+          styles.row,
+          showBorder && styles.rowBorder,
+          pressed && { backgroundColor: colors.surface2 },
+        ]}
+      >
+        {flag?.pinned ? (
+          <Icon name="history" size={13} color={colors.textFaint} />
+        ) : null}
+        {flag?.starred ? (
+          <Icon name="bookmark" size={13} color={colors.accentStrong} filled />
+        ) : null}
+        <View style={styles.rowMain}>
+          <Text style={styles.rowTitle} numberOfLines={1}>
+            {thr.title?.trim() || t(lang, "newConversation")}
+          </Text>
+          {thr.summary ? (
+            <Text style={styles.rowSummary} numberOfLines={1}>
+              {thr.summary}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={styles.rowTime}>
+          {relativeTime(thr._creationTime, lang)}
+        </Text>
+        <IconButton
+          name="dots"
+          size={34}
+          iconSize={16}
+          accessibilityLabel={t(lang, "conversationOptions")}
+          onPress={() =>
+            setMenuThread({
+              id: thr._id,
+              title: thr.title,
+              starred: !!flag?.starred,
+              pinned: !!flag?.pinned,
+            })
+          }
+        />
+      </Pressable>
+    );
+  };
 
   return (
     <AppShell>
@@ -68,47 +141,25 @@ export default function History() {
             </Text>
           </View>
         ) : (
-          groups.map((g) => (
-            <View key={g.bucket} style={styles.group}>
-              <Text style={styles.groupLabel}>{t(lang, g.bucket)}</Text>
-              <View style={styles.card}>
-                {g.items.map((thr, i) => (
-                  <Pressable
-                    key={thr._id}
-                    onPress={() => router.push(`/chat/${thr._id}`)}
-                    style={({ pressed }) => [
-                      styles.row,
-                      i > 0 && styles.rowBorder,
-                      pressed && { backgroundColor: colors.surface2 },
-                    ]}
-                  >
-                    <View style={styles.rowMain}>
-                      <Text style={styles.rowTitle} numberOfLines={1}>
-                        {thr.title?.trim() || t(lang, "newConversation")}
-                      </Text>
-                      {thr.summary ? (
-                        <Text style={styles.rowSummary} numberOfLines={1}>
-                          {thr.summary}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Text style={styles.rowTime}>
-                      {relativeTime(thr._creationTime, lang)}
-                    </Text>
-                    <IconButton
-                      name="dots"
-                      size={34}
-                      iconSize={16}
-                      accessibilityLabel={t(lang, "conversationOptions")}
-                      onPress={() =>
-                        setMenuThread({ id: thr._id, title: thr.title })
-                      }
-                    />
-                  </Pressable>
-                ))}
+          <>
+            {starred.length > 0 ? (
+              <View style={styles.group}>
+                <Text style={styles.groupLabel}>{t(lang, "starred")}</Text>
+                <View style={styles.card}>
+                  {starred.map((thr, i) => renderRow(thr, i > 0))}
+                </View>
               </View>
-            </View>
-          ))
+            ) : null}
+
+            {groups.map((g) => (
+              <View key={g.bucket} style={styles.group}>
+                <Text style={styles.groupLabel}>{t(lang, g.bucket)}</Text>
+                <View style={styles.card}>
+                  {g.items.map((thr, i) => renderRow(thr, i > 0))}
+                </View>
+              </View>
+            ))}
+          </>
         )}
 
         {status === "CanLoadMore" ? (
@@ -121,6 +172,8 @@ export default function History() {
       <ThreadMenuSheet
         threadId={menuThread?.id ?? null}
         currentTitle={menuThread?.title}
+        starred={menuThread?.starred}
+        pinned={menuThread?.pinned}
         onClose={() => setMenuThread(null)}
       />
     </AppShell>

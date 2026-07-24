@@ -21,17 +21,20 @@ import { Icon, type IconName } from "./ui";
 type Props = {
   threadId: string | null;
   currentTitle?: string;
+  starred?: boolean;
+  pinned?: boolean;
   onClose: () => void;
   /** Called after a delete so the caller can navigate away if needed. */
   onDeleted?: (threadId: string) => void;
 };
 
-// Bottom-sheet options for a conversation. Rename and Delete are wired to the
-// existing mutations; Star / Pin / Share are rendered for fidelity and marked
-// as pending (no backend for them yet).
+// Bottom-sheet options for a conversation. Rename, Delete, Star and Pin are
+// wired to their mutations; Share is still pending (no backend yet).
 export function ThreadMenuSheet({
   threadId,
   currentTitle,
+  starred = false,
+  pinned = false,
   onClose,
   onDeleted,
 }: Props) {
@@ -40,6 +43,8 @@ export function ThreadMenuSheet({
   const insets = useSafeAreaInsets();
   const renameThread = useMutation(api.chat.renameThread);
   const deleteThread = useMutation(api.chat.deleteThread);
+  const setStarred = useMutation(api.chat.setStarred);
+  const setPinned = useMutation(api.chat.setPinned);
 
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
@@ -68,11 +73,24 @@ export function ThreadMenuSheet({
     label: string;
     onPress: () => void;
     danger?: boolean;
+    filled?: boolean;
   }[] = [
     {
       icon: "bookmark",
-      label: t(lang, "star"),
-      onPress: () => soon(t(lang, "star")),
+      label: t(lang, starred ? "unstar" : "star"),
+      filled: starred,
+      onPress: () => {
+        if (threadId) void setStarred({ threadId, starred: !starred });
+        onClose();
+      },
+    },
+    {
+      icon: "history",
+      label: t(lang, pinned ? "unpin" : "pin"),
+      onPress: () => {
+        if (threadId) void setPinned({ threadId, pinned: !pinned });
+        onClose();
+      },
     },
     {
       icon: "edit",
@@ -170,7 +188,14 @@ export function ThreadMenuSheet({
                 <Icon
                   name={row.icon}
                   size={18}
-                  color={row.danger ? colors.danger : colors.textSoft}
+                  color={
+                    row.danger
+                      ? colors.danger
+                      : row.filled
+                        ? colors.accentStrong
+                        : colors.textSoft
+                  }
+                  filled={row.filled}
                 />
                 <Text
                   style={[

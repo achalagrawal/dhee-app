@@ -6,14 +6,17 @@ import {
   updateThreadMetadata,
   vStreamArgs,
 } from "@convex-dev/agent";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { z } from "zod";
 import { components, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   type MutationCtx,
   type QueryCtx,
+  action,
   internalAction,
   mutation,
   query,
@@ -41,6 +44,35 @@ async function authorizeThread(
   );
   if (threadUserId !== userId) {
     throw new Error("Not your conversation.");
+  }
+}
+
+// Upsert Dhee's per-thread metadata row. Threads originate in the agent
+// component, so their first `threadMeta` row is created lazily the first time
+// we need to attach something (a turn count, a star, a pin).
+async function upsertThreadMeta(
+  ctx: MutationCtx,
+  threadId: string,
+  userId: Id<"users">,
+  patch: Partial<{
+    turnsSinceExtraction: number;
+    starred: boolean;
+    pinned: boolean;
+  }>,
+): Promise<void> {
+  const meta = await ctx.db
+    .query("threadMeta")
+    .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+    .unique();
+  if (meta) {
+    await ctx.db.patch(meta._id, patch);
+  } else {
+    await ctx.db.insert("threadMeta", {
+      userId,
+      threadId,
+      turnsSinceExtraction: 0,
+      ...patch,
+    });
   }
 }
 
@@ -86,15 +118,9 @@ export const sendMessage = mutation({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .unique();
     const turns = (meta?.turnsSinceExtraction ?? 0) + 1;
-    if (meta) {
-      await ctx.db.patch(meta._id, { turnsSinceExtraction: turns });
-    } else {
-      await ctx.db.insert("threadMeta", {
-        userId,
-        threadId,
-        turnsSinceExtraction: turns,
-      });
-    }
+    await upsertThreadMeta(ctx, threadId, userId, {
+      turnsSinceExtraction: turns,
+    });
 
     await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
       threadId,
@@ -109,6 +135,43 @@ export const sendMessage = mutation({
       });
     }
     return null;
+  },
+});
+
+// Incognito: a one-shot reply that persists nothing. It reads no personal
+// context block and passes `saveMessages: "none"`, so the exchange leaves no
+// trace — no thread, no message rows, no memory extraction. The client holds
+// the transcript in memory and sends the whole history each turn. It still
+// grounds in the corpus (tools run during generation), just statelessly.
+export const incognitoReply = action({
+  args: {
+    messages: v.array(
+      v.object({
+        role: v.union(v.literal("user"), v.literal("assistant")),
+        text: v.string(),
+      }),
+    ),
+  },
+  returns: v.string(),
+  handler: async (ctx, { messages }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not signed in.");
+    const { text } = await dhee.generateText(
+      ctx,
+      { userId },
+      {
+        system: buildSystemPrompt(""),
+        messages: messages.map((m) => ({ role: m.role, content: m.text })),
+      },
+      {
+        // Persist nothing, and pull in no prior context — a userId is required
+        // by the agent, but recentMessages:0 + no search keeps the turn
+        // sandboxed to just what the client sent.
+        storageOptions: { saveMessages: "none" },
+        contextOptions: { recentMessages: 0, searchOptions: { limit: 0 } },
+      },
+    );
+    return text;
   },
 });
 
@@ -208,6 +271,11 @@ export const deleteThread = mutation({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .unique();
     if (meta) await ctx.db.delete(meta._id);
+    const feedback = await ctx.db
+      .query("messageFeedback")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .collect();
+    for (const row of feedback) await ctx.db.delete(row._id);
     return null;
   },
 });
@@ -229,12 +297,121 @@ export const deleteAllThreads = mutation({
     }
     const metas = await ctx.db
       .query("threadMeta")
-      .withIndex("by_thread")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    for (const meta of metas) {
-      if (meta.userId === userId) await ctx.db.delete(meta._id);
-    }
+    for (const meta of metas) await ctx.db.delete(meta._id);
+    const feedback = await ctx.db
+      .query("messageFeedback")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of feedback) await ctx.db.delete(row._id);
     return page.length;
+  },
+});
+
+// ---- Star / pin -----------------------------------------------------------
+
+export const setStarred = mutation({
+  args: { threadId: v.string(), starred: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { threadId, starred }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+    await upsertThreadMeta(ctx, threadId, userId, { starred });
+    return null;
+  },
+});
+
+export const setPinned = mutation({
+  args: { threadId: v.string(), pinned: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { threadId, pinned }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+    await upsertThreadMeta(ctx, threadId, userId, { pinned });
+    return null;
+  },
+});
+
+// The star/pin flags for the signed-in person's threads. Returned as a flat
+// list (only threads that carry a flag) so the client can build a lookup and
+// merge it onto the agent component's thread list.
+export const threadFlags = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      threadId: v.string(),
+      starred: v.boolean(),
+      pinned: v.boolean(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    const metas = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    return metas
+      .filter((m) => m.starred || m.pinned)
+      .map((m) => ({
+        threadId: m.threadId,
+        starred: !!m.starred,
+        pinned: !!m.pinned,
+      }));
+  },
+});
+
+// ---- Message feedback -----------------------------------------------------
+
+export const setMessageFeedback = mutation({
+  args: {
+    threadId: v.string(),
+    messageId: v.string(),
+    // null clears an existing rating (toggling the active thumb off).
+    rating: v.union(v.literal("up"), v.literal("down"), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, { threadId, messageId, rating }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+    const existing = await ctx.db
+      .query("messageFeedback")
+      .withIndex("by_message", (q) => q.eq("messageId", messageId))
+      .unique();
+    if (rating === null) {
+      if (existing) await ctx.db.delete(existing._id);
+      return null;
+    }
+    if (existing) {
+      await ctx.db.patch(existing._id, { rating });
+    } else {
+      await ctx.db.insert("messageFeedback", {
+        userId,
+        threadId,
+        messageId,
+        rating,
+        createdAt: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+export const threadFeedback = query({
+  args: { threadId: v.string() },
+  returns: v.array(
+    v.object({
+      messageId: v.string(),
+      rating: v.union(v.literal("up"), v.literal("down")),
+    }),
+  ),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const rows = await ctx.db
+      .query("messageFeedback")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .collect();
+    return rows.map((r) => ({ messageId: r.messageId, rating: r.rating }));
   },
 });
 

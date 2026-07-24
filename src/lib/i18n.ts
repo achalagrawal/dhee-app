@@ -127,10 +127,18 @@ const strings = {
     accentIndigo: "Indigo",
     // Thread options
     star: "Star",
+    unstar: "Unstar",
     pin: "Pin",
+    unpin: "Unpin",
     shareLabel: "Share",
     rename: "Rename",
     renamePlaceholder: "Conversation name",
+    // Incognito chat
+    incognitoTitle: "Incognito",
+    incognitoIntro:
+      "This chat won't be saved to your history or used to shape what Dhee remembers.",
+    incognitoEnd: "End incognito chat",
+    changePhoto: "Change photo",
   },
   hi: {
     appName: "धी",
@@ -254,10 +262,18 @@ const strings = {
     accentIndigo: "इंडिगो",
     // Thread options
     star: "तारांकित करें",
+    unstar: "तारांकित हटाएँ",
     pin: "पिन करें",
+    unpin: "पिन हटाएँ",
     shareLabel: "साझा करें",
     rename: "नाम बदलें",
     renamePlaceholder: "बातचीत का नाम",
+    // Incognito chat
+    incognitoTitle: "गुप्त",
+    incognitoIntro:
+      "यह बातचीत आपके इतिहास में सहेजी नहीं जाएगी और न ही धी की याददाश्त में जुड़ेगी।",
+    incognitoEnd: "गुप्त बातचीत समाप्त करें",
+    changePhoto: "फ़ोटो बदलें",
   },
 } as const;
 

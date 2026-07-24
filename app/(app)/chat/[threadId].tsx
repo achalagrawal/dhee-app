@@ -1,5 +1,5 @@
 import { useUIMessages, type UIMessage } from "@convex-dev/agent/react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -34,10 +34,33 @@ export default function Chat() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const sendMessage = useMutation(api.chat.sendMessage);
+  const setFeedback = useMutation(api.chat.setMessageFeedback);
   const { results } = useUIMessages(
     api.chat.listThreadMessages,
     threadId ? { threadId } : "skip",
     { initialNumItems: 50, stream: true },
+  );
+  const feedback = useQuery(
+    api.chat.threadFeedback,
+    threadId ? { threadId } : "skip",
+  );
+  const feedbackMap = useMemo(() => {
+    const m = new Map<string, "up" | "down">();
+    for (const f of feedback ?? []) m.set(f.messageId, f.rating);
+    return m;
+  }, [feedback]);
+
+  const rate = useCallback(
+    (messageId: string, next: "up" | "down") => {
+      if (!threadId) return;
+      const current = feedbackMap.get(messageId);
+      void setFeedback({
+        threadId,
+        messageId,
+        rating: current === next ? null : next,
+      });
+    },
+    [threadId, feedbackMap, setFeedback],
   );
 
   const generating = useMemo(
@@ -112,6 +135,8 @@ export default function Chat() {
               colors={colors}
               lang={lang}
               styles={styles}
+              rating={feedbackMap.get(item.key) ?? null}
+              onRate={(next) => rate(item.key, next)}
             />
           )}
           contentContainerStyle={styles.list}
@@ -171,12 +196,16 @@ function Message({
   colors,
   lang,
   styles,
+  rating,
+  onRate,
 }: {
   message: UIMessage;
   isLast: boolean;
   colors: Colors;
   lang: ReturnType<typeof useLanguage>;
   styles: ReturnType<typeof makeStyles>;
+  rating: "up" | "down" | null;
+  onRate: (rating: "up" | "down") => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -211,16 +240,6 @@ function Message({
   if (!message.text.trim() && !done) return null;
 
   const actions: { icon: IconName; label: string; onPress: () => void }[] = [
-    {
-      icon: "thumbUp",
-      label: t(lang, "goodResponse"),
-      onPress: () => soon(t(lang, "goodResponse")),
-    },
-    {
-      icon: "thumbDown",
-      label: t(lang, "badResponse"),
-      onPress: () => soon(t(lang, "badResponse")),
-    },
     {
       icon: "bookmark",
       label: t(lang, "saveHighlight"),
@@ -262,6 +281,30 @@ function Message({
               <Text style={styles.copyLabel}>
                 {copied ? t(lang, "copied") : t(lang, "copy")}
               </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => onRate("up")}
+              hitSlop={4}
+              accessibilityLabel={t(lang, "goodResponse")}
+              style={styles.actionBtn}
+            >
+              <Icon
+                name="thumbUp"
+                size={15}
+                color={rating === "up" ? colors.accentStrong : colors.textFaint}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => onRate("down")}
+              hitSlop={4}
+              accessibilityLabel={t(lang, "badResponse")}
+              style={styles.actionBtn}
+            >
+              <Icon
+                name="thumbDown"
+                size={15}
+                color={rating === "down" ? colors.danger : colors.textFaint}
+              />
             </Pressable>
             {actions.map((a) => (
               <Pressable

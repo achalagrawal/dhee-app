@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   type StyleProp,
   StyleSheet,
@@ -21,15 +22,25 @@ function initials(name?: string | null): string {
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "•";
 }
 
-/** Circular avatar showing initials over an accent-soft field. */
+/** Circular avatar — the uploaded photo when present, else initials. */
 export function Avatar({
   name,
   size = 30,
+  uri,
 }: {
   name?: string | null;
   size?: number;
+  uri?: string | null;
 }) {
   const { colors } = useTheme();
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    );
+  }
   return (
     <View
       style={{

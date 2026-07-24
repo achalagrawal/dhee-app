@@ -42,7 +42,35 @@ export const currentProfile = query({
       onboarded: profile.onboarded,
       preferredLanguage: profile.preferredLanguage,
       name: profile.name,
+      avatarUrl: profile.avatarId
+        ? await ctx.storage.getUrl(profile.avatarId)
+        : null,
     };
+  },
+});
+
+// A short-lived URL the client POSTs the raw image bytes to. The upload
+// returns a storageId, which the client hands back to `setAvatar`.
+export const generateAvatarUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    await requireUserId(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const setAvatar = mutation({
+  args: { storageId: v.id("_storage") },
+  returns: v.null(),
+  handler: async (ctx, { storageId }) => {
+    const userId = await requireUserId(ctx);
+    const profile = await getProfile(ctx, userId);
+    if (!profile) throw new Error("No profile.");
+    // Drop the previous photo so storage doesn't accumulate orphans.
+    if (profile.avatarId) await ctx.storage.delete(profile.avatarId);
+    await ctx.db.patch(profile._id, { avatarId: storageId });
+    return null;
   },
 });
 
@@ -110,6 +138,7 @@ export const accountSummary = query({
     observationCount: v.number(),
     inquiryCount: v.number(),
     conceptCount: v.number(),
+    avatarUrl: v.union(v.string(), v.null()),
   }),
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
@@ -139,6 +168,9 @@ export const accountSummary = query({
       observationCount: observations.length,
       inquiryCount: inquiries.length,
       conceptCount: concepts.length,
+      avatarUrl: profile?.avatarId
+        ? await ctx.storage.getUrl(profile.avatarId)
+        : null,
     };
   },
 });

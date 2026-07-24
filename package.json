@@ -38,6 +38,7 @@
     "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.6",
     "expo-font": "~57.0.1",
+    "expo-image-picker": "~57.0.6",
     "expo-linking": "~57.0.3",
     "expo-router": "^57.0.7",
     "expo-secure-store": "^57.0.1",

@@ -1,5 +1,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -40,6 +41,10 @@ export default function Settings() {
   const setLanguage = useMutation(api.users.setLanguage);
   const forgetEverything = useMutation(api.understanding.forgetEverything);
   const deleteAllThreads = useMutation(api.chat.deleteAllThreads);
+  const generateAvatarUploadUrl = useMutation(
+    api.users.generateAvatarUploadUrl,
+  );
+  const setAvatar = useMutation(api.users.setAvatar);
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending>(null);
@@ -68,6 +73,29 @@ export default function Settings() {
     setPending(null);
   };
 
+  const pickAvatar = async () => {
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (picked.canceled || !picked.assets[0]) return;
+    try {
+      const uploadUrl = await generateAvatarUploadUrl();
+      const blob = await (await fetch(picked.assets[0].uri)).blob();
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "image/jpeg" },
+        body: blob,
+      });
+      const { storageId } = await res.json();
+      await setAvatar({ storageId });
+    } catch {
+      Alert.alert(t(lang, "changePhoto"), t(lang, "somethingWentWrong"));
+    }
+  };
+
   const themeOptions: { value: ThemePref; label: string }[] = [
     { value: "system", label: t(lang, "themeSystem") },
     { value: "light", label: t(lang, "themeLight") },
@@ -82,12 +110,13 @@ export default function Settings() {
         {/* Account card */}
         <View style={styles.accountCard}>
           <Pressable
-            onPress={() =>
-              Alert.alert(t(lang, "appearance"), t(lang, "comingSoon"))
-            }
-            accessibilityLabel="Upload a photo"
+            onPress={pickAvatar}
+            accessibilityLabel={t(lang, "changePhoto")}
           >
-            <Avatar name={account.name} size={50} />
+            <Avatar name={account.name} size={50} uri={account.avatarUrl} />
+            <View style={styles.avatarBadge}>
+              <Icon name="plus" size={11} color={colors.onAccent} />
+            </View>
           </Pressable>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.accountName} numberOfLines={1}>
@@ -479,6 +508,19 @@ function makeStyles(colors: Colors) {
       borderRadius: radius.lg,
       padding: 16,
       marginTop: 18,
+    },
+    avatarBadge: {
+      position: "absolute",
+      right: -2,
+      bottom: -2,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.accent,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: colors.surface2,
     },
     accountName: { fontSize: 17, color: colors.text, ...font.semibold },
     accountSub: {

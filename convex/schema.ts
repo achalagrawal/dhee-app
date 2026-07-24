@@ -39,6 +39,9 @@ export default defineSchema({
     preferredLanguage: v.union(v.literal("en"), v.literal("hi")),
     onboarded: v.boolean(),
     createdAt: v.number(),
+    // Profile photo, held in Convex file storage. Optional — the initials
+    // avatar is the fallback.
+    avatarId: v.optional(v.id("_storage")),
   }).index("by_user", ["userId"]),
 
   // The life questions a person is sitting with — the heart of the product.
@@ -80,10 +83,29 @@ export default defineSchema({
     generatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
-  // Turn counter driving the every-N-turns extraction trigger.
+  // Dhee's own per-thread metadata, keyed by the agent component's threadId.
+  // Holds the extraction turn counter plus user-set flags (star / pin) that
+  // the agent component's thread table doesn't carry.
   threadMeta: defineTable({
     userId: v.id("users"),
     threadId: v.string(),
     turnsSinceExtraction: v.number(),
-  }).index("by_thread", ["threadId"]),
+    starred: v.optional(v.boolean()),
+    pinned: v.optional(v.boolean()),
+  })
+    .index("by_thread", ["threadId"])
+    .index("by_user", ["userId"]),
+
+  // Thumbs up/down on an assistant message. One row per (user, message);
+  // messageId is the agent UIMessage key. Cleared when its thread is deleted.
+  messageFeedback: defineTable({
+    userId: v.id("users"),
+    threadId: v.string(),
+    messageId: v.string(),
+    rating: v.union(v.literal("up"), v.literal("down")),
+    createdAt: v.number(),
+  })
+    .index("by_message", ["messageId"])
+    .index("by_thread", ["threadId"])
+    .index("by_user", ["userId"]),
 });

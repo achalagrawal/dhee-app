@@ -31,12 +31,25 @@ import { useLanguage } from "../../src/lib/useLanguage";
 
 type Pending = "forget" | "deleteChats" | null;
 
+// Matches the server cap in users.setPersonalization. Kept here only so the
+// input can stop typing at the same place the server would truncate — the
+// server is still the one that enforces it.
+const ABOUT_YOU_MAX = 600;
+
+type PersonalFields = {
+  nickname: string;
+  occupation: string;
+  aboutYou: string;
+};
+
 export default function Settings() {
   const { colors, mode, pref, accent, setPref, setAccent } = useTheme();
   const lang = useLanguage();
   const account = useQuery(api.users.accountSummary);
+  const profile = useQuery(api.users.currentProfile);
 
   const setName = useMutation(api.users.setName);
+  const setPersonalization = useMutation(api.users.setPersonalization);
   const setLanguage = useMutation(api.users.setLanguage);
   const forgetEverything = useMutation(api.understanding.forgetEverything);
   const deleteAllThreads = useMutation(api.chat.deleteAllThreads);
@@ -47,6 +60,12 @@ export default function Settings() {
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending>(null);
+  // Held locally while typing, then committed on blur — the same quiet feel as
+  // the name field above, with no per-field Save button. Null means "nothing
+  // edited yet", so the server's value shows through.
+  const [personalDraft, setPersonalDraft_] = useState<Partial<PersonalFields>>(
+    {},
+  );
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -65,6 +84,23 @@ export default function Settings() {
     if (draftName === null) return;
     void setName({ name: draftName });
     setDraftName(null);
+  };
+
+  // What's on screen: the draft where one exists, otherwise the stored value.
+  const personal: PersonalFields = {
+    nickname: personalDraft.nickname ?? profile?.nickname ?? "",
+    occupation: personalDraft.occupation ?? profile?.occupation ?? "",
+    aboutYou: personalDraft.aboutYou ?? profile?.aboutYou ?? "",
+  };
+  const setPersonalDraft = (patch: Partial<PersonalFields>) =>
+    setPersonalDraft_((prev) => ({ ...prev, ...patch }));
+  const commitPersonal = () => {
+    // Sends only what was actually edited, so an untouched field is left alone
+    // rather than rewritten with its own value. An edited-to-empty field is
+    // still sent — clearing has to reach the prompt.
+    if (Object.keys(personalDraft).length === 0) return;
+    void setPersonalization(personalDraft);
+    setPersonalDraft_({});
   };
   const runPending = () => {
     if (pending === "forget") void forgetEverything();
@@ -210,6 +246,73 @@ export default function Settings() {
           </View>
         </Group>
 
+        {/* More about you — this is what Dhee is told, verbatim. */}
+        <Group
+          label={t(lang, "moreAboutYou")}
+          hint={t(lang, "moreAboutYouHint")}
+          colors={colors}
+        >
+          <View style={styles.block}>
+            <Text style={styles.blockLabel}>{t(lang, "nickname")}</Text>
+            <TextInput
+              style={styles.input}
+              value={personal.nickname}
+              onChangeText={(v) => setPersonalDraft({ nickname: v })}
+              onBlur={commitPersonal}
+              onSubmitEditing={commitPersonal}
+              placeholder={t(lang, "nicknamePlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="done"
+              maxLength={60}
+            />
+          </View>
+          <View
+            style={[
+              styles.block,
+              styles.blockBorder,
+              { borderTopColor: colors.border },
+            ]}
+          >
+            <Text style={styles.blockLabel}>{t(lang, "occupation")}</Text>
+            <TextInput
+              style={styles.input}
+              value={personal.occupation}
+              onChangeText={(v) => setPersonalDraft({ occupation: v })}
+              onBlur={commitPersonal}
+              onSubmitEditing={commitPersonal}
+              placeholder={t(lang, "occupationPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="done"
+              maxLength={120}
+            />
+          </View>
+          <View
+            style={[
+              styles.block,
+              styles.blockBorder,
+              { borderTopColor: colors.border },
+            ]}
+          >
+            <Text style={styles.blockLabel}>{t(lang, "aboutYou")}</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={personal.aboutYou}
+              onChangeText={(v) => setPersonalDraft({ aboutYou: v })}
+              onBlur={commitPersonal}
+              multiline
+              placeholder={t(lang, "aboutYouPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              maxLength={ABOUT_YOU_MAX}
+            />
+            {/* Only once the cap is close — otherwise it's noise. */}
+            {personal.aboutYou.length > ABOUT_YOU_MAX - 100 ? (
+              <Text style={styles.counter}>
+                {personal.aboutYou.length} / {ABOUT_YOU_MAX}
+              </Text>
+            ) : null}
+          </View>
+        </Group>
+
         {/* Data */}
         <Group label={t(lang, "dataAndPrivacy")} colors={colors}>
           <NavRow
@@ -296,10 +399,13 @@ function accentLabel(
 
 function Group({
   label,
+  hint,
   colors,
   children,
 }: {
   label: string;
+  /** One line under the header, for sections that need to say what they do. */
+  hint?: string;
   colors: Colors;
   children: React.ReactNode;
 }) {
@@ -311,13 +417,28 @@ function Group({
           letterSpacing: 0.5,
           textTransform: "uppercase",
           color: colors.textFaint,
-          marginBottom: 8,
+          marginBottom: hint ? 4 : 8,
           marginLeft: 4,
           ...font.semibold,
         }}
       >
         {label}
       </Text>
+      {hint ? (
+        <Text
+          style={{
+            fontSize: 13,
+            lineHeight: 19,
+            color: colors.textFaint,
+            marginBottom: 8,
+            marginLeft: 4,
+            marginRight: 4,
+            ...font.regular,
+          }}
+        >
+          {hint}
+        </Text>
+      ) : null}
       <View
         style={{
           borderWidth: 1,
@@ -535,6 +656,13 @@ function makeStyles(colors: Colors) {
       fontSize: 16,
       color: colors.text,
       paddingVertical: 2,
+      ...font.regular,
+    },
+    textArea: { minHeight: 56, textAlignVertical: "top", lineHeight: 23 },
+    counter: {
+      alignSelf: "flex-end",
+      fontSize: 12,
+      color: colors.textFaint,
       ...font.regular,
     },
     swatchRow: { flexDirection: "row", gap: 12 },

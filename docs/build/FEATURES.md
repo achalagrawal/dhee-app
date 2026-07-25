@@ -69,7 +69,7 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 | Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts |
 | Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                     |
 | Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                    |
-| Scroll-to-bottom button + pull-to-refresh | ⬜     | —                                        | `state.showScrollBtn/pullDist`                      |
+| Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)         |
 
 ## Epic 4 — History / Library
 

@@ -62,7 +62,7 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 | Thinking indicator                        | 🟡     | —                                        | `state.thinking`                                    |
 | Stop generating                           | ⬜     | —                                        | `state.aborted`                                     |
 | Edit & resend user message                | 🟡     | design only                              | `state.editingIndex/editDraft/resendCount`          |
-| Regenerate response                       | ⬜     | —                                        | Claude/ChatGPT convention                           |
+| Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared           |
 | Copy message                              | ✅     | clipboard                                |                                                     |
 | Message feedback (👍/👎)                  | 🟡     | `chat.setMessageFeedback/threadFeedback` | Backend done                                        |
 | Message action sheet (mobile)             | 🟡     | `ThreadMenuSheet`                        |                                                     |

@@ -33,13 +33,30 @@ import { useLanguage } from "../../../src/lib/useLanguage";
 // scroll-to-latest button takes over. Mirrors the mockup's `onMainScroll`.
 const FOLLOW_THRESHOLD = 240;
 
+// The reasons a turn can end badly. Limit-reached (#7) becomes a third once
+// the daily allowance lands — it belongs in the composer dock rather than
+// here, since its recovery is an upgrade rather than a retry.
+type Failure = null | "error" | "rate";
+
+// The backend surfaces rate limiting as a message rather than a code, so this
+// is a best-effort read of it. Getting it wrong costs the person nothing worse
+// than the generic wording.
+function failureFrom(error: unknown): Exclude<Failure, null> {
+  const text = String(error).toLowerCase();
+  return text.includes("rate") || text.includes("too many") ? "rate" : "error";
+}
+
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
   const { colors, mode } = useTheme();
   const lang = useLanguage();
   const listRef = useRef<FlatList<UIMessage>>(null);
   const [draft, setDraft] = useState("");
-  const [failed, setFailed] = useState(false);
+  // Why the last turn failed, or null if it didn't. A stop is deliberately not
+  // one of these — see docs/build/specs/chat-loop.md §7. "rate" is separate
+  // from "error" because "give it a few seconds" and "try again" ask the
+  // person to do different things.
+  const [failure, setFailure] = useState<Failure>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   // Auto-scroll follows the newest message only while the person is already
   // near the bottom. A reply streams in many chunks, so an unconditional
@@ -117,12 +134,12 @@ export default function Chat() {
     const prompt = draft.trim();
     if (!prompt || !threadId) return;
     setDraft("");
-    setFailed(false);
+    setFailure(null);
     try {
       await sendMessage({ threadId, prompt });
-    } catch {
+    } catch (e) {
       setDraft(prompt);
-      setFailed(true);
+      setFailure(failureFrom(e));
     }
   }, [draft, threadId, sendMessage]);
 
@@ -147,11 +164,11 @@ export default function Chat() {
   // offered on the newest reply — regenerating mid-thread would fork history.
   const regenerate = useCallback(async () => {
     if (!threadId) return;
-    setFailed(false);
+    setFailure(null);
     try {
       await regenerateReply({ threadId });
-    } catch {
-      setFailed(true);
+    } catch (e) {
+      setFailure(failureFrom(e));
     }
   }, [threadId, regenerateReply]);
 
@@ -169,11 +186,11 @@ export default function Chat() {
     async (messageId: string, prompt: string) => {
       if (!threadId) return;
       cancelEdit();
-      setFailed(false);
+      setFailure(null);
       try {
         await editAndResend({ threadId, messageId, prompt });
-      } catch {
-        setFailed(true);
+      } catch (e) {
+        setFailure(failureFrom(e));
       }
     },
     [threadId, editAndResend, cancelEdit],
@@ -299,11 +316,26 @@ export default function Chat() {
                     </Text>
                   </View>
                 ) : null}
-                {failed ? (
+                {failure ? (
                   <View style={styles.errorCard}>
-                    <Text style={styles.errorTitle}>
-                      {t(lang, "somethingWentWrong")}
-                    </Text>
+                    <View style={styles.errorBody}>
+                      <Text style={styles.errorTitle}>
+                        {t(
+                          lang,
+                          failure === "rate"
+                            ? "rateErrorTitle"
+                            : "modelErrorTitle",
+                        )}
+                      </Text>
+                      <Text style={styles.errorText}>
+                        {t(
+                          lang,
+                          failure === "rate"
+                            ? "rateErrorBody"
+                            : "modelErrorBody",
+                        )}
+                      </Text>
+                    </View>
                     <Pressable onPress={send} style={styles.retryBtn}>
                       <Text style={styles.retryText}>
                         {t(lang, "tryAgain")}
@@ -479,9 +511,11 @@ function Message({
     );
   }
 
-  // Before the assistant has produced text, the "considering…" indicator
-  // stands in — don't also render an empty bubble with a lone caret.
-  if (!message.text.trim() && !done) return null;
+  // Nothing to show for an empty assistant turn, whichever way it got there.
+  // Before text arrives the "considering…" indicator stands in; a turn that
+  // failed before producing any text is reported by the failure card below the
+  // transcript, not by an empty bubble offering copy and a thumbs-up.
+  if (!message.text.trim()) return null;
 
   const actions: { icon: IconName; label: string; onPress: () => void }[] = [
     {
@@ -688,7 +722,7 @@ function makeStyles(colors: Colors) {
     },
     errorCard: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
       gap: 13,
       backgroundColor: colors.surface2,
@@ -697,11 +731,17 @@ function makeStyles(colors: Colors) {
       borderRadius: radius.md,
       padding: 14,
     },
+    errorBody: { flex: 1, gap: 4 },
     errorTitle: {
-      flex: 1,
       color: colors.text,
       fontSize: 14.5,
       ...font.semibold,
+    },
+    errorText: {
+      color: colors.textSoft,
+      fontSize: 14,
+      lineHeight: 21,
+      ...font.regular,
     },
     retryBtn: {
       borderWidth: 1,

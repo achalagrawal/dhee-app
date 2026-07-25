@@ -25,7 +25,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { buildSystemPrompt, dhee } from "./agents/dhee";
+import { type PromptInputs, buildSystemPrompt, dhee } from "./agents/dhee";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import { detectsCrisis } from "./lib/crisis";
 import { requireUserId } from "./users";
@@ -276,11 +276,21 @@ export const incognitoReply = action({
     const crisisFlagged = messages.some(
       (m) => m.role === "user" && detectsCrisis(m.text),
     );
+    // Personalization applies, memory does not. Incognito means "don't save
+    // this", not "pretend you don't know me" — a nickname is a setting the
+    // person maintains, while the memory block is derived from exactly the
+    // saved conversations they opted out of. See the spec's incognito section.
+    // Annotated rather than inferred: this action reads through `internal`,
+    // which includes this module, and TypeScript can't unwind that on its own.
+    const personalization: PromptInputs = await ctx.runQuery(
+      internal.users.personalizationForUser,
+      { userId },
+    );
     const { text } = await dhee.generateText(
       ctx,
       { userId },
       {
-        system: buildSystemPrompt(""),
+        system: buildSystemPrompt(personalization),
         messages: messages.map((m) => ({ role: m.role, content: m.text })),
       },
       {
@@ -303,15 +313,18 @@ export const streamReply = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, { threadId, promptMessageId, userId }) => {
-    const contextBlock = await ctx.runQuery(
-      internal.memory.contextBlockForUser,
-      { userId },
-    );
+    const [contextBlock, personalization] = await Promise.all([
+      ctx.runQuery(internal.memory.contextBlockForUser, { userId }),
+      ctx.runQuery(internal.users.personalizationForUser, { userId }),
+    ]);
     try {
       const result = await dhee.streamText(
         ctx,
         { threadId, userId },
-        { promptMessageId, system: buildSystemPrompt(contextBlock) },
+        {
+          promptMessageId,
+          system: buildSystemPrompt({ contextBlock, ...personalization }),
+        },
         { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
       );
       await result.consumeStream();

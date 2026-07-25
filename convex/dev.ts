@@ -28,7 +28,7 @@ export const smokeTest = internalAction({
         prompt:
           prompt ??
           "I got the promotion I wanted and felt nothing. What's wrong with me?",
-        system: buildSystemPrompt(""),
+        system: buildSystemPrompt(),
       },
     );
 

@@ -65,7 +65,7 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 | Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared           |
 | Copy message                              | ✅     | clipboard                                |                                                     |
 | Message feedback (👍/👎)                  | ✅     | `chat.setMessageFeedback/threadFeedback` | UI wired too; active rating shown in `accentStrong` |
-| Message action sheet (mobile)             | 🟡     | `ThreadMenuSheet`                        |                                                     |
+| Message action sheet (mobile)             | ✅     | inline actions row                       | Not building one — the inline row covers it (#18)   |
 | Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts |
 | Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                     |
 | Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                    |

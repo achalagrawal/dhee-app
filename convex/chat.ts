@@ -454,6 +454,13 @@ export const editAndResend = mutation({
       editedMessages: [...marks.edited, uiMessageKey(saved)],
     });
 
+    // An edit is a way of writing a message like any other, so the safety net
+    // covers it — otherwise rewording through edit slips past the banner.
+    // Sticky like sendMessage's: set, never cleared here.
+    if (detectsCrisis(trimmed)) {
+      await upsertThreadMeta(ctx, threadId, userId, { crisisFlagged: true });
+    }
+
     // No turn bump: this replaces a turn rather than adding one, so counting it
     // would run memory extraction a turn early.
     await ctx.scheduler.runAfter(0, internal.chat.streamReply, {

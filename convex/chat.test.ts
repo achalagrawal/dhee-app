@@ -914,6 +914,36 @@ describe("chat — crisis flag", () => {
       asUser(t, b).query(api.chat.threadCrisisFlag, { threadId: flagged }),
     ).rejects.toThrow("Not your conversation");
   });
+
+  test("an edited message can raise it too", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "thinking about work",
+    });
+    expect(await as.query(api.chat.threadCrisisFlag, { threadId })).toBe(false);
+
+    // Edit is a way of writing a message like any other — the safety net has
+    // to cover it, or rewording through edit slips past the banner.
+    const { page } = await t.run(
+      async (ctx) =>
+        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+          threadId,
+          order: "asc",
+          paginationOpts: { cursor: null, numItems: 10 },
+        }),
+    );
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: page[0]._id,
+      prompt: "some days I want to die",
+    });
+    expect(await as.query(api.chat.threadCrisisFlag, { threadId })).toBe(true);
+  });
 });
 
 describe("chat — message feedback", () => {

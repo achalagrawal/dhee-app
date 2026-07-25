@@ -56,20 +56,20 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 3 — Chat & messages
 
-| Feature                                   | Status | Where                                    | Notes                                               |
-| ----------------------------------------- | ------ | ---------------------------------------- | --------------------------------------------------- |
-| Streaming reply                           | 🟡     | `chat.streamReply`                       | Built; cadence + caret unverified against mockup    |
-| Thinking indicator                        | ✅     | `chat/[threadId].tsx`                    | Suppressed once text arrives                        |
-| Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept               |
-| Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost    |
-| Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared           |
-| Copy message                              | ✅     | clipboard                                |                                                     |
-| Message feedback (👍/👎)                  | ✅     | `chat.setMessageFeedback/threadFeedback` | UI wired too; active rating shown in `accentStrong` |
-| Message action sheet (mobile)             | ✅     | inline actions row                       | Not building one — the inline row covers it (#18)   |
-| Crisis / safety flag banner               | ✅     | `lib/crisis.ts`, `CrisisBanner`          | Server-side, EN + HI; → `/support`                  |
-| Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                     |
-| Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                    |
-| Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)         |
+| Feature                                   | Status | Where                                    | Notes                                                       |
+| ----------------------------------------- | ------ | ---------------------------------------- | ----------------------------------------------------------- |
+| Streaming reply                           | 🟡     | `chat.streamReply`                       | Built; cadence + caret unverified against mockup            |
+| Thinking indicator                        | ✅     | `chat/[threadId].tsx`                    | Suppressed once text arrives                                |
+| Stop generating                           | 🟡     | `chat.stopGeneration`                    | Tested; #13 wants the model call confirmed ending live      |
+| Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost            |
+| Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared                   |
+| Copy message                              | ✅     | clipboard                                |                                                             |
+| Message feedback (👍/👎)                  | ✅     | `chat.setMessageFeedback/threadFeedback` | UI wired too; active rating shown in `accentStrong`         |
+| Message action sheet (mobile)             | ✅     | inline actions row                       | Not building one — the inline row covers it (#18)           |
+| Crisis / safety flag banner               | 🟡     | `lib/crisis.ts`, `CrisisBanner`          | Detection tested EN+HI; banner unseen, numbers need a human |
+| Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                             |
+| Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                            |
+| Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)                 |
 
 ## Epic 4 — History / Library
 
@@ -117,7 +117,7 @@ larger personalization surface.
 | Reference past conversations (toggle)                                           | ⬜     | —                                          | `state.referenceRecord`                                                                                                  |
 | "Learn about who I am from the internet"                                        | ⬜     | —                                          | `state.learnFromWeb/learnWebOpen/learnWebInput` (Learn-from-web modal)                                                   |
 | Custom instructions (base style & tone, response length, warmth, encouragement) | ⬜     | —                                          | `state.customInstructions/baseStyle/responseLength`                                                                      |
-| "More about you" (nickname, occupation, about you)                              | ✅     | `settings.tsx`, `users.setPersonalization` | Saved on blur; clearing removes it from the prompt                                                                       |
+| "More about you" (nickname, occupation, about you)                              | 🟡     | `settings.tsx`, `users.setPersonalization` | Built; #24 wants screenshots + a real conversation                                                                       |
 | **Tradition lens**                                                              | 🟡     | `settings.tsx`, `users.setTraditions`      | Picker + onboarding step + server-side free cap. Prompt effect not yet compared across lenses on a live deployment (#25) |
 | Improve-the-model opt in/out                                                    | ⬜     | —                                          | `state.improveModel`                                                                                                     |
 
@@ -197,7 +197,7 @@ far richer than today's flat screen.
 
 | Feature                                       | Status | Notes                                            |
 | --------------------------------------------- | ------ | ------------------------------------------------ |
-| Crisis detection → safety banner              | ✅     | Server-side in `sendMessage`; EN + HI + Hinglish |
+| Crisis detection → safety banner              | 🟡     | Detection done + tested; banner not seen running |
 | Safety & limitations page (crisis resources)  | 🟡     | `/support` has the lines; full page still to do  |
 | Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName` |
 | "Not a medical or crisis service" disclaimers | ⬜     | Auth, onboarding, legal                          |

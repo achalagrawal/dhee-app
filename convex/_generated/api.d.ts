@@ -18,6 +18,7 @@ import type * as dev from "../dev.js";
 import type * as devEmail from "../devEmail.js";
 import type * as email from "../email.js";
 import type * as http from "../http.js";
+import type * as lib_crisis from "../lib/crisis.js";
 import type * as lib_mcp from "../lib/mcp.js";
 import type * as md from "../md.js";
 import type * as memory from "../memory.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   devEmail: typeof devEmail;
   email: typeof email;
   http: typeof http;
+  "lib/crisis": typeof lib_crisis;
   "lib/mcp": typeof lib_mcp;
   md: typeof md;
   memory: typeof memory;

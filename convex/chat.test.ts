@@ -686,6 +686,86 @@ describe("chat — edit & resend", () => {
   });
 });
 
+describe("chat — crisis flag", () => {
+  test("an ordinary message does not raise it", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "I'm trying to decide whether to change jobs",
+    });
+    expect(await as.query(api.chat.threadCrisisFlag, { threadId })).toBe(false);
+  });
+
+  test("a crisis phrase raises it", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "some days I just want to die",
+    });
+    expect(await as.query(api.chat.threadCrisisFlag, { threadId })).toBe(true);
+  });
+
+  test("Hindi phrasing raises it too", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "मैं आत्महत्या के बारे में सोच रहा हूँ",
+    });
+    expect(await as.query(api.chat.threadCrisisFlag, { threadId })).toBe(true);
+  });
+
+  test("stays raised for the rest of the conversation", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "I want to die",
+    });
+    // An ordinary message afterwards must not make the banner blink away.
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "anyway, about work",
+    });
+    expect(await as.query(api.chat.threadCrisisFlag, { threadId })).toBe(true);
+  });
+
+  test("is per-thread, and never leaks to another person", async () => {
+    const t = initTest();
+    const a = await createUser(t);
+    const b = await createUser(t);
+    const flagged = await asUser(t, a).mutation(api.chat.startThread, {});
+    const calm = await asUser(t, a).mutation(api.chat.startThread, {});
+    await asUser(t, a).mutation(api.chat.sendMessage, {
+      threadId: flagged,
+      prompt: "I want to die",
+    });
+
+    // A different conversation of their own starts clear.
+    expect(
+      await asUser(t, a).query(api.chat.threadCrisisFlag, { threadId: calm }),
+    ).toBe(false);
+    // And nobody else can read it at all.
+    await expect(
+      asUser(t, b).query(api.chat.threadCrisisFlag, { threadId: flagged }),
+    ).rejects.toThrow("Not your conversation");
+  });
+});
+
 describe("chat — message feedback", () => {
   test("feedback round-trips and clears with a null rating", async () => {
     const t = initTest();

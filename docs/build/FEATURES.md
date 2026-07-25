@@ -66,7 +66,7 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 | Copy message                              | ✅     | clipboard                                |                                                     |
 | Message feedback (👍/👎)                  | ✅     | `chat.setMessageFeedback/threadFeedback` | UI wired too; active rating shown in `accentStrong` |
 | Message action sheet (mobile)             | ✅     | inline actions row                       | Not building one — the inline row covers it (#18)   |
-| Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts |
+| Crisis / safety flag banner               | ✅     | `lib/crisis.ts`, `CrisisBanner`          | Server-side, EN + HI; → `/support`                  |
 | Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                     |
 | Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                    |
 | Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)         |
@@ -197,8 +197,8 @@ far richer than today's flat screen.
 
 | Feature                                       | Status | Notes                                            |
 | --------------------------------------------- | ------ | ------------------------------------------------ |
-| Crisis detection → safety banner              | ⬜     | `state.crisisFlag`                               |
-| Safety & limitations page (crisis resources)  | ⬜     | Linked from terms, FAQ, banner                   |
+| Crisis detection → safety banner              | ✅     | Server-side in `sendMessage`; EN + HI + Hinglish |
+| Safety & limitations page (crisis resources)  | 🟡     | `/support` has the lines; full page still to do  |
 | Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName` |
 | "Not a medical or crisis service" disclaimers | ⬜     | Auth, onboarding, legal                          |
 

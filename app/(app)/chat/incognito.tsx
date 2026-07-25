@@ -14,6 +14,7 @@ import {
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { Composer } from "../../../src/components/Composer";
+import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { Icon } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
 import { useShell } from "../../../src/lib/shell";
@@ -40,6 +41,10 @@ export default function IncognitoChat() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const seeded = useRef(false);
+  // Incognito saves nothing, so the flag can't live on the thread. It comes
+  // back with each reply and is held for the session — someone who chose not
+  // to be recorded still gets the safety net. Sticky, like the saved path.
+  const [crisisFlagged, setCrisisFlagged] = useState(false);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -47,12 +52,13 @@ export default function IncognitoChat() {
     async (history: Msg[]) => {
       setBusy(true);
       try {
-        const text = await reply({
+        const result = await reply({
           messages: history.map((m) => ({ role: m.role, text: m.text })),
         });
+        if (result.crisisFlagged) setCrisisFlagged(true);
         setMessages((prev) => [
           ...prev,
-          { id: `a-${Date.now()}`, role: "assistant", text },
+          { id: `a-${Date.now()}`, role: "assistant", text: result.text },
         ]);
       } catch {
         setMessages((prev) => [
@@ -110,6 +116,12 @@ export default function IncognitoChat() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        {crisisFlagged ? (
+          <View style={styles.bannerWrap}>
+            <CrisisBanner lang={lang} />
+          </View>
+        ) : null}
+
         <FlatList
           ref={listRef}
           style={styles.flex}
@@ -179,6 +191,7 @@ export default function IncognitoChat() {
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
     flex: { flex: 1 },
+    bannerWrap: { paddingHorizontal: 16, paddingTop: 12 },
     list: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, gap: 22 },
     intro: {
       flexDirection: "row",

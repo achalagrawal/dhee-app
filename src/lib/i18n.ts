@@ -120,6 +120,16 @@ const strings = {
       "Something interrupted the connection. Your message is safe — try again.",
     rateErrorTitle: "A moment, please",
     rateErrorBody: "Too many questions in a short time. Give it a few seconds.",
+    // Crisis banner + support resources
+    crisisTitle: "If you're in real distress, please reach out to a person.",
+    crisisBody:
+      "Dhee can think alongside you, but it isn't a crisis service. Talking to someone trained can help right now.",
+    crisisCta: "See support resources",
+    supportTitle: "Support resources",
+    supportIntro:
+      "If you're thinking about harming yourself, or you're frightened by what you're feeling, these lines are answered by people trained for exactly this. Tap any number to call.",
+    supportFooter:
+      "Dhee is not a crisis service and can't contact anyone on your behalf. If you're in immediate danger, please call your local emergency number.",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -266,6 +276,16 @@ const strings = {
       "कनेक्शन में कुछ रुकावट आई। आपका संदेश सुरक्षित है — फिर कोशिश करें।",
     rateErrorTitle: "एक पल रुकिए",
     rateErrorBody: "थोड़े समय में बहुत सवाल हो गए। कुछ क्षण दीजिए।",
+    // Crisis banner + support resources
+    crisisTitle: "अगर आप सचमुच तकलीफ़ में हैं, तो किसी इंसान से बात कीजिए।",
+    crisisBody:
+      "धी आपके साथ सोच सकता है, पर यह संकट सेवा नहीं है। किसी प्रशिक्षित व्यक्ति से बात करना अभी मदद कर सकता है।",
+    crisisCta: "सहायता के नंबर देखें",
+    supportTitle: "सहायता के नंबर",
+    supportIntro:
+      "अगर आपके मन में खुद को नुकसान पहुँचाने का ख़याल आ रहा है, या जो आप महसूस कर रहे हैं उससे डर लग रहा है — ये लाइनें ठीक इसी के लिए प्रशिक्षित लोग उठाते हैं। कॉल करने के लिए किसी भी नंबर पर टैप करें।",
+    supportFooter:
+      "धी संकट सेवा नहीं है और आपकी ओर से किसी से संपर्क नहीं कर सकता। अगर आप तुरंत ख़तरे में हैं, तो अपने स्थानीय आपातकालीन नंबर पर कॉल करें।",
     // History groups
     starred: "तारांकित",
     today: "आज",

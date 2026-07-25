@@ -92,6 +92,10 @@ export default defineSchema({
     turnsSinceExtraction: v.number(),
     starred: v.optional(v.boolean()),
     pinned: v.optional(v.boolean()),
+    // Raised when something the person wrote suggests they may be in danger,
+    // so the support banner survives a reload. Sticky for the life of the
+    // thread: it is set, never cleared. A new conversation starts clear.
+    crisisFlagged: v.optional(v.boolean()),
   })
     .index("by_thread", ["threadId"])
     .index("by_user", ["userId"]),

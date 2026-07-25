@@ -58,6 +58,18 @@ export default defineSchema({
     // Profile photo, held in Convex file storage. Optional — the initials
     // avatar is the fallback.
     avatarId: v.optional(v.id("_storage")),
+
+    // Personalization. Everything here goes verbatim into the system prompt,
+    // and everything here is editable and clearable by the person it
+    // describes — the same promise the "understanding of you" screen makes.
+    // See docs/build/specs/personalization.md.
+    nickname: v.optional(v.string()),
+    occupation: v.optional(v.string()),
+    aboutYou: v.optional(v.string()),
+    // Frameworks the person thinks within. An array rather than the design's
+    // comma-joined string because the free/paid distinction is a *count*, and
+    // a string would make counting a parsing problem.
+    traditions: v.optional(v.array(v.string())),
   }).index("by_user", ["userId"]),
 
   // The life questions a person is sitting with — the heart of the product.

@@ -32,19 +32,82 @@ Never say: "According to Madhyasth Darshan…" / "The philosophy teaches…" / "
 You are a companion. Not a teacher. Not a therapist. A friend who sees a little farther.\
 `;
 
-// Layer 3 injection. The context block is plain-language text derived from
-// what the person has told Dhee before, and is rebuilt from the user-model
-// tables on every extraction — so anything they delete in the app stops
-// reaching the model here.
-export function buildSystemPrompt(contextBlock: string): string {
-  if (!contextBlock.trim()) return DHEE_INSTRUCTIONS;
-  return `${DHEE_INSTRUCTIONS}
+export type PromptInputs = {
+  /** Layer 3: plain-language text derived from past conversations. */
+  contextBlock?: string;
+  /** What Dhee should call them. */
+  nickname?: string;
+  occupation?: string;
+  aboutYou?: string;
+  /** Frameworks the person has named as their lens. */
+  traditions?: string[];
+};
 
----
+function clean(value: string | undefined): string {
+  return (value ?? "").trim();
+}
 
-Some things you already know about the person you're talking with. Let this quietly inform your sense of them — do not recite it back, do not reference "what you told me before" unless they raise it first, and hold it loosely: people change, and any of this may be stale.
+// Finish a sentence built around something the person typed, without ending up
+// with "About them: New father.." when they punctuated it themselves.
+function sentence(text: string): string {
+  return /[.!?…]$/.test(text) ? text : `${text}.`;
+}
 
-${contextBlock}`;
+// Assemble the system prompt.
+//
+// Section order is the contract, not an accident (see
+// docs/build/specs/personalization.md): base instructions, then who the person
+// is, then how to frame things for them, then what's remembered — held loosely
+// and last, so it never outranks what they've stated about themselves.
+//
+// Pure function of its arguments, which is what lets the whole thing be tested
+// without going near the model. With no inputs it returns DHEE_INSTRUCTIONS
+// unchanged, byte for byte.
+export function buildSystemPrompt(inputs: PromptInputs = {}): string {
+  const sections = [DHEE_INSTRUCTIONS];
+
+  const nickname = clean(inputs.nickname);
+  const occupation = clean(inputs.occupation);
+  const aboutYou = clean(inputs.aboutYou);
+  const facts = [
+    nickname && `Call them ${nickname} when it feels natural.`,
+    occupation && `What they do: ${sentence(occupation)}`,
+    aboutYou && `About them: ${sentence(aboutYou)}`,
+  ].filter(Boolean);
+  if (facts.length > 0) {
+    sections.push(
+      `A few things this person has told you about themselves. Let it shape how you speak to them — don't recite it back at them.\n\n${facts.join("\n")}`,
+    );
+  }
+
+  // The tradition lens. This section is where the spec's narrowing of Rule 1
+  // takes effect, so the permission and its guardrail are written as one
+  // thought — someone editing this must not keep the first sentence and drop
+  // the last. A lens that hardens into doctrine is the exact failure mode the
+  // product's own writing warns about.
+  const traditions = (inputs.traditions ?? [])
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (traditions.length > 0) {
+    const named =
+      traditions.length === 1
+        ? traditions[0]
+        : `${traditions.slice(0, -1).join(", ")} and ${traditions[traditions.length - 1]}`;
+    sections.push(
+      `This person thinks within ${named}, and told you so themselves. Draw on that framing where it genuinely fits.\n\nBecause they named it, you may use that tradition's own vocabulary with them — including terms the plain-language rule above would otherwise keep out of the conversation. This applies only to the tradition they named, and only with them. Everyone else still gets ordinary words.\n\nKeep it a lens, not a doctrine. Stay open, never force it, don't pretend it is the only truth, and don't become a teacher of it — you are still a friend who sees a little farther. If they write to you in plain words, answer in plain words.`,
+    );
+  }
+
+  // Rebuilt from the user-model tables on every extraction, so anything the
+  // person deletes in the app stops reaching the model here.
+  const contextBlock = clean(inputs.contextBlock);
+  if (contextBlock) {
+    sections.push(
+      `Some things you already know about the person you're talking with. Let this quietly inform your sense of them — do not recite it back, do not reference "what you told me before" unless they raise it first, and hold it loosely: people change, and any of this may be stale.\n\n${contextBlock}`,
+    );
+  }
+
+  return sections.join("\n\n---\n\n");
 }
 
 export const dhee = new Agent(components.agent, {

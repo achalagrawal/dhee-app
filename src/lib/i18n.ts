@@ -130,6 +130,16 @@ const strings = {
       "If you're thinking about harming yourself, or you're frightened by what you're feeling, these lines are answered by people trained for exactly this. Tap any number to call.",
     supportFooter:
       "Dhee is not a crisis service and can't contact anyone on your behalf. If you're in immediate danger, please call your local emergency number.",
+    // More about you
+    moreAboutYou: "More about you",
+    moreAboutYouHint:
+      "This is what Dhee is told about you. Change or clear any of it whenever you like.",
+    nickname: "Nickname",
+    nicknamePlaceholder: "What should Dhee call you?",
+    occupation: "What you do",
+    occupationPlaceholder: "e.g. Teacher, new parent, founder…",
+    aboutYou: "About you",
+    aboutYouPlaceholder: "Anything that helps Dhee understand your situation",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -286,6 +296,16 @@ const strings = {
       "अगर आपके मन में खुद को नुकसान पहुँचाने का ख़याल आ रहा है, या जो आप महसूस कर रहे हैं उससे डर लग रहा है — ये लाइनें ठीक इसी के लिए प्रशिक्षित लोग उठाते हैं। कॉल करने के लिए किसी भी नंबर पर टैप करें।",
     supportFooter:
       "धी संकट सेवा नहीं है और आपकी ओर से किसी से संपर्क नहीं कर सकता। अगर आप तुरंत ख़तरे में हैं, तो अपने स्थानीय आपातकालीन नंबर पर कॉल करें।",
+    // More about you
+    moreAboutYou: "आपके बारे में",
+    moreAboutYouHint:
+      "धी को आपके बारे में यही बताया जाता है। इसे जब चाहें बदल सकते हैं या हटा सकते हैं।",
+    nickname: "पुकारने का नाम",
+    nicknamePlaceholder: "धी आपको क्या कहकर बुलाए?",
+    occupation: "आप क्या करते हैं",
+    occupationPlaceholder: "जैसे शिक्षक, नए माता-पिता, संस्थापक…",
+    aboutYou: "आपके बारे में कुछ और",
+    aboutYouPlaceholder: "कुछ भी जो धी को आपकी स्थिति समझने में मदद करे",
     // History groups
     starred: "तारांकित",
     today: "आज",

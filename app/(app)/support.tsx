@@ -107,7 +107,14 @@ export default function Support() {
   return (
     <AppShell>
       <ScrollView contentContainerStyle={styles.page}>
-        <Pressable onPress={() => router.back()} style={styles.back}>
+        <Pressable
+          // Deep-linked straight here (from the incognito banner, or a shared
+          // link) there may be no history to pop — land on home instead.
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/home")
+          }
+          style={styles.back}
+        >
           <Icon name="chevronLeft" size={16} color={colors.textSoft} />
           <Text style={styles.backLabel}>{t(lang, "back")}</Text>
         </Pressable>

@@ -1,7 +1,9 @@
 import {
+  type MessageDoc,
   abortStream,
   createThread,
   getThreadMetadata,
+  listMessages,
   listStreams,
   listUIMessages,
   syncStreams,
@@ -41,6 +43,54 @@ import { requireUserId } from "./users";
 // Recorded on the aborted stream. Distinguishes a deliberate stop from a
 // model or network failure when reading the component's stream rows.
 const STOP_REASON = "Stopped by the person.";
+
+// How far back to look for the turn a regeneration restarts from. A single
+// turn is a handful of rows (the reply, plus any tool calls), so this is
+// generous — it exists to bound the read, not to be reached.
+const TURN_LOOKBACK = 100;
+
+// The key the client rates a message by. NOT the message's `_id`: the agent
+// collapses the several documents of one assistant turn (tool call, tool
+// result, text) into a single UIMessage keyed by the first document's
+// coordinates, and that key is what `messageFeedback.messageId` holds.
+function uiMessageKey(doc: MessageDoc): string {
+  return `${doc.threadId}-${doc.order}-${doc.stepOrder}`;
+}
+
+// Drop feedback rows belonging to messages that are being discarded, so a
+// thumbs-down never carries over onto whatever replaces them.
+async function clearFeedbackFor(
+  ctx: MutationCtx,
+  docs: MessageDoc[],
+): Promise<void> {
+  for (const key of new Set(docs.map(uiMessageKey))) {
+    const row = await ctx.db
+      .query("messageFeedback")
+      .withIndex("by_message", (q) => q.eq("messageId", key))
+      .unique();
+    if (row) await ctx.db.delete(row._id);
+  }
+}
+
+// The newest user message, plus everything that came after it. That tail is
+// what a regeneration discards and an edit truncates.
+//
+// Comparing positions rather than assuming how the component numbers a reply
+// relative to its prompt: `listMessages` returns newest-first, so everything
+// before the first user message it yields is later in the conversation.
+async function lastUserTurn(
+  ctx: MutationCtx,
+  threadId: string,
+): Promise<{ prompt: MessageDoc; after: MessageDoc[] } | null> {
+  const { page } = await listMessages(ctx, components.agent, {
+    threadId,
+    paginationOpts: { cursor: null, numItems: TURN_LOOKBACK },
+  });
+  const index = page.findIndex((m) => m.message?.role === "user");
+  const prompt = index === -1 ? undefined : page[index];
+  if (!prompt) return null;
+  return { prompt, after: page.slice(0, index) };
+}
 
 async function authorizeThread(
   ctx: QueryCtx | MutationCtx | ActionCtx,
@@ -255,6 +305,50 @@ export const stopGeneration = mutation({
       stopped = stopped || didAbort;
     }
     return stopped;
+  },
+});
+
+// Try again: throw away the last reply and ask for another from the same
+// prompt. Replaces rather than appends — there is no "1 of 2 responses"
+// browser, so the discarded reply is deleted rather than kept around
+// unreachable. See docs/build/specs/chat-loop.md §5.
+export const regenerate = mutation({
+  args: { threadId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+
+    const active = await listStreams(ctx, components.agent, {
+      threadId,
+      includeStatuses: ["streaming"],
+    });
+    if (active.length > 0) throw new Error("Dhee is still replying.");
+
+    const turn = await lastUserTurn(ctx, threadId);
+    if (!turn || turn.after.length === 0) {
+      throw new Error("There's no reply to try again yet.");
+    }
+    // A reply already on its way but not yet streaming — scheduled, or saved
+    // and about to be. Regenerating now would race it and leave two.
+    if (turn.after.some((m) => m.status === "pending")) {
+      throw new Error("Dhee is still replying.");
+    }
+
+    await clearFeedbackFor(ctx, turn.after);
+    await dhee.deleteMessages(ctx, {
+      messageIds: turn.after.map((m) => m._id),
+    });
+
+    // Deliberately does not touch `turnsSinceExtraction`: a regeneration is
+    // not a new user turn, and counting it would fire memory extraction early
+    // on a conversation that hasn't actually moved.
+    await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
+      threadId,
+      promptMessageId: turn.prompt._id,
+      userId,
+    });
+    return null;
   },
 });
 

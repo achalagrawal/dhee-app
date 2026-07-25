@@ -1,6 +1,7 @@
 import { getThreadMetadata } from "@convex-dev/agent";
 import { describe, expect, test } from "vitest";
 import { api, components } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import { asUser, createUser, initTest } from "./test.setup";
 
@@ -17,6 +18,20 @@ async function scheduledNames(
   return await t.run(async (ctx) => {
     const fns = await ctx.db.system.query("_scheduled_functions").collect();
     return fns.map((f) => f.name);
+  });
+}
+
+// The extraction turn counter Dhee keeps alongside the agent's thread.
+async function turnCount(
+  t: ReturnType<typeof initTest>,
+  threadId: string,
+): Promise<number> {
+  return await t.run(async (ctx) => {
+    const meta = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .unique();
+    return meta?.turnsSinceExtraction ?? 0;
   });
 }
 
@@ -254,6 +269,161 @@ describe("chat — stop generating", () => {
       streamArgs: undefined,
     });
     expect(after.page.map((m) => m.text)).toContain("still here?");
+  });
+});
+
+describe("chat — regenerate", () => {
+  // A completed exchange, without the model: `sendMessage` writes the user
+  // turn, and the assistant reply is written straight into the component the
+  // way a finished `streamReply` would have left it.
+  async function exchange(
+    t: ReturnType<typeof initTest>,
+    userId: Id<"users">,
+    threadId: string,
+    prompt: string,
+    reply: string,
+  ): Promise<void> {
+    await asUser(t, userId).mutation(api.chat.sendMessage, {
+      threadId,
+      prompt,
+    });
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.messages.addMessages, {
+        threadId,
+        userId,
+        agentName: "Dhee",
+        messages: [
+          {
+            message: { role: "assistant", content: reply },
+            status: "success",
+          },
+        ],
+      });
+    });
+  }
+
+  async function transcript(
+    t: ReturnType<typeof initTest>,
+    threadId: string,
+  ): Promise<string[]> {
+    const { page } = await t.run(
+      async (ctx) =>
+        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+          threadId,
+          order: "asc",
+          paginationOpts: { cursor: null, numItems: 50 },
+        }),
+    );
+    return page.map((m: { text?: string }) => m.text ?? "");
+  }
+
+  test("drops exactly the last reply and schedules one new one", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "first answer");
+
+    await as.mutation(api.chat.regenerate, { threadId });
+
+    // The prompt stays, the reply is gone.
+    expect(await transcript(t, threadId)).toEqual(["hello"]);
+    const streamReplies = (await scheduledNames(t)).filter((n) =>
+      n.includes("streamReply"),
+    );
+    // One from the original send, one from the regeneration.
+    expect(streamReplies).toHaveLength(2);
+  });
+
+  test("does not count as a user turn", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "first answer");
+
+    const before = await turnCount(t, threadId);
+    await as.mutation(api.chat.regenerate, { threadId });
+    // Counting it would fire memory extraction early on a conversation that
+    // hasn't actually moved forward.
+    expect(await turnCount(t, threadId)).toBe(before);
+  });
+
+  test("feedback on the discarded reply is cleared", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "first answer");
+
+    // Rate the reply the way the client does — by its UIMessage key.
+    const { page } = await t.run(
+      async (ctx) =>
+        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+          threadId,
+          order: "desc",
+          paginationOpts: { cursor: null, numItems: 10 },
+        }),
+    );
+    const reply = page[0];
+    await as.mutation(api.chat.setMessageFeedback, {
+      threadId,
+      messageId: `${threadId}-${reply.order}-${reply.stepOrder}`,
+      rating: "down",
+    });
+    expect(await as.query(api.chat.threadFeedback, { threadId })).toHaveLength(
+      1,
+    );
+
+    await as.mutation(api.chat.regenerate, { threadId });
+
+    // A thumbs-down is usually what prompts a regeneration; inheriting it
+    // onto the replacement would be wrong.
+    expect(await as.query(api.chat.threadFeedback, { threadId })).toEqual([]);
+  });
+
+  test("throws when there is no reply to replace", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await as.mutation(api.chat.sendMessage, { threadId, prompt: "hello" });
+
+    await expect(
+      as.mutation(api.chat.regenerate, { threadId }),
+    ).rejects.toThrow("no reply to try again");
+  });
+
+  test("refuses while a reply is still streaming", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "first answer");
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.streams.create, {
+        threadId,
+        order: 2,
+        stepOrder: 0,
+        format: "UIMessageChunk",
+      });
+    });
+
+    await expect(
+      as.mutation(api.chat.regenerate, { threadId }),
+    ).rejects.toThrow("still replying");
+  });
+
+  test("rejects a thread the caller does not own", async () => {
+    const t = initTest();
+    const owner = await createUser(t);
+    const other = await createUser(t);
+    const threadId = await asUser(t, owner).mutation(api.chat.startThread, {});
+    await exchange(t, owner, threadId, "hello", "first answer");
+
+    await expect(
+      asUser(t, other).mutation(api.chat.regenerate, { threadId }),
+    ).rejects.toThrow("Not your conversation");
   });
 });
 

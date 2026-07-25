@@ -21,6 +21,7 @@ import type * as http from "../http.js";
 import type * as lib_crisis from "../lib/crisis.js";
 import type * as lib_mcp from "../lib/mcp.js";
 import type * as lib_plan from "../lib/plan.js";
+import type * as lib_turns from "../lib/turns.js";
 import type * as md from "../md.js";
 import type * as memory from "../memory.js";
 import type * as seed from "../seed.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   "lib/crisis": typeof lib_crisis;
   "lib/mcp": typeof lib_mcp;
   "lib/plan": typeof lib_plan;
+  "lib/turns": typeof lib_turns;
   md: typeof md;
   memory: typeof memory;
   seed: typeof seed;

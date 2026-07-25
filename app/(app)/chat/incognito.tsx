@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
+import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
 import { Composer } from "../../../src/components/Composer";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { Icon } from "../../../src/components/ui";
@@ -146,9 +147,7 @@ export default function IncognitoChat() {
               </View>
             ) : (
               <View style={styles.botRow}>
-                <View style={styles.avatar}>
-                  <Icon name="logo" size={16} color={colors.accent} />
-                </View>
+                <DheeAvatar />
                 <View style={styles.botBody}>
                   <Text style={styles.botText}>{item.text}</Text>
                   <Pressable
@@ -165,9 +164,7 @@ export default function IncognitoChat() {
           ListFooterComponent={
             busy ? (
               <View style={styles.thinkingRow}>
-                <View style={styles.avatar}>
-                  <Icon name="logo" size={16} color={colors.accent} />
-                </View>
+                <DheeAvatar />
                 <Text style={styles.thinkingText}>{t(lang, "thinking")}</Text>
               </View>
             ) : null
@@ -230,16 +227,6 @@ function makeStyles(colors: Colors) {
       ...font.regular,
     },
     botRow: { flexDirection: "row", gap: 12 },
-    avatar: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 2,
-    },
     botBody: { flex: 1, minWidth: 0 },
     botText: {
       color: colors.text,

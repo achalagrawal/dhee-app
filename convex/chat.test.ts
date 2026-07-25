@@ -1,9 +1,14 @@
 import { getThreadMetadata } from "@convex-dev/agent";
 import { describe, expect, test } from "vitest";
 import { api, components } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
-import { asUser, createUser, initTest } from "./test.setup";
+import {
+  asUser,
+  createUser,
+  initTest,
+  seedExchange,
+  threadMessages,
+} from "./test.setup";
 
 // Characterization tests for convex/chat.ts — they capture what the code does
 // today so later changes to the chat spine are safe. They deliberately avoid the
@@ -273,48 +278,12 @@ describe("chat — stop generating", () => {
 });
 
 describe("chat — regenerate", () => {
-  // A completed exchange, without the model: `sendMessage` writes the user
-  // turn, and the assistant reply is written straight into the component the
-  // way a finished `streamReply` would have left it.
-  async function exchange(
-    t: ReturnType<typeof initTest>,
-    userId: Id<"users">,
-    threadId: string,
-    prompt: string,
-    reply: string,
-  ): Promise<void> {
-    await asUser(t, userId).mutation(api.chat.sendMessage, {
-      threadId,
-      prompt,
-    });
-    await t.run(async (ctx) => {
-      await ctx.runMutation(components.agent.messages.addMessages, {
-        threadId,
-        userId,
-        agentName: "Dhee",
-        messages: [
-          {
-            message: { role: "assistant", content: reply },
-            status: "success",
-          },
-        ],
-      });
-    });
-  }
-
+  // Reads the transcript as plain text, oldest first.
   async function transcript(
     t: ReturnType<typeof initTest>,
     threadId: string,
   ): Promise<string[]> {
-    const { page } = await t.run(
-      async (ctx) =>
-        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
-          threadId,
-          order: "asc",
-          paginationOpts: { cursor: null, numItems: 50 },
-        }),
-    );
-    return page.map((m: { text?: string }) => m.text ?? "");
+    return (await threadMessages(t, threadId)).map((m) => m.text ?? "");
   }
 
   test("drops exactly the last reply and schedules one new one", async () => {
@@ -322,7 +291,7 @@ describe("chat — regenerate", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "first answer");
+    await seedExchange(t, user, threadId, "hello", "first answer");
 
     await as.mutation(api.chat.regenerate, { threadId });
 
@@ -340,7 +309,7 @@ describe("chat — regenerate", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "first answer");
+    await seedExchange(t, user, threadId, "hello", "first answer");
 
     const before = await turnCount(t, threadId);
     await as.mutation(api.chat.regenerate, { threadId });
@@ -354,18 +323,10 @@ describe("chat — regenerate", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "first answer");
+    await seedExchange(t, user, threadId, "hello", "first answer");
 
     // Rate the reply the way the client does — by its UIMessage key.
-    const { page } = await t.run(
-      async (ctx) =>
-        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
-          threadId,
-          order: "desc",
-          paginationOpts: { cursor: null, numItems: 10 },
-        }),
-    );
-    const reply = page[0];
+    const reply = (await threadMessages(t, threadId)).at(-1)!;
     await as.mutation(api.chat.setMessageFeedback, {
       threadId,
       messageId: `${threadId}-${reply.order}-${reply.stepOrder}`,
@@ -399,7 +360,7 @@ describe("chat — regenerate", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "first answer");
+    await seedExchange(t, user, threadId, "hello", "first answer");
     await t.run(async (ctx) => {
       await ctx.runMutation(components.agent.streams.create, {
         threadId,
@@ -419,7 +380,7 @@ describe("chat — regenerate", () => {
     const owner = await createUser(t);
     const other = await createUser(t);
     const threadId = await asUser(t, owner).mutation(api.chat.startThread, {});
-    await exchange(t, owner, threadId, "hello", "first answer");
+    await seedExchange(t, owner, threadId, "hello", "first answer");
 
     await expect(
       asUser(t, other).mutation(api.chat.regenerate, { threadId }),
@@ -428,54 +389,16 @@ describe("chat — regenerate", () => {
 });
 
 describe("chat — edit & resend", () => {
-  async function exchange(
-    t: ReturnType<typeof initTest>,
-    userId: Id<"users">,
-    threadId: string,
-    prompt: string,
-    reply: string,
-  ): Promise<void> {
-    await asUser(t, userId).mutation(api.chat.sendMessage, {
-      threadId,
-      prompt,
-    });
-    await t.run(async (ctx) => {
-      await ctx.runMutation(components.agent.messages.addMessages, {
-        threadId,
-        userId,
-        agentName: "Dhee",
-        messages: [
-          { message: { role: "assistant", content: reply }, status: "success" },
-        ],
-      });
-    });
-  }
-
-  async function docs(
-    t: ReturnType<typeof initTest>,
-    threadId: string,
-  ): Promise<{ _id: string; text?: string; order: number }[]> {
-    const { page } = await t.run(
-      async (ctx) =>
-        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
-          threadId,
-          order: "asc",
-          paginationOpts: { cursor: null, numItems: 50 },
-        }),
-    );
-    return page;
-  }
-
   test("editing the first of three turns drops everything after it", async () => {
     const t = initTest();
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "first", "reply one");
-    await exchange(t, user, threadId, "second", "reply two");
-    await exchange(t, user, threadId, "third", "reply three");
+    await seedExchange(t, user, threadId, "first", "reply one");
+    await seedExchange(t, user, threadId, "second", "reply two");
+    await seedExchange(t, user, threadId, "third", "reply three");
 
-    const first = (await docs(t, threadId))[0];
+    const first = (await threadMessages(t, threadId))[0];
     await as.mutation(api.chat.editAndResend, {
       threadId,
       messageId: first._id,
@@ -484,7 +407,7 @@ describe("chat — edit & resend", () => {
 
     // The fork keeps nothing after the edit point, and the new prompt is the
     // only thing left.
-    expect((await docs(t, threadId)).map((m) => m.text)).toEqual([
+    expect((await threadMessages(t, threadId)).map((m) => m.text)).toEqual([
       "first, rewritten",
     ]);
     const streamReplies = (await scheduledNames(t)).filter((n) =>
@@ -499,9 +422,9 @@ describe("chat — edit & resend", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "an answer");
+    await seedExchange(t, user, threadId, "hello", "an answer");
 
-    const reply = (await docs(t, threadId))[1];
+    const reply = (await threadMessages(t, threadId))[1];
     await expect(
       as.mutation(api.chat.editAndResend, {
         threadId,
@@ -516,9 +439,9 @@ describe("chat — edit & resend", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "an answer");
+    await seedExchange(t, user, threadId, "hello", "an answer");
 
-    const first = (await docs(t, threadId))[0];
+    const first = (await threadMessages(t, threadId))[0];
     await expect(
       as.mutation(api.chat.editAndResend, {
         threadId,
@@ -533,9 +456,9 @@ describe("chat — edit & resend", () => {
     const owner = await createUser(t);
     const other = await createUser(t);
     const threadId = await asUser(t, owner).mutation(api.chat.startThread, {});
-    await exchange(t, owner, threadId, "hello", "an answer");
+    await seedExchange(t, owner, threadId, "hello", "an answer");
 
-    const first = (await docs(t, threadId))[0];
+    const first = (await threadMessages(t, threadId))[0];
     await expect(
       asUser(t, other).mutation(api.chat.editAndResend, {
         threadId,
@@ -551,10 +474,10 @@ describe("chat — edit & resend", () => {
     const as = asUser(t, user);
     const mine = await as.mutation(api.chat.startThread, {});
     const other = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, mine, "hello", "an answer");
-    await exchange(t, user, other, "elsewhere", "another answer");
+    await seedExchange(t, user, mine, "hello", "an answer");
+    await seedExchange(t, user, other, "elsewhere", "another answer");
 
-    const elsewhere = (await docs(t, other))[0];
+    const elsewhere = (await threadMessages(t, other))[0];
     await expect(
       as.mutation(api.chat.editAndResend, {
         threadId: mine,
@@ -569,11 +492,11 @@ describe("chat — edit & resend", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "first", "reply one");
-    await exchange(t, user, threadId, "second", "reply two");
+    await seedExchange(t, user, threadId, "first", "reply one");
+    await seedExchange(t, user, threadId, "second", "reply two");
 
     const before = await turnCount(t, threadId);
-    const first = (await docs(t, threadId))[0];
+    const first = (await threadMessages(t, threadId))[0];
     await as.mutation(api.chat.editAndResend, {
       threadId,
       messageId: first._id,
@@ -588,22 +511,11 @@ describe("chat — edit & resend", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "first", "reply one");
-    await exchange(t, user, threadId, "second", "reply two");
+    await seedExchange(t, user, threadId, "first", "reply one");
+    await seedExchange(t, user, threadId, "second", "reply two");
 
-    const all = await t.run(
-      async (ctx) =>
-        (
-          await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
-            threadId,
-            order: "asc",
-            paginationOpts: { cursor: null, numItems: 50 },
-          })
-        ).page,
-    );
-    for (const doc of all.filter(
-      (m: { message?: { role: string } }) => m.message?.role === "assistant",
-    )) {
+    const all = await threadMessages(t, threadId);
+    for (const doc of all.filter((m) => m.message?.role === "assistant")) {
       await as.mutation(api.chat.setMessageFeedback, {
         threadId,
         messageId: `${threadId}-${doc.order}-${doc.stepOrder}`,
@@ -630,7 +542,7 @@ describe("chat — edit & resend", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "an answer");
+    await seedExchange(t, user, threadId, "hello", "an answer");
     await t.run(async (ctx) => {
       await ctx.runMutation(components.agent.streams.create, {
         threadId,
@@ -642,7 +554,7 @@ describe("chat — edit & resend", () => {
 
     // Editing mid-stream would delete the pending reply out from under the
     // running action — same guard regenerate already has.
-    const first = (await docs(t, threadId))[0];
+    const first = (await threadMessages(t, threadId))[0];
     await expect(
       as.mutation(api.chat.editAndResend, {
         threadId,
@@ -651,7 +563,7 @@ describe("chat — edit & resend", () => {
       }),
     ).rejects.toThrow("still replying");
     // And nothing was deleted.
-    expect((await docs(t, threadId)).map((m) => m.text)).toEqual([
+    expect((await threadMessages(t, threadId)).map((m) => m.text)).toEqual([
       "hello",
       "an answer",
     ]);
@@ -662,7 +574,7 @@ describe("chat — edit & resend", () => {
     const user = await createUser(t);
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
-    await exchange(t, user, threadId, "hello", "an answer");
+    await seedExchange(t, user, threadId, "hello", "an answer");
     // A pending row is what a scheduled-but-not-started reply looks like.
     await t.run(async (ctx) => {
       await ctx.runMutation(components.agent.messages.addMessages, {
@@ -675,7 +587,7 @@ describe("chat — edit & resend", () => {
       });
     });
 
-    const first = (await docs(t, threadId))[0];
+    const first = (await threadMessages(t, threadId))[0];
     await expect(
       as.mutation(api.chat.editAndResend, {
         threadId,
@@ -779,17 +691,10 @@ describe("chat — crisis flag", () => {
 
     // Edit is a way of writing a message like any other — the safety net has
     // to cover it, or rewording through edit slips past the banner.
-    const { page } = await t.run(
-      async (ctx) =>
-        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
-          threadId,
-          order: "asc",
-          paginationOpts: { cursor: null, numItems: 10 },
-        }),
-    );
+    const first = (await threadMessages(t, threadId))[0];
     await as.mutation(api.chat.editAndResend, {
       threadId,
-      messageId: page[0]._id,
+      messageId: first._id,
       prompt: "some days I want to die",
     });
     expect(await as.query(api.chat.threadCrisisFlag, { threadId })).toBe(true);

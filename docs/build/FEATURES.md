@@ -69,7 +69,7 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 | Copy message                              | ✅     | clipboard                                |                                                                           |
 | Message feedback (👍/👎)                  | ✅     | `chat.setMessageFeedback/threadFeedback` | UI wired too; active rating shown in `accentStrong`                       |
 | Message action sheet (mobile)             | ✅     | inline actions row                       | Not building one — the inline row covers it (#18)                         |
-| Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts                       |
+| Crisis / safety flag banner               | ✅     | `lib/crisis.ts`, `CrisisBanner`          | Server-side, EN + HI; → `/support`                                        |
 | Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                                           |
 | Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                                          |
 | Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)                               |
@@ -200,7 +200,7 @@ far richer than today's flat screen.
 
 | Feature                                       | Status | Notes                                                                                              |
 | --------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
-| Crisis detection → safety banner              | ⬜     | `state.crisisFlag`                                                                                 |
+| Crisis detection → safety banner              | ✅     | Server-side in `sendMessage`; EN + HI + Hinglish. Banner → `/support`                              |
 | Safety & limitations page (crisis resources)  | ✅     | `docs/legal/safety.md` → `/safety`; linked from terms + sign-in. Numbers need periodic re-checking |
 | Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName`                                                   |
 | "Not a medical or crisis service" disclaimers | 🟡     | Sign-in + legal done; onboarding still missing it                                                  |

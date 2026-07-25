@@ -19,6 +19,7 @@ import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
+import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
@@ -79,6 +80,11 @@ export default function Chat() {
   );
   const feedback = useQuery(
     api.chat.threadFeedback,
+    threadId ? { threadId } : "skip",
+  );
+  // Raised server-side, so it survives a reload and applies to every client.
+  const crisisFlagged = useQuery(
+    api.chat.threadCrisisFlag,
     threadId ? { threadId } : "skip",
   );
   const feedbackMap = useMemo(() => {
@@ -349,6 +355,12 @@ export default function Chat() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        {crisisFlagged ? (
+          <View style={styles.bannerWrap}>
+            <CrisisBanner lang={lang} />
+          </View>
+        ) : null}
+
         <View style={styles.flex}>
           <FlatList
             ref={listRef}
@@ -679,6 +691,7 @@ const Message = memo(function Message({
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
     flex: { flex: 1 },
+    bannerWrap: { paddingHorizontal: 16, paddingTop: 12 },
     list: {
       paddingHorizontal: 16,
       paddingTop: 14,

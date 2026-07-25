@@ -114,6 +114,10 @@ export default defineSchema({
     // the model failed both finalize as `failed`, and only this tells them
     // apart — a stop must show no error surface at all (spec §7).
     stoppedMessages: v.optional(v.array(v.string())),
+    // Raised when something the person wrote suggests they may be in danger,
+    // so the support banner survives a reload. Sticky for the life of the
+    // thread: it is set, never cleared. A new conversation starts clear.
+    crisisFlagged: v.optional(v.boolean()),
   })
     .index("by_thread", ["threadId"])
     .index("by_user", ["userId"]),

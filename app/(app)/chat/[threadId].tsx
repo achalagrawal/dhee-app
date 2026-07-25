@@ -36,12 +36,20 @@ const FOLLOW_THRESHOLD = 240;
 // The reasons a turn can end badly. Limit-reached (#7) becomes a third once
 // the daily allowance lands — it belongs in the composer dock rather than
 // here, since its recovery is an upgrade rather than a retry.
-type Failure = null | "error" | "rate";
+type FailureReason = "error" | "rate";
+
+// What "Try again" should do. A failure remembers which action it came from:
+// re-sending the composer draft after a failed regenerate would silently do
+// nothing, because the draft is empty — each cause retries itself.
+type RetryTarget =
+  "send" | "regenerate" | { messageId: string; prompt: string };
+
+type Failure = { reason: FailureReason; retry: RetryTarget } | null;
 
 // The backend surfaces rate limiting as a message rather than a code, so this
 // is a best-effort read of it. Getting it wrong costs the person nothing worse
 // than the generic wording.
-function failureFrom(error: unknown): Exclude<Failure, null> {
+function failureFrom(error: unknown): FailureReason {
   const text = String(error).toLowerCase();
   return text.includes("rate") || text.includes("too many") ? "rate" : "error";
 }
@@ -139,7 +147,7 @@ export default function Chat() {
       await sendMessage({ threadId, prompt });
     } catch (e) {
       setDraft(prompt);
-      setFailure(failureFrom(e));
+      setFailure({ reason: failureFrom(e), retry: "send" });
     }
   }, [draft, threadId, sendMessage]);
 
@@ -168,7 +176,7 @@ export default function Chat() {
     try {
       await regenerateReply({ threadId });
     } catch (e) {
-      setFailure(failureFrom(e));
+      setFailure({ reason: failureFrom(e), retry: "regenerate" });
     }
   }, [threadId, regenerateReply]);
 
@@ -190,11 +198,20 @@ export default function Chat() {
       try {
         await editAndResend({ threadId, messageId, prompt });
       } catch (e) {
-        setFailure(failureFrom(e));
+        setFailure({ reason: failureFrom(e), retry: { messageId, prompt } });
       }
     },
     [threadId, editAndResend, cancelEdit],
   );
+
+  // Dispatch "Try again" on the failure card back to whichever action failed.
+  const retryFailure = useCallback(() => {
+    if (!failure) return;
+    const { retry } = failure;
+    if (retry === "send") void send();
+    else if (retry === "regenerate") void regenerate();
+    else void runEdit(retry.messageId, retry.prompt);
+  }, [failure, send, regenerate, runEdit]);
 
   // Editing forks the conversation: everything after the edited turn goes.
   // Losing only the reply that directly followed is the ordinary case and
@@ -322,7 +339,7 @@ export default function Chat() {
                       <Text style={styles.errorTitle}>
                         {t(
                           lang,
-                          failure === "rate"
+                          failure.reason === "rate"
                             ? "rateErrorTitle"
                             : "modelErrorTitle",
                         )}
@@ -330,13 +347,13 @@ export default function Chat() {
                       <Text style={styles.errorText}>
                         {t(
                           lang,
-                          failure === "rate"
+                          failure.reason === "rate"
                             ? "rateErrorBody"
                             : "modelErrorBody",
                         )}
                       </Text>
                     </View>
-                    <Pressable onPress={send} style={styles.retryBtn}>
+                    <Pressable onPress={retryFailure} style={styles.retryBtn}>
                       <Text style={styles.retryText}>
                         {t(lang, "tryAgain")}
                       </Text>

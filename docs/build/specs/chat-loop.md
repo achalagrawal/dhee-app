@@ -131,6 +131,10 @@ write it down rather than change it:
   Use `src/components/ConfirmDialog.tsx`.
 - An empty or whitespace-only edit is rejected, mirroring `renameThread`'s
   "A conversation needs a name." style.
+- **Refused while a reply is in flight**, with the same guard regenerate uses —
+  deleting the pending reply would pull it out from under the running action.
+  The edit affordance is hidden while generating; the way to edit mid-reply is
+  to stop first.
 - **Does not double-count turns**: the edited turn replaces a turn, it does not
   add one.
 - **Feedback rows for the dropped assistant messages are cleared**, same as #14.
@@ -147,11 +151,11 @@ There are **three** distinct reasons a turn can fail, and they must not all
 render as one generic "something went wrong" (mockup: `chatError` is
 `null | 'error' | 'rate'`, with different copy per value — ~3656–3658):
 
-| Reason                       | Surface                                                          | Recovery                              |
-| ---------------------------- | ---------------------------------------------------------------- | ------------------------------------- |
-| **Model / network error**    | Retry card below the transcript. Draft restored to the composer. | Try again re-sends the same prompt.   |
-| **Stopped by the user**      | **No error surface at all.** Partial text + normal actions row.  | Regenerate, or keep typing.           |
-| **Daily limit reached** (#7) | Limit card in the composer dock, with when the limit resets.     | Not a retry — the upgrade path (#10). |
+| Reason                       | Surface                                                          | Recovery                                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Model / network error**    | Retry card below the transcript. Draft restored to the composer. | Try again retries the action that failed — a failed regenerate retries the regeneration, a failed edit the same rewrite. |
+| **Stopped by the user**      | **No error surface at all.** Partial text + normal actions row.  | Regenerate, or keep typing.                                                                                              |
+| **Daily limit reached** (#7) | Limit card in the composer dock, with when the limit resets.     | Not a retry — the upgrade path (#10).                                                                                    |
 
 A stop is not a failure. This is the single most important line in this section:
 if stopping shows an error card, the feature reads as broken.

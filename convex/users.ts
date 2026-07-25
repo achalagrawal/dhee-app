@@ -52,6 +52,26 @@ async function patchProfile(
   }
 }
 
+// ---- Personalization ------------------------------------------------------
+//
+// These three fields go verbatim into the system prompt. They are the most
+// direct control a person has over how Dhee sees them, so the rules are the
+// same ones `setName` already follows: trim, cap, and treat empty as "unset"
+// rather than as an empty string. Clearing a field has to actually stop the
+// model being told it. See docs/build/specs/personalization.md.
+
+const NICKNAME_MAX = 60;
+const OCCUPATION_MAX = 120;
+const ABOUT_YOU_MAX = 600;
+const TRADITION_MAX = 60;
+
+/** Trimmed and capped, or undefined when there's nothing left. */
+function normalize(value: string | undefined, max: number): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim().slice(0, max);
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export const currentProfile = query({
   args: {},
   handler: async (ctx) => {
@@ -111,26 +131,21 @@ export const completeOnboarding = mutation({
   args: {
     name: v.optional(v.string()),
     preferredLanguage: v.union(v.literal("en"), v.literal("hi")),
+    // Optional. Writes the same field the settings picker edits — two sources
+    // of truth for one setting is how they drift apart.
+    tradition: v.optional(v.string()),
   },
   returns: v.null(),
-  handler: async (ctx, { name, preferredLanguage }) => {
+  handler: async (ctx, { name, preferredLanguage, tradition }) => {
     const userId = await requireUserId(ctx);
-    const existing = await getProfile(ctx, userId);
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        name,
-        preferredLanguage,
-        onboarded: true,
-      });
-    } else {
-      await ctx.db.insert("profiles", {
-        userId,
-        name,
-        preferredLanguage,
-        onboarded: true,
-        createdAt: Date.now(),
-      });
-    }
+    const lens = normalize(tradition, TRADITION_MAX);
+    await patchProfile(ctx, userId, {
+      name: normalize(name, NICKNAME_MAX),
+      preferredLanguage,
+      onboarded: true,
+      // One lens, which every plan allows — no cap check needed here.
+      ...(lens ? { traditions: [lens] } : {}),
+    });
     return null;
   },
 });
@@ -145,26 +160,6 @@ export const setName = mutation({
     return null;
   },
 });
-
-// ---- Personalization ------------------------------------------------------
-//
-// These three fields go verbatim into the system prompt. They are the most
-// direct control a person has over how Dhee sees them, so the rules are the
-// same ones `setName` already follows: trim, cap, and treat empty as "unset"
-// rather than as an empty string. Clearing a field has to actually stop the
-// model being told it. See docs/build/specs/personalization.md.
-
-const NICKNAME_MAX = 60;
-const OCCUPATION_MAX = 120;
-const ABOUT_YOU_MAX = 600;
-const TRADITION_MAX = 60;
-
-/** Trimmed and capped, or undefined when there's nothing left. */
-function normalize(value: string | undefined, max: number): string | undefined {
-  if (value === undefined) return undefined;
-  const trimmed = value.trim().slice(0, max);
-  return trimmed.length > 0 ? trimmed : undefined;
-}
 
 export const setPersonalization = mutation({
   // Any subset. A field left out is untouched; a field sent empty is cleared.

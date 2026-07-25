@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
 import { type Language, t } from "../src/lib/i18n";
+import { TRADITIONS } from "../src/lib/traditions";
 import { useTheme } from "../src/lib/ThemeContext";
 import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
@@ -20,6 +21,7 @@ export default function Onboarding() {
   const { colors } = useTheme();
   const [lang, setLang] = useState<Language>("en");
   const [name, setName] = useState("");
+  const [tradition, setTradition] = useState("");
   const [busy, setBusy] = useState(false);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -30,6 +32,7 @@ export default function Onboarding() {
     await completeOnboarding({
       name: name.trim() || undefined,
       preferredLanguage: lang,
+      tradition: tradition.trim() || undefined,
     });
     router.replace("/home");
   };
@@ -69,9 +72,46 @@ export default function Onboarding() {
               placeholderTextColor={colors.textFaint}
               value={name}
               onChangeText={setName}
+              returnKeyType="next"
+            />
+          </View>
+
+          {/* Writes the same field the settings picker edits. */}
+          <View style={styles.block}>
+            <Text style={styles.label}>{t(lang, "traditionPrompt")}</Text>
+            <TextInput
+              style={styles.input}
+              placeholder={t(lang, "traditionPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              value={tradition}
+              onChangeText={setTradition}
               onSubmitEditing={start}
               returnKeyType="go"
+              maxLength={60}
             />
+            <View style={styles.chipRow}>
+              {TRADITIONS.slice(0, 6).map((name) => {
+                const selected =
+                  tradition.trim().toLowerCase() === name.toLowerCase();
+                return (
+                  <Pressable
+                    key={name}
+                    onPress={() => setTradition(selected ? "" : name)}
+                    style={[styles.chip, selected && styles.chipSelected]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipLabel,
+                        selected && styles.chipLabelSelected,
+                      ]}
+                    >
+                      {name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.optional}>{t(lang, "traditionOptional")}</Text>
           </View>
 
           <Pressable
@@ -129,6 +169,22 @@ function makeStyles(colors: Colors) {
     },
     title: { fontSize: 30, color: colors.text, ...font.medium },
     block: { gap: spacing.sm },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    chip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      paddingHorizontal: 13,
+      paddingVertical: 8,
+    },
+    chipSelected: {
+      borderColor: "transparent",
+      backgroundColor: colors.accentSoft,
+    },
+    chipLabel: { fontSize: 14, color: colors.textSoft, ...font.regular },
+    chipLabelSelected: { color: colors.accentStrong, ...font.medium },
+    optional: { fontSize: 13.5, color: colors.textFaint, ...font.regular },
     label: { fontSize: 16, color: colors.textSoft, ...font.regular },
     langRow: { flexDirection: "row", gap: spacing.sm },
     langOption: {

@@ -121,6 +121,41 @@ describe("users — tradition lens", () => {
     );
   });
 
+  test("onboarding writes the same field the settings picker edits", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+
+    await as.mutation(api.users.completeOnboarding, {
+      name: "Kabir",
+      preferredLanguage: "en",
+      tradition: "  Stoicism  ",
+    });
+
+    // Two sources of truth for one setting is how they drift apart.
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Stoicism",
+    ]);
+
+    // And settings can then edit what onboarding wrote.
+    await as.mutation(api.users.setTraditions, { traditions: ["Zen"] });
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Zen",
+    ]);
+  });
+
+  test("onboarding without a tradition leaves the lens unset", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+
+    await as.mutation(api.users.completeOnboarding, {
+      name: "Kabir",
+      preferredLanguage: "en",
+    });
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual(
+      [],
+    );
+  });
+
   test("a missing plan is treated as free, not as unlimited", async () => {
     // Fail closed: the plan field arrives with #7, and until then nobody
     // should be silently upgraded.

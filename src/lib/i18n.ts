@@ -149,6 +149,19 @@ const strings = {
     occupationPlaceholder: "e.g. Teacher, new parent, founder…",
     aboutYou: "About you",
     aboutYouPlaceholder: "Anything that helps Dhee understand your situation",
+    // Tradition lens
+    traditionLens: "Tradition lens",
+    traditionLensHint:
+      "If you think within a particular framework, Dhee can draw on its framing and vocabulary. A lens, not doctrine — it won't turn Dhee into a preacher for it.",
+    traditionPlaceholder: "Add your own, e.g. Madhyasth Darshan…",
+    addTradition: '+ Add "%s"',
+    removeTradition: "Remove %s",
+    clearLenses: "Clear lenses",
+    oneLensOnFree:
+      "The free plan includes one lens. Remove the current one to choose a different framework.",
+    traditionPrompt: "Do you think within a particular tradition?",
+    traditionOptional: "Optional — you can add this later in settings.",
+    skip: "Skip",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -324,6 +337,19 @@ const strings = {
     occupationPlaceholder: "जैसे शिक्षक, नए माता-पिता, संस्थापक…",
     aboutYou: "आपके बारे में कुछ और",
     aboutYouPlaceholder: "कुछ भी जो धी को आपकी स्थिति समझने में मदद करे",
+    // Tradition lens
+    traditionLens: "विचार-परंपरा",
+    traditionLensHint:
+      "अगर आप किसी विचारधारा के भीतर सोचते हैं, तो धी उसकी दृष्टि और शब्दावली का सहारा ले सकता है। यह एक नज़रिया है, सिद्धांत नहीं — धी उसका प्रचारक नहीं बनेगा।",
+    traditionPlaceholder: "अपनी परंपरा जोड़ें, जैसे मध्यस्थ दर्शन…",
+    addTradition: '+ "%s" जोड़ें',
+    removeTradition: "%s हटाएँ",
+    clearLenses: "सब हटाएँ",
+    oneLensOnFree:
+      "मुफ़्त योजना में एक ही परंपरा चुनी जा सकती है। दूसरी चुनने के लिए पहले मौजूदा हटाएँ।",
+    traditionPrompt: "क्या आप किसी विचार-परंपरा के भीतर सोचते हैं?",
+    traditionOptional: "वैकल्पिक — इसे बाद में सेटिंग्स में भी जोड़ सकते हैं।",
+    skip: "छोड़ें",
     // History groups
     starred: "तारांकित",
     today: "आज",

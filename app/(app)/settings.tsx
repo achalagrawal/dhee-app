@@ -27,6 +27,7 @@ import {
   radius,
 } from "../../src/lib/theme";
 import { authClient } from "../../src/lib/auth-client";
+import { TRADITIONS } from "../../src/lib/traditions";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 type Pending = "forget" | "deleteChats" | null;
@@ -35,6 +36,11 @@ type Pending = "forget" | "deleteChats" | null;
 // input can stop typing at the same place the server would truncate — the
 // server is still the one that enforces it.
 const ABOUT_YOU_MAX = 600;
+
+// Free plan gets one lens (design `PRICING`). Mirrored from the server, which
+// is where it is actually enforced — this copy only decides when to explain
+// the limit instead of letting the mutation reject.
+const FREE_LENS_LIMIT = 1;
 
 type PersonalFields = {
   nickname: string;
@@ -50,6 +56,7 @@ export default function Settings() {
 
   const setName = useMutation(api.users.setName);
   const setPersonalization = useMutation(api.users.setPersonalization);
+  const setTraditions = useMutation(api.users.setTraditions);
   const setLanguage = useMutation(api.users.setLanguage);
   const forgetEverything = useMutation(api.understanding.forgetEverything);
   const deleteAllThreads = useMutation(api.chat.deleteAllThreads);
@@ -66,6 +73,8 @@ export default function Settings() {
   const [personalDraft, setPersonalDraft_] = useState<Partial<PersonalFields>>(
     {},
   );
+  const [lensDraft, setLensDraft] = useState("");
+  const [lensError, setLensError] = useState(false);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -102,6 +111,48 @@ export default function Settings() {
     void setPersonalization(personalDraft);
     setPersonalDraft_({});
   };
+  // ---- Tradition lens ----
+  const lenses = profile?.traditions ?? [];
+  const has = (name: string) =>
+    lenses.some((l) => l.toLowerCase() === name.trim().toLowerCase());
+  // Free plan gets one. The server enforces this regardless of what the client
+  // sends (users.setTraditions) — this is only so the limit is explained here
+  // rather than surfacing as a failed mutation.
+  const lensLimitHit = lenses.length >= FREE_LENS_LIMIT;
+
+  const saveLenses = (next: string[]) => {
+    setLensError(false);
+    void setTraditions({ traditions: next });
+  };
+  const addLens = (raw: string) => {
+    const name = raw.trim();
+    if (!name || has(name)) return;
+    if (lensLimitHit) {
+      // The upgrade popup is #10; until it exists, say plainly why rather than
+      // failing silently or letting the mutation reject.
+      setLensError(true);
+      return;
+    }
+    saveLenses([...lenses, name]);
+    setLensDraft("");
+  };
+  const removeLens = (name: string) => {
+    setLensError(false);
+    saveLenses(lenses.filter((l) => l !== name));
+  };
+
+  const typed = lensDraft.trim();
+  const canAddTyped =
+    typed.length > 0 &&
+    !has(typed) &&
+    !TRADITIONS.some((tr) => tr.toLowerCase() === typed.toLowerCase());
+  // Filtered by what's been typed, capped so the section doesn't become a wall
+  // of 25 chips.
+  const suggestions = TRADITIONS.filter(
+    (tr) =>
+      !has(tr) && (!typed || tr.toLowerCase().includes(typed.toLowerCase())),
+  ).slice(0, 8);
+
   const runPending = () => {
     if (pending === "forget") void forgetEverything();
     if (pending === "deleteChats") void deleteAllThreads();
@@ -309,6 +360,81 @@ export default function Settings() {
               <Text style={styles.counter}>
                 {personal.aboutYou.length} / {ABOUT_YOU_MAX}
               </Text>
+            ) : null}
+          </View>
+        </Group>
+
+        {/* Tradition lens */}
+        <Group
+          label={t(lang, "traditionLens")}
+          hint={t(lang, "traditionLensHint")}
+          colors={colors}
+        >
+          <View style={styles.block}>
+            <TextInput
+              style={styles.input}
+              value={lensDraft}
+              onChangeText={setLensDraft}
+              onSubmitEditing={() => addLens(lensDraft)}
+              placeholder={t(lang, "traditionPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="done"
+              maxLength={60}
+            />
+            {/* A tradition not on the list is first-class, not a fallback. */}
+            {canAddTyped ? (
+              <Pressable
+                onPress={() => addLens(lensDraft)}
+                style={styles.addLensBtn}
+              >
+                <Text style={styles.addLensLabel}>
+                  {t(lang, "addTradition").replace("%s", lensDraft.trim())}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {lenses.length > 0 ? (
+              <View style={styles.chipRow}>
+                {lenses.map((name) => (
+                  <Pressable
+                    key={name}
+                    onPress={() => removeLens(name)}
+                    accessibilityLabel={t(lang, "removeTradition").replace(
+                      "%s",
+                      name,
+                    )}
+                    style={[styles.chip, styles.chipActive]}
+                  >
+                    <Text style={[styles.chipLabel, styles.chipLabelActive]}>
+                      {name}
+                    </Text>
+                    <Icon name="close" size={11} color={colors.accentStrong} />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {/* Only after they've tried — not a standing scold. */}
+            {lensError ? (
+              <Text style={styles.lensLimit}>{t(lang, "oneLensOnFree")}</Text>
+            ) : null}
+
+            <View style={styles.chipRow}>
+              {suggestions.map((name) => (
+                <Pressable
+                  key={name}
+                  onPress={() => addLens(name)}
+                  style={styles.chip}
+                >
+                  <Text style={styles.chipLabel}>{name}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {lenses.length > 0 ? (
+              <Pressable onPress={() => saveLenses([])} hitSlop={6}>
+                <Text style={styles.clearLenses}>{t(lang, "clearLenses")}</Text>
+              </Pressable>
             ) : null}
           </View>
         </Group>
@@ -659,6 +785,42 @@ function makeStyles(colors: Colors) {
       ...font.regular,
     },
     textArea: { minHeight: 56, textAlignVertical: "top", lineHeight: 23 },
+    // Tradition lens
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface2,
+      borderRadius: radius.pill,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    chipActive: {
+      borderColor: "transparent",
+      backgroundColor: colors.accentSoft,
+    },
+    chipLabel: { fontSize: 13.5, color: colors.textSoft, ...font.regular },
+    chipLabelActive: { color: colors.accentStrong, ...font.medium },
+    addLensBtn: { alignSelf: "flex-start" },
+    addLensLabel: {
+      fontSize: 13.5,
+      color: colors.accentStrong,
+      ...font.medium,
+    },
+    lensLimit: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: colors.textFaint,
+      ...font.regular,
+    },
+    clearLenses: {
+      fontSize: 13.5,
+      color: colors.textFaint,
+      ...font.regular,
+    },
     counter: {
       alignSelf: "flex-end",
       fontSize: 12,

@@ -17,7 +17,7 @@ authoritative feature list is **`this.state.*` keys** and the **data arrays**
 (`ONBOARD`, `TRADITIONS`, `MODELS`, `MODES`, `STARTERS`, `FAQS`, `LEGAL`, `GUIDE`,
 `BLOG`, `CAREERS`, `PRICING`, `I18N`, `DAILY_LIMIT`), not the HTML `show*` flags.
 When adding features, grep the state keys, don't eyeball the markup. Design
-reference: `~/Downloads/dhee-conversational-ai-for-life/project/Dhee.dc.html`.
+reference: [`mockup/project/Dhee.dc.html`](../../mockup/project/Dhee.dc.html).
 
 **Audit status (2026-07-24):** verified against **all 81 `state.*` keys** and
 **all 12 data arrays**. Every state key maps to an epic below; the only excluded

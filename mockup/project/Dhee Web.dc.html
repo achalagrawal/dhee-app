@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  .dweb {
+    --bg: oklch(0.985 0.008 85); --surface: oklch(1 0 0); --surface-2: oklch(0.965 0.01 82); --surface-3: oklch(0.945 0.012 80);
+    --border: oklch(0.9 0.012 80); --border-strong: oklch(0.84 0.014 78);
+    --text: oklch(0.28 0.018 62); --text-soft: oklch(0.46 0.018 62); --text-faint: oklch(0.6 0.015 62);
+    --accent: oklch(0.62 0.11 52); --accent-strong: oklch(0.52 0.12 48); --accent-soft: oklch(0.93 0.04 62);
+    --on-accent: oklch(0.99 0.01 85); --danger: oklch(0.55 0.16 25);
+    --shadow: 0 1px 2px oklch(0.4 0.02 60 / 0.05), 0 8px 24px oklch(0.4 0.02 60 / 0.06);
+    color-scheme: light;
+  }
+  .dweb[data-theme="dark"] {
+    --bg: oklch(0.185 0.01 62); --surface: oklch(0.225 0.012 62); --surface-2: oklch(0.255 0.014 62); --surface-3: oklch(0.29 0.016 62);
+    --border: oklch(0.32 0.016 62); --border-strong: oklch(0.4 0.018 62);
+    --text: oklch(0.93 0.012 78); --text-soft: oklch(0.72 0.014 72); --text-faint: oklch(0.58 0.014 68);
+    --accent: oklch(0.74 0.1 62); --accent-strong: oklch(0.8 0.09 64); --accent-soft: oklch(0.3 0.045 56);
+    --on-accent: oklch(0.18 0.01 60); --danger: oklch(0.7 0.15 25);
+    --shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 30px oklch(0 0 0 / 0.35);
+    color-scheme: dark;
+  }
+  .dweb a { color: var(--accent-strong); text-decoration: none; }
+  .dweb a:hover { text-decoration: underline; }
+  .dweb ::selection { background: var(--accent-soft); }
+  @media (max-width: 720px) {
+    .dweb [data-webnav-links] { display: none !important; }
+    .dweb [data-hero-h1] { font-size: 40px !important; }
+  }
+</style>
+</helmet>
+<div class="dweb" data-theme="{{ theme }}" style="font-family: 'Hanken Grotesk', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; line-height: 1.5;">
+
+  <header style="position: sticky; top: 0; z-index: 20; background: color-mix(in oklch, var(--bg) 90%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);">
+    <div style="max-width: 1080px; margin: 0 auto; padding: 15px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+      <a href="#about" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+        <img src="assets/dhee-logo.png" alt="Dhee" width="32" height="32" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;" />
+        <span style="font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--text);">Dhee</span>
+      </a>
+      <nav data-webnav-links style="display: flex; align-items: center; gap: 22px;">
+        <sc-for list="{{ navLinks }}" as="n" hint-placeholder-count="6">
+          <a href="{{ n.href }}" style="{{ n.style }}">{{ n.label }}</a>
+        </sc-for>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); cursor: pointer;">{{ themeGlyph }}</button>
+        <button onClick="{{ openApp }}" style="border: none; background: var(--accent); color: var(--on-accent); font-size: 14.5px; font-weight: 600; padding: 9px 18px; border-radius: 999px; cursor: pointer; white-space: nowrap;">Open Dhee</button>
+      </div>
+    </div>
+  </header>
+
+  <main style="max-width: 1080px; margin: 0 auto;">
+
+    <!-- ABOUT -->
+    <sc-if value="{{ isAbout }}" hint-placeholder-val="{{ true }}">
+      <div style="max-width: 680px; margin: 0 auto; padding: 60px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 44px; font-weight: 500; margin: 0 0 20px; letter-spacing: -0.02em; line-height: 1.08;">About Dhee</h1>
+        <p style="font-size: 19px; line-height: 1.7; color: var(--text); margin: 0 0 18px;">“Dhee” (धी) is an old word for the reflective intellect — the faculty of understanding and discernment. Not cleverness, but the quiet capacity to see a thing clearly.</p>
+        <p style="font-size: 16.5px; line-height: 1.7; color: var(--text-soft); margin: 0 0 18px;">Most tools rush to answer. Dhee is built to slow down with you: to ask what you actually mean, to offer an honest point of view, and to hand the question back so you can keep living with it. It won't pretend to be your therapist, your guru, or the final word. It's a thinking-partner — one that takes your questions seriously.</p>
+        <p style="font-size: 16.5px; line-height: 1.7; color: var(--text-soft); margin: 0 0 30px;">We built it warm and plainspoken on purpose. The big questions are hard enough without jargon.</p>
+        <button onClick="{{ openApp }}" style="border: none; background: var(--accent); color: var(--on-accent); padding: 13px 26px; border-radius: 999px; font-weight: 600; font-size: 15.5px; cursor: pointer;">Start a conversation</button>
+      </div>
+    </sc-if>
+
+    <!-- GETTING STARTED -->
+    <sc-if value="{{ isGuide }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 720px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.02em;">Getting started</h1>
+        <p style="font-size: 16.5px; line-height: 1.65; color: var(--text-soft); margin: 0 0 30px;">Dhee is simple to use, but a few habits make it far more useful.</p>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <sc-for list="{{ guideSteps }}" as="g" hint-placeholder-count="5">
+            <div style="display: flex; gap: 16px; align-items: flex-start; border: 1px solid var(--border); background: var(--surface); border-radius: 16px; padding: 20px 22px;">
+              <span style="flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px;">{{ g.n }}</span>
+              <div>
+                <h3 style="font-size: 18.5px; font-weight: 600; margin: 3px 0 5px;">{{ g.title }}</h3>
+                <p style="margin: 0; color: var(--text-soft); font-size: 15.5px; line-height: 1.6;">{{ g.body }}</p>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- NOTES (blog index) -->
+    <sc-if value="{{ isNotes }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 760px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.02em;">Notes</h1>
+        <p style="font-size: 16.5px; line-height: 1.65; color: var(--text-soft); margin: 0 0 30px;">Occasional writing on thinking well, living with hard questions, and how we build Dhee.</p>
+        <div style="display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;">
+          <sc-for list="{{ blogPosts }}" as="b" hint-placeholder-count="3">
+            <a href="{{ b.href }}" style="background: var(--bg); padding: 22px 24px; text-decoration: none; color: var(--text);">
+              <div style="font-size: 12.5px; color: var(--accent-strong); margin-bottom: 8px; display: flex; gap: 10px;"><span>{{ b.tag }}</span><span style="color: var(--text-faint);">{{ b.date }}</span></div>
+              <h3 style="font-size: 21px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.01em;">{{ b.title }}</h3>
+              <p style="margin: 0; color: var(--text-soft); font-size: 15px; line-height: 1.55;">{{ b.excerpt }}</p>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ARTICLE -->
+    <sc-if value="{{ isArticle }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 660px; margin: 0 auto; padding: 48px 24px 70px;">
+        <a href="#notes" style="font-size: 14px; color: var(--text-soft); display: inline-block; margin-bottom: 22px;">← All notes</a>
+        <div style="font-size: 13px; color: var(--accent-strong); margin-bottom: 12px; display: flex; gap: 10px;"><span>{{ articleTag }}</span><span style="color: var(--text-faint);">{{ articleDate }}</span></div>
+        <h1 style="font-size: 34px; font-weight: 500; margin: 0 0 24px; letter-spacing: -0.02em; line-height: 1.15;">{{ articleTitle }}</h1>
+        <sc-for list="{{ articleBody }}" as="para" hint-placeholder-count="5">
+          <p style="font-size: 17px; line-height: 1.72; color: var(--text); margin: 0 0 20px;">{{ para }}</p>
+        </sc-for>
+        <div style="border-top: 1px solid var(--border); margin-top: 30px; padding-top: 22px;">
+          <button onClick="{{ openApp }}" style="border: none; background: var(--accent); color: var(--on-accent); padding: 12px 22px; border-radius: 999px; font-weight: 600; font-size: 15px; cursor: pointer;">Try thinking it through with Dhee</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- PRICING -->
+    <sc-if value="{{ isPricing }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 900px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.02em; text-align: center;">Simple, honest pricing</h1>
+        <p style="font-size: 16.5px; line-height: 1.65; color: var(--text-soft); margin: 0 auto 34px; text-align: center; max-width: 480px;">Start free with a daily allowance. Upgrade only if Dhee becomes part of how you think. No engagement tricks, cancel anytime.</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+          <sc-for list="{{ pricingPlans }}" as="p" hint-placeholder-count="3">
+            <div style="{{ p.cardStyle }}">
+              <sc-if value="{{ p.featured }}" hint-placeholder-val="{{ false }}"><div style="display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent-strong); background: var(--accent-soft); padding: 4px 11px; border-radius: 999px; margin-bottom: 14px;">Most chosen</div></sc-if>
+              <h3 style="font-size: 20px; font-weight: 600; margin: 0 0 6px;">{{ p.name }}</h3>
+              <div style="margin: 0 0 4px;"><span style="font-size: 34px; font-weight: 600;">{{ p.price }}</span><span style="color: var(--text-faint); font-size: 14px;"> {{ p.period }}</span></div>
+              <p style="color: var(--text-soft); font-size: 14px; margin: 0 0 18px; line-height: 1.5;">{{ p.tagline }}</p>
+              <button onClick="{{ openApp }}" style="{{ p.btnStyle }}">{{ p.cta }}</button>
+              <ul style="margin: 18px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px;">
+                <sc-for list="{{ p.features }}" as="f" hint-placeholder-count="4">
+                  <li style="display: flex; align-items: flex-start; gap: 9px; color: var(--text-soft); font-size: 14px; line-height: 1.45;"><span style="color: var(--accent-strong); margin-top: 1px;">✓</span>{{ f }}</li>
+                </sc-for>
+              </ul>
+            </div>
+          </sc-for>
+        </div>
+        <p style="text-align: center; color: var(--text-faint); font-size: 13px; margin: 24px 0 0;">Prices shown for demonstration.</p>
+      </div>
+    </sc-if>
+
+    <!-- CAREERS -->
+    <sc-if value="{{ isCareers }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 720px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.02em;">Work with us</h1>
+        <p style="font-size: 16.5px; line-height: 1.65; color: var(--text-soft); margin: 0 0 30px;">We're a small team building a calm, honest tool for thinking. If that resonates, we'd love to hear from you.</p>
+        <h2 style="font-size: 21px; font-weight: 600; margin: 0 0 14px;">What we value</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 34px;">
+          <sc-for list="{{ careerValues }}" as="v" hint-placeholder-count="3">
+            <div style="border: 1px solid var(--border); background: var(--surface); border-radius: 14px; padding: 18px;">
+              <h3 style="font-size: 16.5px; font-weight: 600; margin: 0 0 6px;">{{ v.title }}</h3>
+              <p style="margin: 0; color: var(--text-soft); font-size: 14.5px; line-height: 1.55;">{{ v.body }}</p>
+            </div>
+          </sc-for>
+        </div>
+        <h2 style="font-size: 21px; font-weight: 600; margin: 0 0 6px;">Benefits</h2>
+        <ul style="margin: 0 0 34px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{ careerBenefits }}" as="b" hint-placeholder-count="4">
+            <li style="display: flex; align-items: flex-start; gap: 10px; color: var(--text-soft); font-size: 15.5px; line-height: 1.5;"><span style="color: var(--accent-strong); margin-top: 1px;">•</span>{{ b }}</li>
+          </sc-for>
+        </ul>
+        <h2 style="font-size: 21px; font-weight: 600; margin: 0 0 14px;">Open roles</h2>
+        <div style="display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;">
+          <sc-for list="{{ careerRoles }}" as="r" hint-placeholder-count="3">
+            <div style="background: var(--bg); padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+              <div>
+                <div style="font-size: 17px; font-weight: 500;">{{ r.title }}</div>
+                <div style="color: var(--text-faint); font-size: 13.5px; margin-top: 2px;">{{ r.meta }}</div>
+              </div>
+              <a href="#contact" style="border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); padding: 8px 16px; border-radius: 999px; font-size: 14px; white-space: nowrap;">Apply</a>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- HELP / FAQ -->
+    <sc-if value="{{ isHelp }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 700px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.02em;">Help</h1>
+        <p style="font-size: 16.5px; line-height: 1.65; color: var(--text-soft); margin: 0 0 30px;">The questions people ask most. If yours isn't here, <a href="#contact">write to us</a>.</p>
+        <div style="display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;">
+          <sc-for list="{{ faqs }}" as="f" hint-placeholder-count="5">
+            <div style="background: var(--bg);">
+              <button onClick="{{ f.onToggle }}" style="width: 100%; text-align: left; border: none; background: none; color: var(--text); padding: 18px 20px; font-size: 16px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 14px; font-family: 'Hanken Grotesk', system-ui, sans-serif;">
+                <span style="flex: 1;">{{ f.q }}</span>
+                <span style="{{ f.iconStyle }}">+</span>
+              </button>
+              <sc-if value="{{ f.open }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 0 20px 20px; color: var(--text-soft); font-size: 15.5px; line-height: 1.65;">{{ f.a }}</div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- CONTACT -->
+    <sc-if value="{{ isContact }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 620px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.02em;">Get in touch</h1>
+        <p style="font-size: 16.5px; line-height: 1.65; color: var(--text-soft); margin: 0 0 28px;">Feedback, a question Dhee got wrong, or something you'd like to see — we read everything.</p>
+        <sc-if value="{{ contactSent }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 1px solid var(--border-strong); background: var(--surface-2); border-radius: 16px; padding: 30px; text-align: center;">
+            <p style="font-size: 22px; margin: 0 0 8px;">Thank you.</p>
+            <p style="color: var(--text-soft); font-size: 15.5px; margin: 0 0 20px;">Your note is on its way. We'll reply if it needs one.</p>
+            <button onClick="{{ resetContact }}" style="border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 10px 20px; border-radius: 999px; font-size: 14.5px; cursor: pointer;">Send another</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ contactForm }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+              <input value="{{ contactName }}" onInput="{{ onContactName }}" placeholder="Your name" style="flex: 1; min-width: 180px; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 13px 15px; font-size: 15px; color: var(--text); outline: none;" />
+              <input value="{{ contactEmail }}" onInput="{{ onContactEmail }}" placeholder="Your email" type="email" style="flex: 1; min-width: 180px; border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 13px 15px; font-size: 15px; color: var(--text); outline: none;" />
+            </div>
+            <textarea value="{{ contactMsg }}" onInput="{{ onContactMsg }}" placeholder="What's on your mind?" rows="5" style="border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 13px 15px; font-size: 15px; color: var(--text); outline: none; resize: vertical; font-family: inherit; line-height: 1.5;"></textarea>
+            <button onClick="{{ sendContact }}" style="align-self: flex-start; border: none; background: var(--accent); color: var(--on-accent); padding: 12px 24px; border-radius: 999px; font-weight: 600; font-size: 15px; cursor: pointer;">Send</button>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- SAFETY -->
+    <sc-if value="{{ isSafety }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 680px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 16px; letter-spacing: -0.02em;">Safety &amp; limitations</h1>
+        <p style="font-size: 17px; line-height: 1.65; color: var(--text-soft); margin: 0 0 24px;">Dhee is a tool for reflection. It's genuinely useful for thinking out loud — and it has real limits worth being clear about.</p>
+        <div style="border: 1px solid var(--border-strong); background: var(--surface-2); border-radius: 16px; padding: 22px; margin-bottom: 26px;">
+          <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 10px;">If you're in crisis</h2>
+          <p style="margin: 0 0 14px; color: var(--text-soft); font-size: 15.5px; line-height: 1.6;">If you're thinking about harming yourself or are in immediate danger, please contact your local emergency number or a crisis line now. You deserve to talk to a real person.</p>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <sc-for list="{{ crisisLines }}" as="c" hint-placeholder-count="3">
+              <div style="display: flex; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 15px;">
+                <span style="font-size: 14.5px;">{{ c.name }}</span><span style="font-weight: 600; font-size: 14.5px;">{{ c.contact }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <p style="margin: 12px 0 0; font-size: 12.5px; color: var(--text-faint);">Sample resources shown for demonstration.</p>
+        </div>
+        <sc-for list="{{ safetyPoints }}" as="p" hint-placeholder-count="4">
+          <div style="margin-bottom: 20px;">
+            <h3 style="font-size: 18.5px; font-weight: 600; margin: 0 0 5px;">{{ p.title }}</h3>
+            <p style="margin: 0; color: var(--text-soft); font-size: 15.5px; line-height: 1.6;">{{ p.body }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- LEGAL -->
+    <sc-if value="{{ isLegal }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 680px; margin: 0 auto; padding: 56px 24px 70px;">
+        <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.02em;">{{ legalTitle }}</h1>
+        <p style="color: var(--text-faint); font-size: 13.5px; margin: 0 0 28px;">{{ legalUpdated }}</p>
+        <sc-for list="{{ legalSections }}" as="sec" hint-placeholder-count="5">
+          <div style="margin-bottom: 22px;">
+            <h2 style="font-size: 18.5px; font-weight: 600; margin: 0 0 6px;">{{ sec.h }}</h2>
+            <p style="margin: 0; color: var(--text-soft); font-size: 15.5px; line-height: 1.65;">{{ sec.p }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- GET THE APP -->
+    <sc-if value="{{ isDownload }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width: 720px; margin: 0 auto; padding: 56px 24px 70px;">
+        <div style="text-align: center; margin-bottom: 36px;">
+          <img src="assets/dhee-logo.png" alt="Dhee" width="60" height="60" style="width: 60px; height: 60px; border-radius: 15px; object-fit: cover; margin-bottom: 16px;" />
+          <h1 data-hero-h1 style="font-size: 40px; font-weight: 500; margin: 0 0 10px; letter-spacing: -0.02em;">Take Dhee with you</h1>
+          <p style="font-size: 16.5px; line-height: 1.6; color: var(--text-soft); margin: 0 auto; max-width: 460px;">A calm place to think, on every device. Pick up any conversation right where you left it.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 30px;">
+          <sc-for list="{{ downloadApps }}" as="d" hint-placeholder-count="3">
+            <div style="border: 1px solid var(--border); background: var(--surface); border-radius: 18px; padding: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px;">
+              <span style="width: 46px; height: 46px; border-radius: 12px; background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; color: var(--text);">{{ d.icon }}</span>
+              <div>
+                <div style="font-size: 18.5px; font-weight: 600; margin-bottom: 3px;">{{ d.title }}</div>
+                <div style="color: var(--text-faint); font-size: 13.5px; line-height: 1.5;">{{ d.meta }}</div>
+              </div>
+              <button onClick="{{ d.onClick }}" style="margin-top: auto; border: none; background: var(--text); color: var(--bg); padding: 11px 18px; border-radius: 12px; font-size: 14.5px; font-weight: 600; cursor: pointer;">{{ d.cta }}</button>
+            </div>
+          </sc-for>
+        </div>
+        <p style="text-align: center; color: var(--text-faint); font-size: 12.5px; margin: 22px 0 0;">Store links shown for demonstration.</p>
+      </div>
+    </sc-if>
+
+  </main>
+
+  <footer style="border-top: 1px solid var(--border); margin-top: 40px;">
+    <div style="max-width: 1080px; margin: 0 auto; padding: 30px 24px 50px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <img src="assets/dhee-logo.png" alt="Dhee" width="26" height="26" style="width: 26px; height: 26px; border-radius: 7px; object-fit: cover;" />
+        <span style="color: var(--text-faint); font-size: 13px;">© 2026 Dhee</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px 22px;">
+        <sc-for list="{{ footerLinks }}" as="l" hint-placeholder-count="6">
+          <a href="{{ l.href }}" style="color: var(--text-faint); font-size: 13px;">{{ l.label }}</a>
+        </sc-for>
+      </div>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1080, &quot;height&quot;: 820}}">
+class Component extends DCLogic {
+  PAGES = ['about','guide','notes','pricing','careers','help','contact','safety','privacy','terms','download'];
+  NAV = [
+    { key: 'about', label: 'About' }, { key: 'guide', label: 'Getting started' },
+    { key: 'notes', label: 'Notes' }, { key: 'pricing', label: 'Pricing' }, { key: 'careers', label: 'Careers' },
+  ];
+  FOOTER = [
+    { key: 'about', label: 'About' }, { key: 'guide', label: 'Getting started' }, { key: 'notes', label: 'Notes' },
+    { key: 'pricing', label: 'Pricing' }, { key: 'careers', label: 'Careers' }, { key: 'help', label: 'Help' },
+    { key: 'contact', label: 'Contact' }, { key: 'safety', label: 'Safety' }, { key: 'download', label: 'Get the app' },
+    { key: 'privacy', label: 'Privacy' }, { key: 'terms', label: 'Terms' },
+  ];
+
+  GUIDE = [
+    { n: '1', title: "Bring the real question", body: "You don't need the perfect phrasing. Say what's actually on your mind — messy is fine. Dhee will help you find the sharper question underneath." },
+    { n: '2', title: "Expect it to ask back", body: "For anything meaningful, Dhee often replies with a question before an answer. That's not stalling — it's how a good thinking-partner avoids solving the wrong problem." },
+    { n: '3', title: "Push against it", body: "Dhee offers a point of view so you have something to react to. Disagree, add context, say 'that's not it.' The conversation gets better when you do." },
+    { n: '4', title: "Set a lens if you have one", body: "In Settings, name a tradition you follow — Stoicism, Advaita, Madhyasth Darshan — and Dhee will use its vocabulary. Leave it off to keep things plain." },
+    { n: '5', title: "Come back to it", body: "Save conversations to your Library and search them anytime. Some questions are worth returning to over weeks, not minutes." },
+  ];
+  BLOG = [
+    { id: 'ask-first', tag: 'On thinking', date: 'July 2026', title: "Why a good question beats a fast answer", excerpt: "The instinct to resolve discomfort quickly is exactly what keeps us stuck. A case for slowing down at the start.",
+      body: ["We built Dhee around a small, stubborn belief: most of the time, we don't need a better answer. We need a better question.", "When something weighs on us — a decision, a strained relationship, a vague sense of being off-course — the instinct is to resolve the discomfort fast. Get advice. Make a list. Decide. But speed at the start often just locks in the wrong frame.", "A question like 'should I take the job?' quietly assumes the job is the real issue. Sit with it a moment and the actual question might be 'what am I hoping this move will fix?' — a very different thing to answer.", "This is why Dhee tends to ask before it answers. Not to be coy, but because naming the real question is often three-quarters of the work. Once you can see clearly what you're actually deciding, the decision itself gets much lighter.", "Try it the next time something nags at you. Before reaching for an answer, ask: what is the question beneath this one?"] },
+    { id: 'not-a-guru', tag: 'On Dhee', date: 'June 2026', title: "A tool, not a guru", excerpt: "Why we deliberately built Dhee to hand questions back instead of posing as the final word.",
+      body: ["There's a temptation, building something like Dhee, to make it sound wise. Certain. The kind of voice you'd defer to. We've tried hard to resist that.", "Dhee is a tool. A good one, we hope — but a tool. It doesn't know your life better than you do, it can be wrong, and it has no business posing as a therapist, a guru, or the final word on anything.", "So we designed it to hand questions back. Every reply ends with something to sit with, not a verdict to obey. The goal isn't for you to trust Dhee. It's for you to think more clearly, and then trust yourself.", "That's also why the important people in your life stay central. Dhee is at its best when it points you back toward them — not when it replaces them."] },
+    { id: 'traditions', tag: 'On thinking', date: 'June 2026', title: "Thinking inside a tradition", excerpt: "How naming a framework you trust can make reflection sharper, without becoming dogma.",
+      body: ["Frameworks of thought — Stoicism, Buddhist psychology, Madhyasth Darshan, and many others — are compressed wisdom. They give us vocabulary for experiences that are otherwise hard to hold.", "Dhee lets you name one. When you do, it draws on that tradition's language and framing as a lens on your question. A Stoic lens might ask what's within your control; another might ask what you're clinging to.", "The risk with any framework is that it hardens into dogma — an answer applied before the question is understood. So Dhee treats a tradition as a lens, not a law. It stays open, and it won't force the frame where it doesn't fit.", "Used well, a tradition doesn't tell you what to think. It gives you better questions to think with."] },
+  ];
+  CAREERS = {
+    values: [
+      { title: "Calm over hype", body: "We build slowly and honestly. No dark patterns, no manufactured urgency, no exaggerated claims." },
+      { title: "Words matter", body: "This is a product made of language. We sweat the copy, the tone, and what we choose not to say." },
+      { title: "Respect the user", body: "People bring us tender questions. We treat that trust as the whole job, not a growth lever." },
+    ],
+    benefits: ["Remote-first, with flexible hours across time zones", "Genuine focus time — few meetings, no on-call theatre", "Health, dental, and mental-health support", "A yearly stipend for books, courses, and quiet retreats"],
+    roles: [
+      { title: "Founding Product Designer", meta: "Design · Remote · Full-time" },
+      { title: "Applied AI Engineer", meta: "Engineering · Remote · Full-time" },
+      { title: "Writer & Content Lead", meta: "Editorial · Remote · Part-time" },
+    ],
+  };
+  PRICING = [
+    { name: 'Free', price: '$0', period: 'forever', tagline: 'A daily allowance to think with Dhee.', cta: 'Start free', featured: false,
+      features: ['A generous daily message allowance', 'Library & search', 'One tradition lens', 'Stored privately in your browser'] },
+    { name: 'Reflective', price: '$8', period: '/ month', tagline: 'For people who make Dhee a regular practice.', cta: 'Choose Reflective', featured: true,
+      features: ['Unlimited messages', 'Sync across your devices', 'Multiple tradition lenses', 'Longer memory & richer context', 'Priority responses'] },
+    { name: 'Patron', price: '$20', period: '/ month', tagline: 'Support the work and get early access.', cta: 'Become a Patron', featured: false,
+      features: ['Everything in Reflective', 'Early access to new features', 'A direct line to the team', 'Help shape where Dhee goes'] },
+  ];
+  FAQS = [
+    { q: "What is Dhee, exactly?", a: "A conversational thinking-partner for life's harder questions. You bring something you're turning over — a decision, a relationship, a feeling — and Dhee helps you think it through: asking what you mean, offering an honest perspective, and leaving you with something to sit with. It's not a search engine and not a chat toy." },
+    { q: "Is Dhee a therapist or a substitute for one?", a: "No. Dhee isn't a therapist, counselor, doctor, or crisis service, and it can't diagnose or treat anything. It's genuinely useful for reflection, but for mental health, medical, legal, or financial matters, a qualified professional comes first. See Safety & limitations for crisis resources." },
+    { q: "Does Dhee just tell me what I want to hear?", a: "It tries not to. Dhee is built to offer a real, considered point of view — including one you might disagree with — rather than flatter you or hedge endlessly. You're always free to push back, and often should." },
+    { q: "What is the tradition lens?", a: "If you follow a particular framework of thought — say Stoicism, Advaita, or Madhyasth Darshan — you can name it in Settings, and Dhee will draw on that tradition's vocabulary and framing when it fits. It stays a lens, not doctrine: Dhee won't become dogmatic or pretend the tradition is the only truth." },
+    { q: "Where are my conversations stored?", a: "In this preview, everything — your conversations, library, and memory — is kept only in your browser. Your messages are sent to the AI that generates replies, but nothing is stored on a server. You can export or delete all of it anytime in Settings." },
+    { q: "What does Dhee remember about me?", a: "A few light, plainly-worded notes it picks up as you talk — always visible in Settings, and always yours to remove. It's meant to help Dhee speak to your situation, not to build a profile." },
+    { q: "Is Dhee free?", a: "There's a free daily allowance, and no account is required to start. If you find yourself thinking with Dhee often, a paid plan lifts the daily limit." },
+  ];
+  LEGAL = {
+    privacy: { title: "Privacy", updated: "Last updated July 2026", sections: [
+      { h: "The short version", p: "Dhee is for private reflection, and it's designed to hold your trust. We collect as little as possible, we don't sell your data, and you can export or delete everything at any time." },
+      { h: "What's stored, and where", p: "In this preview, your conversations, library, and memory notes are stored locally in your browser — not on our servers. Clearing your browser data or using the “Delete everything” control in Settings removes them permanently." },
+      { h: "What we send to generate replies", p: "To answer you, the text of your messages is sent to the AI model that generates Dhee's responses. We don't attach your name or contact details to those requests, and we don't use your conversations to train models." },
+      { h: "Sensitive topics", p: "People often bring Dhee tender things — grief, relationships, doubt. We treat that seriousness with care. Dhee is not a medical or crisis service, and conversations here are not protected health information or a confidential professional relationship." },
+      { h: "Your controls", p: "You can review and remove individual memory notes, export all your data as a text file, and delete everything from this browser — all from Settings, without contacting us." },
+      { h: "Children", p: "Dhee is not intended for people under 16. We don't knowingly collect information from children." },
+      { h: "Contact", p: "Questions about privacy? Reach us through the Contact page." },
+    ] },
+    terms: { title: "Terms of use", updated: "Last updated July 2026", sections: [
+      { h: "Using Dhee", p: "Dhee is a tool for reflection and thinking, offered as-is. By using it, you agree to these terms. If you don't agree, please don't use the service." },
+      { h: "Not professional advice", p: "Dhee is not a therapist, doctor, lawyer, financial adviser, or crisis service, and nothing it says is professional advice. For decisions with real consequences, consult a qualified professional. You're responsible for what you choose to do." },
+      { h: "In an emergency", p: "If you're in danger or thinking about harming yourself, contact your local emergency number or a crisis line immediately. Dhee cannot provide emergency help. See Safety & limitations for resources." },
+      { h: "What Dhee can and can't do", p: "Dhee generates its responses and can be wrong, incomplete, or one-sided. Treat its perspective as a starting point for your own thinking, not as fact or instruction." },
+      { h: "Acceptable use", p: "Please don't use Dhee to harm yourself or others, to break the law, or to generate content that abuses, harasses, or endangers anyone. We may limit or end access that does." },
+      { h: "Your content", p: "What you write stays yours. In this preview it's stored in your browser; you can export or delete it anytime." },
+      { h: "Changes", p: "We may update these terms as Dhee evolves. Continued use after a change means you accept the updated terms." },
+    ] },
+  };
+
+  state = { page: 'about', article: null, theme: 'light', faqOpen: null, contactName: '', contactEmail: '', contactMsg: '', contactSent: false };
+
+  componentDidMount() {
+    try { const s = JSON.parse(localStorage.getItem('dhee.v1') || '{}'); if (s.theme) this.setState({ theme: s.theme }); } catch (e) {}
+    this.applyHash();
+    this._h = () => this.applyHash();
+    window.addEventListener('hashchange', this._h);
+  }
+  componentWillUnmount() { if (this._h) window.removeEventListener('hashchange', this._h); }
+  applyHash() {
+    const raw = (location.hash || '').replace(/^#/, '');
+    const [page, arg] = raw.split('/');
+    if (page === 'article' && arg) { this.setState({ page: 'article', article: arg }); return; }
+    if (this.PAGES.includes(page)) this.setState({ page, article: null });
+    else this.setState({ page: 'about', article: null });
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }
+  toggleTheme = () => {
+    const theme = this.state.theme === 'dark' ? 'light' : 'dark';
+    this.setState({ theme });
+    try { const s = JSON.parse(localStorage.getItem('dhee.v1') || '{}'); s.theme = theme; localStorage.setItem('dhee.v1', JSON.stringify(s)); } catch (e) {}
+  };
+  openApp = () => { window.location.href = 'Dhee.dc.html'; };
+  toggleFaq = (i) => this.setState({ faqOpen: this.state.faqOpen === i ? null : i });
+  onContactName = (e) => this.setState({ contactName: e.target.value });
+  onContactEmail = (e) => this.setState({ contactEmail: e.target.value });
+  onContactMsg = (e) => this.setState({ contactMsg: e.target.value });
+  sendContact = () => this.setState({ contactSent: true });
+  resetContact = () => this.setState({ contactSent: false, contactName: '', contactEmail: '', contactMsg: '' });
+
+  renderVals() {
+    const s = this.state;
+    const p = s.page;
+    const article = s.article ? this.BLOG.find(b => b.id === s.article) : null;
+    const legal = p === 'privacy' ? this.LEGAL.privacy : p === 'terms' ? this.LEGAL.terms : null;
+    return {
+      theme: s.theme, themeGlyph: s.theme === 'dark' ? '☀' : '☾',
+      toggleTheme: this.toggleTheme, openApp: this.openApp,
+      navLinks: this.NAV.map(n => ({ href: '#' + n.key, label: n.label, style: `color:${p === n.key ? 'var(--text)' : 'var(--text-soft)'};font-size:15px;font-weight:${p === n.key ? '600' : '400'};` })),
+      footerLinks: this.FOOTER.map(l => ({ href: '#' + l.key, label: l.label })),
+      isAbout: p === 'about', isGuide: p === 'guide', isNotes: p === 'notes', isArticle: p === 'article',
+      isPricing: p === 'pricing', isCareers: p === 'careers', isHelp: p === 'help', isContact: p === 'contact',
+      isSafety: p === 'safety', isLegal: p === 'privacy' || p === 'terms', isDownload: p === 'download',
+      guideSteps: this.GUIDE,
+      blogPosts: this.BLOG.map(b => ({ href: '#article/' + b.id, tag: b.tag, date: b.date, title: b.title, excerpt: b.excerpt })),
+      articleTitle: article ? article.title : '', articleTag: article ? article.tag : '', articleDate: article ? article.date : '', articleBody: article ? article.body : [],
+      pricingPlans: this.PRICING.map(pl => ({
+        name: pl.name, price: pl.price, period: pl.period, tagline: pl.tagline, cta: pl.cta, features: pl.features, featured: pl.featured,
+        cardStyle: `border:1px solid ${pl.featured ? 'var(--accent)' : 'var(--border)'};background:var(--surface);border-radius:18px;padding:26px 24px;${pl.featured ? 'box-shadow:var(--shadow);' : ''}`,
+        btnStyle: `width:100%;border:${pl.featured ? 'none' : '1px solid var(--border-strong)'};background:${pl.featured ? 'var(--accent)' : 'var(--surface)'};color:${pl.featured ? 'var(--on-accent)' : 'var(--text)'};padding:12px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;`,
+      })),
+      careerValues: this.CAREERS.values, careerBenefits: this.CAREERS.benefits, careerRoles: this.CAREERS.roles,
+      faqs: this.FAQS.map((f, i) => ({ q: f.q, a: f.a, open: s.faqOpen === i, onToggle: () => this.toggleFaq(i), iconStyle: `flex-shrink:0;font-size:20px;font-weight:400;color:var(--text-faint);transition:transform .18s;transform:rotate(${s.faqOpen === i ? '45' : '0'}deg);` })),
+      contactSent: s.contactSent, contactForm: !s.contactSent,
+      contactName: s.contactName, contactEmail: s.contactEmail, contactMsg: s.contactMsg,
+      onContactName: this.onContactName, onContactEmail: this.onContactEmail, onContactMsg: this.onContactMsg,
+      sendContact: this.sendContact, resetContact: this.resetContact,
+      crisisLines: [
+        { name: 'US · 988 Suicide & Crisis Lifeline', contact: 'Call or text 988' },
+        { name: 'UK & ROI · Samaritans', contact: '116 123' },
+        { name: 'International · Befrienders', contact: 'befrienders.org' },
+      ],
+      safetyPoints: [
+        { title: "Dhee is not a professional", body: "It isn't a therapist, doctor, lawyer, or financial adviser. For decisions with serious consequences, treat it as a starting point for your own thinking — not a substitute for qualified help." },
+        { title: "It can be wrong or one-sided", body: "Dhee generates its responses and can miss context, misread tone, or reflect blind spots. Weigh what it says; disagree freely. You know your life." },
+        { title: "Your privacy", body: "In this preview, your conversations and library are stored only in your browser. Nothing is sent anywhere except your messages to the AI that generates replies." },
+        { title: "It won't pretend to be human", body: "Dhee is a tool. The relationships and people in your life are the real thing — Dhee is at its best when it points you back toward them." },
+      ],
+      legalTitle: legal ? legal.title : '', legalUpdated: legal ? legal.updated : '', legalSections: legal ? legal.sections : [],
+      downloadApps: [
+        { title: 'iOS', meta: 'iPhone & iPad · iOS 16 or later', cta: 'App Store', icon: this.appIcon('apple'), onClick: () => {} },
+        { title: 'Android', meta: 'Phone & tablet · Android 10 or later', cta: 'Google Play', icon: this.appIcon('android'), onClick: () => {} },
+        { title: 'Desktop', meta: 'macOS & Windows', cta: 'Download', icon: this.appIcon('desktop'), onClick: () => {} },
+      ],
+    };
+  }
+  appIcon(name) {
+    const E = React.createElement;
+    if (name === 'apple') return E('svg', { width: 24, height: 24, viewBox: '0 0 18 18', fill: 'none' }, E('path', { d: 'M11.6 9.3C11.6 7.7 12.9 7 13 6.9C12.3 5.9 11.2 5.8 10.8 5.8C9.9 5.7 9 6.3 8.6 6.3C8.1 6.3 7.4 5.8 6.6 5.8C5.6 5.9 4.7 6.4 4.2 7.4C3.2 9.2 3.9 11.8 4.9 13.2C5.4 13.9 6 14.7 6.7 14.6C7.4 14.6 7.7 14.2 8.6 14.2C9.4 14.2 9.7 14.6 10.5 14.6C11.3 14.6 11.8 13.9 12.3 13.2C12.6 12.7 12.9 12.1 13 11.9C12.9 11.9 11.6 11.4 11.6 9.3Z M9.9 4.9C10.3 4.4 10.6 3.8 10.5 3.1C9.9 3.1 9.3 3.5 8.9 4C8.6 4.4 8.3 5 8.4 5.6C9 5.7 9.5 5.3 9.9 4.9Z', fill: 'currentColor' }));
+    if (name === 'android') return E('svg', { width: 24, height: 24, viewBox: '0 0 18 18', fill: 'none' }, E('g', { fill: 'currentColor' }, E('rect', { x: 4.5, y: 7.5, width: 9, height: 6.5, rx: 1 }), E('rect', { x: 3, y: 8.5, width: 1.4, height: 4, rx: 0.7 }), E('rect', { x: 13.6, y: 8.5, width: 1.4, height: 4, rx: 0.7 }), E('path', { d: 'M5 7C5 4.8 6.8 3.3 9 3.3C11.2 3.3 13 4.8 13 7Z' })));
+    return E('svg', { width: 24, height: 24, viewBox: '0 0 18 18', fill: 'none' }, E('g', { stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }, E('rect', { x: 2.5, y: 3.5, width: 13, height: 9, rx: 1.5, strokeLinejoin: 'round' }), E('path', { d: 'M6.5 15H11.5 M9 12.5V15' })));
+  }
+}
+</script>
+</body>
+</html>

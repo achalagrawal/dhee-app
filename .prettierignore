@@ -5,3 +5,4 @@ dist/
 .vercel/
 convex/_generated/
 pnpm-lock.yaml
+mockup/

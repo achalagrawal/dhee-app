@@ -8,9 +8,9 @@
 
 ## Mockup reference
 
-- File: `~/Downloads/dhee-conversational-ai-for-life/project/Dhee.dc.html`
-- Section: `<!-- ===== ... ===== -->` around line <n>, and any screenshots in
-  `project/uploads/` that show it.
+- File: `mockup/project/Dhee.dc.html` (web-shell variant:
+  `mockup/project/Dhee Web.dc.html`)
+- Section: `<!-- ===== ... ===== -->` around line <n>.
 - What it looks like: <one or two sentences; note dimensions/colors only if the
   CSS vars don't already cover it>
 

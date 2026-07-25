@@ -1,8 +1,8 @@
 # Build system — turning the design into the product
 
 This folder is the **single source of truth** for building Dhee toward the final
-design (the Claude Design bundle in
-`~/Downloads/dhee-conversational-ai-for-life/project/Dhee.dc.html`).
+design (the Claude Design bundle committed at
+[`mockup/project/Dhee.dc.html`](../../mockup/project/Dhee.dc.html)).
 
 Both a human and Claude Code should be able to open this folder and know, without
 any chat history: what the product is meant to do, what's done, what's next, and

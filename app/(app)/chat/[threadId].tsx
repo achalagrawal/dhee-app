@@ -2,7 +2,7 @@ import { useUIMessages, type UIMessage } from "@convex-dev/agent/react";
 import { useMutation, useQuery } from "convex/react";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -47,8 +47,13 @@ export default function Chat() {
   // The first landing jumps straight to the newest message rather than
   // animating through the whole transcript.
   const landedRef = useRef(false);
+  // Set the instant Stop is pressed so the composer is usable again without
+  // waiting for the abort to round-trip. Cleared when the reply actually
+  // settles, which also covers the abort racing the stream finishing on its own.
+  const [stopping, setStopping] = useState(false);
 
   const sendMessage = useMutation(api.chat.sendMessage);
+  const stopGeneration = useMutation(api.chat.stopGeneration);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
   const { results } = useUIMessages(
     api.chat.listThreadMessages,
@@ -108,6 +113,23 @@ export default function Chat() {
       setFailed(true);
     }
   }, [draft, threadId, sendMessage]);
+
+  // A stop is not a failure — no error card, and the partial reply keeps its
+  // normal actions row. See docs/build/specs/chat-loop.md §4.
+  const stop = useCallback(async () => {
+    if (!threadId) return;
+    setStopping(true);
+    try {
+      await stopGeneration({ threadId });
+    } catch {
+      // Nothing to stop, or it finished first. Either way the composer is
+      // already back — there is nothing useful to tell the person here.
+    }
+  }, [threadId, stopGeneration]);
+
+  useEffect(() => {
+    if (!generating) setStopping(false);
+  }, [generating]);
 
   const newThread = useCallback(() => router.replace("/home"), []);
 
@@ -244,8 +266,8 @@ export default function Chat() {
             onSubmit={send}
             placeholder={t(lang, "replyPlaceholder")}
             minHeight={24}
-            generating={generating}
-            onStop={() => Alert.alert(t(lang, "stop"), t(lang, "comingSoon"))}
+            generating={generating && !stopping}
+            onStop={stop}
           />
           <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
         </View>

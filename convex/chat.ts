@@ -1,6 +1,8 @@
 import {
+  abortStream,
   createThread,
   getThreadMetadata,
+  listStreams,
   listUIMessages,
   syncStreams,
   updateThreadMetadata,
@@ -31,6 +33,14 @@ import { requireUserId } from "./users";
 // Flow: `sendMessage` mutation saves the user turn and schedules the reply,
 // so the client can render optimistically while `streamReply` streams deltas
 // over websockets.
+//
+// Conventions for the whole loop — what a stopped message leaves behind, how
+// failures are surfaced, when auto-scroll may move the view — are written down
+// once in docs/build/specs/chat-loop.md.
+
+// Recorded on the aborted stream. Distinguishes a deliberate stop from a
+// model or network failure when reading the component's stream rows.
+const STOP_REASON = "Stopped by the person.";
 
 async function authorizeThread(
   ctx: QueryCtx | MutationCtx | ActionCtx,
@@ -187,19 +197,64 @@ export const streamReply = internalAction({
       internal.memory.contextBlockForUser,
       { userId },
     );
-    const result = await dhee.streamText(
-      ctx,
-      { threadId, userId },
-      { promptMessageId, system: buildSystemPrompt(contextBlock) },
-      { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
-    );
-    await result.consumeStream();
-
-    // Title the thread once there's a real exchange to summarize. Without
-    // this every row in the conversation list reads "New conversation" and
-    // history is unnavigable.
-    await ctx.scheduler.runAfter(0, internal.chat.titleThread, { threadId });
+    try {
+      const result = await dhee.streamText(
+        ctx,
+        { threadId, userId },
+        { promptMessageId, system: buildSystemPrompt(contextBlock) },
+        { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
+      );
+      await result.consumeStream();
+    } finally {
+      // Title the thread once there's a real exchange to summarize. Without
+      // this every row in the conversation list reads "New conversation" and
+      // history is unnavigable.
+      //
+      // In `finally` because a stopped stream (see `stopGeneration`) makes the
+      // consume above throw. A thread the person stopped on its first turn
+      // still needs a name, so titling must not be collateral damage.
+      await ctx.scheduler.runAfter(0, internal.chat.titleThread, { threadId });
+    }
     return null;
+  },
+});
+
+// Stop a reply mid-flight.
+//
+// Aborting flips the component's stream row out of "streaming", which makes the
+// generating action's next delta write fail. That failure aborts the
+// `AbortController` whose signal was handed to the model request — so the model
+// call genuinely ends rather than being hidden while it finishes at our expense.
+//
+// The partial text survives: when the aborted action finalizes its pending
+// message, the component derives real message rows from the deltas written so
+// far, so a stopped reply stays readable in `listThreadMessages` afterwards.
+//
+// The target is found server-side from the already-authorized thread rather
+// than taken from the client. A client-supplied streamId would have to be
+// checked against the caller's thread anyway, and looking it up here also
+// covers the case of more than one active stream.
+export const stopGeneration = mutation({
+  args: { threadId: v.string() },
+  // Whether anything was actually stopped — false when the reply had already
+  // finished. Stopping nothing is a no-op, not an error: the button races the
+  // stream ending on its own, and losing that race is not a failure.
+  returns: v.boolean(),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const active = await listStreams(ctx, components.agent, {
+      threadId,
+      includeStatuses: ["streaming"],
+    });
+    let stopped = false;
+    for (const stream of active) {
+      const didAbort = await abortStream(ctx, components.agent, {
+        streamId: stream.streamId,
+        reason: STOP_REASON,
+      });
+      stopped = stopped || didAbort;
+    }
+    return stopped;
   },
 });
 

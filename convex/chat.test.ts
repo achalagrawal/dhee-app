@@ -157,6 +157,106 @@ describe("chat — delete", () => {
   });
 });
 
+describe("chat — stop generating", () => {
+  // Stand in for a reply in flight: the component row `streamReply` would have
+  // created. Building it directly keeps the model out of the test while still
+  // exercising the real abort path.
+  async function startStream(
+    t: ReturnType<typeof initTest>,
+    threadId: string,
+  ): Promise<string> {
+    return await t.run(
+      async (ctx) =>
+        await ctx.runMutation(components.agent.streams.create, {
+          threadId,
+          order: 1,
+          stepOrder: 0,
+          format: "UIMessageChunk",
+        }),
+    );
+  }
+
+  async function streamStatuses(
+    t: ReturnType<typeof initTest>,
+    threadId: string,
+  ): Promise<string[]> {
+    const streams = await t.run(
+      async (ctx) =>
+        await ctx.runQuery(components.agent.streams.list, {
+          threadId,
+          statuses: ["streaming", "finished", "aborted"],
+        }),
+    );
+    return streams.map((s: { status: string }) => s.status);
+  }
+
+  test("aborts the thread's active stream", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await startStream(t, threadId);
+
+    expect(await streamStatuses(t, threadId)).toEqual(["streaming"]);
+    expect(await as.mutation(api.chat.stopGeneration, { threadId })).toBe(true);
+    expect(await streamStatuses(t, threadId)).toEqual(["aborted"]);
+  });
+
+  test("stopping with nothing in flight is a no-op, not an error", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    // Races the stream finishing on its own — losing that race is not a failure.
+    expect(await as.mutation(api.chat.stopGeneration, { threadId })).toBe(
+      false,
+    );
+  });
+
+  test("rejects a thread the caller does not own", async () => {
+    const t = initTest();
+    const owner = await createUser(t);
+    const other = await createUser(t);
+    const threadId = await asUser(t, owner).mutation(api.chat.startThread, {});
+    await startStream(t, threadId);
+
+    await expect(
+      asUser(t, other).mutation(api.chat.stopGeneration, { threadId }),
+    ).rejects.toThrow("Not your conversation");
+    // And the stream is untouched.
+    expect(await streamStatuses(t, threadId)).toEqual(["streaming"]);
+  });
+
+  test("the thread still reads and accepts a new message afterwards", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await as.mutation(api.chat.sendMessage, { threadId, prompt: "hello" });
+    await startStream(t, threadId);
+    await as.mutation(api.chat.stopGeneration, { threadId });
+
+    const before = await as.query(api.chat.listThreadMessages, {
+      threadId,
+      paginationOpts: { cursor: null, numItems: 20 },
+      streamArgs: undefined,
+    });
+    expect(before.page.map((m) => m.text)).toContain("hello");
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "still here?",
+    });
+    const after = await as.query(api.chat.listThreadMessages, {
+      threadId,
+      paginationOpts: { cursor: null, numItems: 20 },
+      streamArgs: undefined,
+    });
+    expect(after.page.map((m) => m.text)).toContain("still here?");
+  });
+});
+
 describe("chat — message feedback", () => {
   test("feedback round-trips and clears with a null rating", async () => {
     const t = initTest();

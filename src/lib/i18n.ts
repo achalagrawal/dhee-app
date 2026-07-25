@@ -109,6 +109,12 @@ const strings = {
     tryAgain: "Try again",
     stop: "Stop",
     scrollToLatest: "Scroll to latest",
+    editMessage: "Edit message",
+    saveAndSend: "Save & send",
+    editDropsRepliesTitle: "This will drop what came after",
+    editDropsRepliesBody:
+      "Asking again from here removes the rest of this conversation. What you've already read won't come back.",
+    editDropsRepliesConfirm: "Edit and ask again",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -244,6 +250,12 @@ const strings = {
     tryAgain: "फिर कोशिश करें",
     stop: "रोकें",
     scrollToLatest: "नए तक जाएँ",
+    editMessage: "संदेश बदलें",
+    saveAndSend: "सहेजकर भेजें",
+    editDropsRepliesTitle: "इसके बाद की बातें हट जाएँगी",
+    editDropsRepliesBody:
+      "यहाँ से दोबारा पूछने पर इस बातचीत का बाकी हिस्सा हट जाएगा। जो आपने पढ़ लिया है, वह वापस नहीं आएगा।",
+    editDropsRepliesConfirm: "बदलकर दोबारा पूछें",
     // History groups
     starred: "तारांकित",
     today: "आज",

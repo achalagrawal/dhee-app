@@ -13,11 +13,13 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { Composer } from "../../../src/components/Composer";
+import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton, type IconName } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
@@ -51,10 +53,19 @@ export default function Chat() {
   // waiting for the abort to round-trip. Cleared when the reply actually
   // settles, which also covers the abort racing the stream finishing on its own.
   const [stopping, setStopping] = useState(false);
+  // The message being rewritten, by UIMessage key, plus its working text.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  // Held while the person confirms an edit that would drop more than one reply.
+  const [pendingEdit, setPendingEdit] = useState<{
+    messageId: string;
+    prompt: string;
+  } | null>(null);
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const stopGeneration = useMutation(api.chat.stopGeneration);
   const regenerateReply = useMutation(api.chat.regenerate);
+  const editAndResend = useMutation(api.chat.editAndResend);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
   const { results } = useUIMessages(
     api.chat.listThreadMessages,
@@ -144,6 +155,50 @@ export default function Chat() {
     }
   }, [threadId, regenerateReply]);
 
+  const startEdit = useCallback((message: UIMessage) => {
+    setEditingKey(message.key);
+    setEditDraft(message.text);
+  }, []);
+
+  const cancelEdit = useCallback(() => {
+    setEditingKey(null);
+    setEditDraft("");
+  }, []);
+
+  const runEdit = useCallback(
+    async (messageId: string, prompt: string) => {
+      if (!threadId) return;
+      cancelEdit();
+      setFailed(false);
+      try {
+        await editAndResend({ threadId, messageId, prompt });
+      } catch {
+        setFailed(true);
+      }
+    },
+    [threadId, editAndResend, cancelEdit],
+  );
+
+  // Editing forks the conversation: everything after the edited turn goes.
+  // Losing only the reply that directly followed is the ordinary case and
+  // proceeds quietly; losing more than that is worth stopping for.
+  const submitEdit = useCallback(
+    (message: UIMessage) => {
+      const prompt = editDraft.trim();
+      if (!prompt) return;
+      const laterUserTurns = results.some(
+        (m) => m.role === "user" && m.order > message.order,
+      );
+      if (laterUserTurns) {
+        setPendingEdit({ messageId: message.id, prompt });
+        cancelEdit();
+        return;
+      }
+      void runEdit(message.id, prompt);
+    },
+    [editDraft, results, runEdit, cancelEdit],
+  );
+
   const newThread = useCallback(() => router.replace("/home"), []);
 
   // Distance from the bottom, past which we stop following the stream and
@@ -219,6 +274,12 @@ export default function Chat() {
                 rating={feedbackMap.get(item.key) ?? null}
                 onRate={(next) => rate(item.key, next)}
                 onRegenerate={generating ? undefined : regenerate}
+                editing={editingKey === item.key}
+                editDraft={editDraft}
+                onEditDraft={setEditDraft}
+                onStartEdit={() => startEdit(item)}
+                onCancelEdit={cancelEdit}
+                onSubmitEdit={() => submitEdit(item)}
               />
             )}
             contentContainerStyle={styles.list}
@@ -292,6 +353,20 @@ export default function Chat() {
         onClose={() => setMenuOpen(false)}
         onDeleted={() => router.replace("/home")}
       />
+
+      <ConfirmDialog
+        visible={pendingEdit !== null}
+        lang={lang}
+        title={t(lang, "editDropsRepliesTitle")}
+        body={t(lang, "editDropsRepliesBody")}
+        confirmLabel={t(lang, "editDropsRepliesConfirm")}
+        onCancel={() => setPendingEdit(null)}
+        onConfirm={() => {
+          const edit = pendingEdit;
+          setPendingEdit(null);
+          if (edit) void runEdit(edit.messageId, edit.prompt);
+        }}
+      />
     </AppShell>
   );
 }
@@ -305,6 +380,12 @@ function Message({
   rating,
   onRate,
   onRegenerate,
+  editing,
+  editDraft,
+  onEditDraft,
+  onStartEdit,
+  onCancelEdit,
+  onSubmitEdit,
 }: {
   message: UIMessage;
   isLast: boolean;
@@ -315,6 +396,12 @@ function Message({
   onRate: (rating: "up" | "down") => void;
   /** Undefined while a reply is generating — try again is unavailable then. */
   onRegenerate?: () => void;
+  editing: boolean;
+  editDraft: string;
+  onEditDraft: (text: string) => void;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSubmitEdit: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -329,6 +416,43 @@ function Message({
   const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
   if (isUser) {
+    if (editing) {
+      return (
+        <View style={styles.userWrap}>
+          <View style={styles.editCard}>
+            <TextInput
+              value={editDraft}
+              onChangeText={onEditDraft}
+              multiline
+              autoFocus
+              // Escape backs out without changing anything — the draft is
+              // discarded, the original message is untouched.
+              onKeyPress={(e) => {
+                if (e.nativeEvent.key === "Escape") onCancelEdit();
+              }}
+              style={styles.editInput}
+            />
+            <View style={styles.editActions}>
+              <Pressable onPress={onCancelEdit} style={styles.editCancelBtn}>
+                <Text style={styles.editCancelText}>{t(lang, "cancel")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={onSubmitEdit}
+                disabled={!editDraft.trim()}
+                style={[
+                  styles.editSaveBtn,
+                  !editDraft.trim() && styles.editSaveDisabled,
+                ]}
+              >
+                <Text style={styles.editSaveText}>
+                  {t(lang, "saveAndSend")}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      );
+    }
     if (!message.text.trim()) return null;
     return (
       <View style={styles.userWrap}>
@@ -336,6 +460,14 @@ function Message({
           <Text style={styles.userText}>{message.text}</Text>
         </View>
         <View style={styles.userMeta}>
+          <Pressable
+            onPress={onStartEdit}
+            hitSlop={6}
+            accessibilityLabel={t(lang, "editMessage")}
+            style={styles.metaBtn}
+          >
+            <Icon name="edit" size={14} color={colors.textFaint} />
+          </Pressable>
           <Pressable onPress={copy} hitSlop={6} style={styles.metaBtn}>
             <Icon name="copy" size={14} color={colors.textFaint} />
           </Pressable>
@@ -464,6 +596,48 @@ function makeStyles(colors: Colors) {
     },
     userMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaBtn: { padding: 5, borderRadius: 7 },
+    // Editing a message you sent — the bubble becomes the editor in place.
+    editCard: {
+      width: "100%",
+      maxWidth: "84%",
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.accent,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    editInput: {
+      color: colors.text,
+      fontSize: 16,
+      lineHeight: 24,
+      minHeight: 72,
+      textAlignVertical: "top",
+      ...font.regular,
+    },
+    editActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
+      marginTop: 8,
+    },
+    editCancelBtn: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 15,
+      paddingVertical: 7,
+      borderRadius: radius.pill,
+    },
+    editCancelText: { color: colors.text, fontSize: 13.5, ...font.regular },
+    editSaveBtn: {
+      backgroundColor: colors.accent,
+      paddingHorizontal: 15,
+      paddingVertical: 7,
+      borderRadius: radius.pill,
+    },
+    editSaveDisabled: { opacity: 0.5 },
+    editSaveText: { color: colors.onAccent, fontSize: 13.5, ...font.semibold },
     // Assistant
     botRow: { flexDirection: "row", gap: 12 },
     avatar: {

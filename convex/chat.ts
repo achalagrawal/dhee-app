@@ -49,6 +49,13 @@ const STOP_REASON = "Stopped by the person.";
 // generous — it exists to bound the read, not to be reached.
 const TURN_LOOKBACK = 100;
 
+// How far back an edit may reach. Editing forks the conversation and deletes
+// everything after the edited turn, so this bounds both the read and the
+// delete to what one mutation can do. ~100 exchanges back is further than
+// anyone edits in practice; past it the person is told plainly rather than
+// having part of the tail silently survive.
+const EDIT_LOOKBACK = 200;
+
 // The key the client rates a message by. NOT the message's `_id`: the agent
 // collapses the several documents of one assistant turn (tool call, tool
 // result, text) into a single UIMessage keyed by the first document's
@@ -72,8 +79,32 @@ async function clearFeedbackFor(
   }
 }
 
+// A message and everything that came after it — the tail an edit discards.
+//
+// Collected rather than deleted by order range because the feedback rows have
+// to go too, and they are keyed by each message's position. Leaving one behind
+// would be worse than an orphan: the replies that follow an edit reuse the
+// same positions, so a stale row would attach a rating to a message nobody
+// rated.
+async function messagesFrom(
+  ctx: MutationCtx,
+  threadId: string,
+  messageId: string,
+): Promise<MessageDoc[]> {
+  const { page } = await listMessages(ctx, components.agent, {
+    threadId,
+    paginationOpts: { cursor: null, numItems: EDIT_LOOKBACK },
+  });
+  // Newest first, so the tail is everything up to and including the target.
+  const index = page.findIndex((m) => m._id === messageId);
+  if (index === -1) {
+    throw new Error("That message is too far back to edit.");
+  }
+  return page.slice(0, index + 1);
+}
+
 // The newest user message, plus everything that came after it. That tail is
-// what a regeneration discards and an edit truncates.
+// what a regeneration discards.
 //
 // Comparing positions rather than assuming how the component numbers a reply
 // relative to its prompt: `listMessages` returns newest-first, so everything
@@ -346,6 +377,56 @@ export const regenerate = mutation({
     await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
       threadId,
       promptMessageId: turn.prompt._id,
+      userId,
+    });
+    return null;
+  },
+});
+
+// Edit a message you sent and ask again from there. The conversation forks at
+// that point: everything after the edited turn is dropped, because the replies
+// that followed answered a question that is no longer the one being asked.
+// See docs/build/specs/chat-loop.md §6.
+export const editAndResend = mutation({
+  args: { threadId: v.string(), messageId: v.string(), prompt: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId, messageId, prompt }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+
+    const trimmed = prompt.trim();
+    if (!trimmed) throw new Error("A message needs something in it.");
+
+    const [target] = await ctx.runQuery(
+      components.agent.messages.getMessagesByIds,
+      { messageIds: [messageId] },
+    );
+    // Checked against the caller's own thread, so a message id from somewhere
+    // else can't be used to reach into another conversation.
+    if (!target || target.threadId !== threadId) {
+      throw new Error("That message is not in this conversation.");
+    }
+    // Never an assistant message: rewriting one puts words in Dhee's mouth,
+    // and memory extraction would later read them back as things it said.
+    if (target.message?.role !== "user") {
+      throw new Error("Only your own messages can be edited.");
+    }
+
+    const discarded = await messagesFrom(ctx, threadId, target._id);
+    await clearFeedbackFor(ctx, discarded);
+    await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
+
+    const { messageId: newMessageId } = await dhee.saveMessage(ctx, {
+      threadId,
+      prompt: trimmed,
+      skipEmbeddings: true,
+    });
+
+    // No turn bump: the edited turn replaces a turn rather than adding one, so
+    // counting it would run memory extraction a turn early.
+    await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
+      threadId,
+      promptMessageId: newMessageId,
       userId,
     });
     return null;

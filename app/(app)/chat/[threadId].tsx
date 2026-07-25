@@ -4,7 +4,6 @@ import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   type NativeScrollEvent,
@@ -21,7 +20,7 @@ import { AppShell } from "../../../src/components/AppShell";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
-import { Icon, IconButton, type IconName } from "../../../src/components/ui";
+import { Icon, IconButton } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
@@ -556,7 +555,6 @@ const Message = memo(function Message({
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
-  const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
   if (isUser) {
     if (editing) {
@@ -614,31 +612,11 @@ const Message = memo(function Message({
   // text is worse than no bubble. The card below reports the failure. §2.
   if (!message.text.trim()) return null;
 
-  const actions: { icon: IconName; label: string; onPress: () => void }[] = [
-    {
-      icon: "bookmark",
-      label: t(lang, "saveHighlight"),
-      onPress: () => soon(t(lang, "saveHighlight")),
-    },
-    {
-      icon: "share",
-      label: t(lang, "shareLabel"),
-      onPress: () => soon(t(lang, "shareLabel")),
-    },
-    {
-      icon: "speaker",
-      label: t(lang, "speak"),
-      onPress: () => soon(t(lang, "speak")),
-    },
-  ];
-  if (isLast && onRegenerate) {
-    actions.push({
-      icon: "refresh",
-      label: t(lang, "tryAgain"),
-      onPress: onRegenerate,
-    });
-  }
-
+  // The toolbar carries only what works. Save highlight (Journal, Epic 6),
+  // Share (Epic 15) and Read aloud (Voice, Epic 12) used to render here and
+  // pop "coming soon" — three of four buttons doing nothing, in the place
+  // people touch most. Each comes back as a one-line change the day its epic
+  // lands; their labels are still in i18n.ts waiting.
   return (
     <View style={styles.botRow}>
       <View style={styles.avatar}>
@@ -681,17 +659,16 @@ const Message = memo(function Message({
                 color={rating === "down" ? colors.danger : colors.textFaint}
               />
             </Pressable>
-            {actions.map((a) => (
+            {isLast && onRegenerate ? (
               <Pressable
-                key={a.label}
-                onPress={a.onPress}
+                onPress={onRegenerate}
                 hitSlop={4}
-                accessibilityLabel={a.label}
+                accessibilityLabel={t(lang, "tryAgain")}
                 style={styles.actionBtn}
               >
-                <Icon name={a.icon} size={15} color={colors.textFaint} />
+                <Icon name="refresh" size={15} color={colors.textFaint} />
               </Pressable>
-            ))}
+            ) : null}
           </View>
         ) : null}
       </View>

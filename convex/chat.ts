@@ -103,6 +103,20 @@ async function messagesFrom(
   return page.slice(0, index + 1);
 }
 
+// Refuse the destructive rewrites (regenerate, edit) while a reply is being
+// generated. Deleting the pending message would pull it out from under the
+// running action, which then fails trying to finalize it — stop first, or wait.
+async function assertNoActiveReply(
+  ctx: MutationCtx,
+  threadId: string,
+): Promise<void> {
+  const active = await listStreams(ctx, components.agent, {
+    threadId,
+    includeStatuses: ["streaming"],
+  });
+  if (active.length > 0) throw new Error("Dhee is still replying.");
+}
+
 // The newest user message, plus everything that came after it. That tail is
 // what a regeneration discards.
 //
@@ -349,12 +363,7 @@ export const regenerate = mutation({
   handler: async (ctx, { threadId }) => {
     await authorizeThread(ctx, threadId);
     const userId = await requireUserId(ctx);
-
-    const active = await listStreams(ctx, components.agent, {
-      threadId,
-      includeStatuses: ["streaming"],
-    });
-    if (active.length > 0) throw new Error("Dhee is still replying.");
+    await assertNoActiveReply(ctx, threadId);
 
     const turn = await lastUserTurn(ctx, threadId);
     if (!turn || turn.after.length === 0) {
@@ -393,6 +402,7 @@ export const editAndResend = mutation({
   handler: async (ctx, { threadId, messageId, prompt }) => {
     await authorizeThread(ctx, threadId);
     const userId = await requireUserId(ctx);
+    await assertNoActiveReply(ctx, threadId);
 
     const trimmed = prompt.trim();
     if (!trimmed) throw new Error("A message needs something in it.");
@@ -413,6 +423,11 @@ export const editAndResend = mutation({
     }
 
     const discarded = await messagesFrom(ctx, threadId, target._id);
+    // A reply scheduled but not yet streaming looks like a pending row in the
+    // tail. Deleting it would strand the action about to fill it in.
+    if (discarded.some((m) => m.status === "pending")) {
+      throw new Error("Dhee is still replying.");
+    }
     await clearFeedbackFor(ctx, discarded);
     await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
 

@@ -277,7 +277,7 @@ export default function Chat() {
                 editing={editingKey === item.key}
                 editDraft={editDraft}
                 onEditDraft={setEditDraft}
-                onStartEdit={() => startEdit(item)}
+                onStartEdit={generating ? undefined : () => startEdit(item)}
                 onCancelEdit={cancelEdit}
                 onSubmitEdit={() => submitEdit(item)}
               />
@@ -399,7 +399,8 @@ function Message({
   editing: boolean;
   editDraft: string;
   onEditDraft: (text: string) => void;
-  onStartEdit: () => void;
+  /** Undefined while a reply is generating — editing is unavailable then. */
+  onStartEdit?: () => void;
   onCancelEdit: () => void;
   onSubmitEdit: () => void;
 }) {
@@ -460,14 +461,16 @@ function Message({
           <Text style={styles.userText}>{message.text}</Text>
         </View>
         <View style={styles.userMeta}>
-          <Pressable
-            onPress={onStartEdit}
-            hitSlop={6}
-            accessibilityLabel={t(lang, "editMessage")}
-            style={styles.metaBtn}
-          >
-            <Icon name="edit" size={14} color={colors.textFaint} />
-          </Pressable>
+          {onStartEdit ? (
+            <Pressable
+              onPress={onStartEdit}
+              hitSlop={6}
+              accessibilityLabel={t(lang, "editMessage")}
+              style={styles.metaBtn}
+            >
+              <Icon name="edit" size={14} color={colors.textFaint} />
+            </Pressable>
+          ) : null}
           <Pressable onPress={copy} hitSlop={6} style={styles.metaBtn}>
             <Icon name="copy" size={14} color={colors.textFaint} />
           </Pressable>

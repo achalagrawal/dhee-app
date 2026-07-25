@@ -624,6 +624,66 @@ describe("chat — edit & resend", () => {
     // so a stale row would rate a message nobody rated.
     expect(await as.query(api.chat.threadFeedback, { threadId })).toEqual([]);
   });
+
+  test("refuses while a reply is streaming", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "an answer");
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.streams.create, {
+        threadId,
+        order: 2,
+        stepOrder: 0,
+        format: "UIMessageChunk",
+      });
+    });
+
+    // Editing mid-stream would delete the pending reply out from under the
+    // running action — same guard regenerate already has.
+    const first = (await docs(t, threadId))[0];
+    await expect(
+      as.mutation(api.chat.editAndResend, {
+        threadId,
+        messageId: first._id,
+        prompt: "changed my mind",
+      }),
+    ).rejects.toThrow("still replying");
+    // And nothing was deleted.
+    expect((await docs(t, threadId)).map((m) => m.text)).toEqual([
+      "hello",
+      "an answer",
+    ]);
+  });
+
+  test("refuses while a reply is scheduled but not yet streaming", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "an answer");
+    // A pending row is what a scheduled-but-not-started reply looks like.
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.messages.addMessages, {
+        threadId,
+        userId: user,
+        agentName: "Dhee",
+        messages: [
+          { message: { role: "assistant", content: "" }, status: "pending" },
+        ],
+      });
+    });
+
+    const first = (await docs(t, threadId))[0];
+    await expect(
+      as.mutation(api.chat.editAndResend, {
+        threadId,
+        messageId: first._id,
+        prompt: "changed my mind",
+      }),
+    ).rejects.toThrow("still replying");
+  });
 });
 
 describe("chat — message feedback", () => {

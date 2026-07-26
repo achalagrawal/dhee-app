@@ -124,6 +124,11 @@ const strings = {
     editDropsRepliesBody:
       "Asking again from here removes the rest of this conversation. What you've already read won't come back.",
     editDropsRepliesConfirm: "Edit and ask again",
+    modelErrorTitle: "Dhee couldn't reach its thoughts",
+    modelErrorBody:
+      "Something interrupted the connection. Your message is safe — try again.",
+    rateErrorTitle: "A moment, please",
+    rateErrorBody: "Too many questions in a short time. Give it a few seconds.",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -274,6 +279,11 @@ const strings = {
     editDropsRepliesBody:
       "यहाँ से दोबारा पूछने पर इस बातचीत का बाकी हिस्सा हट जाएगा। जो आपने पढ़ लिया है, वह वापस नहीं आएगा।",
     editDropsRepliesConfirm: "बदलकर दोबारा पूछें",
+    modelErrorTitle: "धी अपने विचारों तक नहीं पहुँच पाया",
+    modelErrorBody:
+      "कनेक्शन में कुछ रुकावट आई। आपका संदेश सुरक्षित है — फिर कोशिश करें।",
+    rateErrorTitle: "एक पल रुकिए",
+    rateErrorBody: "थोड़े समय में बहुत सवाल हो गए। कुछ क्षण दीजिए।",
     // History groups
     starred: "तारांकित",
     today: "आज",

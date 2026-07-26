@@ -2,7 +2,7 @@ import { useUIMessages, type UIMessage } from "@convex-dev/agent/react";
 import { useMutation, useQuery } from "convex/react";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -28,6 +28,8 @@ import { useLanguage } from "../../../src/lib/useLanguage";
 
 // Matches the mockup's `onMainScroll`.
 const FOLLOW_THRESHOLD = 240;
+
+const keyExtractor = (m: UIMessage) => m.key;
 
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
@@ -61,17 +63,23 @@ export default function Chat() {
     return m;
   }, [feedback]);
 
+  // Read through a ref so `rate` keeps one identity for the life of the
+  // screen. Closing over `feedbackMap` directly would rebuild it on every
+  // rating change, which re-renders every memoized Message to toggle one icon.
+  const feedbackMapRef = useRef(feedbackMap);
+  feedbackMapRef.current = feedbackMap;
+
   const rate = useCallback(
     (messageId: string, next: "up" | "down") => {
       if (!threadId) return;
-      const current = feedbackMap.get(messageId);
+      const current = feedbackMapRef.current.get(messageId);
       void setFeedback({
         threadId,
         messageId,
         rating: current === next ? null : next,
       });
     },
-    [threadId, feedbackMap, setFeedback],
+    [threadId, setFeedback],
   );
 
   const generating = useMemo(
@@ -150,6 +158,15 @@ export default function Chat() {
     else list?.scrollToOffset({ offset: height, animated: false });
   }, []);
 
+  const onContentSizeChange = useCallback(
+    (_w: number, h: number) => followIfAtBottom(h),
+    [followIfAtBottom],
+  );
+  const onListLayout = useCallback(
+    () => followIfAtBottom(),
+    [followIfAtBottom],
+  );
+
   const scrollToLatest = useCallback(() => {
     atBottomRef.current = true;
     setAtBottom(true);
@@ -157,6 +174,34 @@ export default function Chat() {
   }, []);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Hoisted so its identity survives a delta: an inline `renderItem` is a new
+  // function every chunk, which defeats the memo on Message.
+  const lastIndex = results.length - 1;
+  const renderItem = useCallback(
+    ({ item, index }: { item: UIMessage; index: number }) => (
+      <Message
+        message={item}
+        isLast={index === lastIndex}
+        colors={colors}
+        lang={lang}
+        styles={styles}
+        rating={feedbackMap.get(item.key) ?? null}
+        onRate={rate}
+        onRegenerate={generating ? undefined : regenerate}
+      />
+    ),
+    [
+      lastIndex,
+      colors,
+      lang,
+      styles,
+      feedbackMap,
+      rate,
+      generating,
+      regenerate,
+    ],
+  );
 
   return (
     <AppShell
@@ -188,24 +233,13 @@ export default function Chat() {
             ref={listRef}
             style={styles.flex}
             data={results}
-            keyExtractor={(m) => m.key}
-            renderItem={({ item, index }) => (
-              <Message
-                message={item}
-                isLast={index === results.length - 1}
-                colors={colors}
-                lang={lang}
-                styles={styles}
-                rating={feedbackMap.get(item.key) ?? null}
-                onRate={(next) => rate(item.key, next)}
-                onRegenerate={generating ? undefined : regenerate}
-              />
-            )}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
             contentContainerStyle={styles.list}
             onScroll={onScroll}
             scrollEventThrottle={16}
-            onContentSizeChange={(_w, h) => followIfAtBottom(h)}
-            onLayout={() => followIfAtBottom()}
+            onContentSizeChange={onContentSizeChange}
+            onLayout={onListLayout}
             ListFooterComponent={
               <>
                 {thinking ? (
@@ -275,7 +309,12 @@ export default function Chat() {
   );
 }
 
-function Message({
+// Memoized because `results` gets a new identity on every stream delta — ten
+// times a second at the current throttle. Without this, each chunk re-renders
+// every message in the window, actions row and all, to change one line of text.
+// Keeping every prop stable across a delta is what makes the memo hold, so
+// `onRate` takes the key rather than being wrapped per message.
+const Message = memo(function Message({
   message,
   isLast,
   colors,
@@ -291,7 +330,7 @@ function Message({
   lang: ReturnType<typeof useLanguage>;
   styles: ReturnType<typeof makeStyles>;
   rating: "up" | "down" | null;
-  onRate: (rating: "up" | "down") => void;
+  onRate: (messageKey: string, rating: "up" | "down") => void;
   /** Undefined while a reply is generating — try again is unavailable then. */
   onRegenerate?: () => void;
 }) {
@@ -372,7 +411,7 @@ function Message({
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => onRate("up")}
+              onPress={() => onRate(message.key, "up")}
               hitSlop={4}
               accessibilityLabel={t(lang, "goodResponse")}
               style={styles.actionBtn}
@@ -384,7 +423,7 @@ function Message({
               />
             </Pressable>
             <Pressable
-              onPress={() => onRate("down")}
+              onPress={() => onRate(message.key, "down")}
               hitSlop={4}
               accessibilityLabel={t(lang, "badResponse")}
               style={styles.actionBtn}
@@ -411,7 +450,7 @@ function Message({
       </View>
     </View>
   );
-}
+});
 
 function makeStyles(colors: Colors) {
   return StyleSheet.create({

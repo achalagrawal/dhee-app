@@ -42,8 +42,7 @@ const STOP_REASON = "Stopped by the person.";
 // Bounds the read; a turn is a handful of rows, so it should never be reached.
 const TURN_LOOKBACK = 100;
 
-// Bounds both the read and the delete to one mutation's budget; past it the
-// person is told, rather than half the tail silently surviving.
+// Bounds the read and the delete to one mutation's budget.
 const EDIT_LOOKBACK = 200;
 
 // NOT the message `_id`: the agent collapses one assistant turn's several
@@ -53,10 +52,9 @@ function uiMessageKey(doc: MessageDoc): string {
   return `${doc.threadId}-${doc.order}-${doc.stepOrder}`;
 }
 
-// Everything keyed to a message's position — its rating, its "edited" mark —
-// dropped along with the message. Whatever replaces a discarded tail reuses
-// those positions, so a mark left behind would label a message that never
-// earned it. Returns the marks that survived.
+// Drops everything keyed to a message's position — rating, "edited" mark —
+// and returns the marks that survived. Whatever replaces a discarded tail
+// reuses those positions, so a mark left behind lands on the wrong message.
 async function clearMarksFor(
   ctx: MutationCtx,
   threadId: string,
@@ -79,8 +77,8 @@ async function clearMarksFor(
   return kept;
 }
 
-// A message and everything after it — the tail an edit discards. Collected
-// rather than deleted by order range because `clearMarksFor` needs the keys.
+// A message and everything after it. Collected rather than deleted by order
+// range because `clearMarksFor` needs the keys.
 async function messagesFrom(
   ctx: MutationCtx,
   threadId: string,
@@ -98,10 +96,8 @@ async function messagesFrom(
   return page.slice(0, index + 1);
 }
 
-// Refuse the destructive rewrites (regenerate, edit) while a reply is in
-// flight. A reply that has started shows up as an active stream, one only
-// scheduled as a pending row in `tail` — both here, so a third caller can't
-// inherit half a guard.
+// A started reply is an active stream; one only scheduled is a pending row in
+// `tail`. Both checked here, so a third caller can't inherit half a guard.
 async function assertNoActiveReply(
   ctx: MutationCtx,
   threadId: string,
@@ -375,10 +371,8 @@ export const regenerate = mutation({
   },
 });
 
-// Edit a message you sent and ask again from there. The conversation forks at
-// that point: everything after the edited turn is dropped, because the replies
-// that followed answered a question that is no longer the one being asked.
-// See docs/build/specs/chat-loop.md §6.
+// Forks the conversation at the edited turn: the replies that followed
+// answered a question nobody is asking any more. Spec §6.
 export const editAndResend = mutation({
   args: { threadId: v.string(), messageId: v.string(), prompt: v.string() },
   returns: v.null(),
@@ -396,8 +390,8 @@ export const editAndResend = mutation({
     if (!target || target.threadId !== threadId) {
       throw new Error("That message is not in this conversation.");
     }
-    // Never an assistant message: rewriting one puts words in Dhee's mouth, and
-    // memory extraction would later read them back as things it said.
+    // Refused, not just hidden in the UI: memory extraction would later read a
+    // rewritten assistant message back as something Dhee said.
     if (target.message?.role !== "user") {
       throw new Error("Only your own messages can be edited.");
     }
@@ -413,13 +407,12 @@ export const editAndResend = mutation({
       { threadId, prompt: trimmed, skipEmbeddings: true },
     );
 
-    // Mark the rewrite so the bubble can say "edited".
     await upsertThreadMeta(ctx, threadId, userId, {
       editedMessages: [...marks, uiMessageKey(saved)],
     });
 
-    // No turn bump: the edited turn replaces a turn rather than adding one, so
-    // counting it would run memory extraction a turn early.
+    // No turn bump: this replaces a turn rather than adding one, so counting it
+    // would run memory extraction a turn early.
     await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
       threadId,
       promptMessageId: newMessageId,
@@ -638,7 +631,6 @@ export const threadFeedback = query({
   },
 });
 
-// UIMessage keys of the messages this person rewrote, for the "edited" label.
 export const threadEdits = query({
   args: { threadId: v.string() },
   returns: v.array(v.string()),

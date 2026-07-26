@@ -45,10 +45,7 @@ export default function Chat() {
   const atBottomRef = useRef(true);
   // So the button flips back without waiting for the abort to round-trip.
   const [stopping, setStopping] = useState(false);
-  // The message being rewritten, by UIMessage key. Its working text lives in
-  // the editor itself, so typing re-renders one bubble rather than the thread.
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  // Held while the person confirms an edit that would drop more than one reply.
   const [pendingEdit, setPendingEdit] = useState<{
     messageId: string;
     prompt: string;
@@ -79,10 +76,8 @@ export default function Chat() {
   );
   const editedKeys = useMemo(() => new Set(edits ?? []), [edits]);
 
-  // Read through refs so `rate` and `submitEdit` keep one identity for the life
-  // of the screen. Closing over `feedbackMap` or `results` directly would
-  // rebuild them on every rating change and every stream delta, re-rendering
-  // every memoized Message.
+  // Read through refs so `rate` and `submitEdit` keep one identity. Closing
+  // over these directly rebuilds them on every delta, defeating Message's memo.
   const feedbackMapRef = useRef(feedbackMap);
   feedbackMapRef.current = feedbackMap;
   const resultsRef = useRef(results);
@@ -173,10 +168,8 @@ export default function Chat() {
     [threadId, editAndResend, cancelEdit],
   );
 
-  // Editing forks the conversation: everything after the edited turn goes.
-  // Losing only the reply that directly followed is the ordinary case and
-  // proceeds quietly; losing more than that is worth stopping for. The editor
-  // stays open behind the dialog, so backing out keeps the rewrite.
+  // Losing just the reply to the newest turn is the ordinary case and proceeds
+  // quietly. The editor stays open behind the dialog, so Cancel keeps the draft.
   const submitEdit = useCallback(
     (message: UIMessage, prompt: string) => {
       const laterUserTurns = resultsRef.current.some(
@@ -410,7 +403,6 @@ function MessageEditor({
         onChangeText={setDraft}
         multiline
         autoFocus
-        // Escape backs out without changing anything.
         onKeyPress={(e) => {
           if (e.nativeEvent.key === "Escape") onCancel();
         }}
@@ -644,7 +636,6 @@ function makeStyles(colors: Colors) {
     userMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaBtn: { padding: 5, borderRadius: 7 },
     editedLabel: { color: colors.textFaint, fontSize: 12, ...font.regular },
-    // Editing a message you sent — the bubble becomes the editor in place.
     editCard: {
       width: "100%",
       maxWidth: "84%",

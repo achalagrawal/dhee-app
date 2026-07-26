@@ -109,7 +109,6 @@ export default defineSchema({
     starred: v.optional(v.boolean()),
     pinned: v.optional(v.boolean()),
     // UIMessage keys of messages the person rewrote, for the "edited" label.
-    // Bounded by how many messages one person edits in one thread.
     editedMessages: v.optional(v.array(v.string())),
   })
     .index("by_thread", ["threadId"])

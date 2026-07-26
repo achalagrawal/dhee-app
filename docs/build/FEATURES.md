@@ -205,6 +205,9 @@ far richer than today's flat screen.
 ## Epic 17 — Marketing & static site (web)
 
 Content already fully written in the design's data arrays — this is mostly layout.
+The exception is the two legal pages: the design's `LEGAL` copy describes a
+browser-local prototype and cannot be shipped. Drafts written from the real data
+flows live in [`docs/legal/`](../legal/README.md), pending legal review.
 
 | Page                             | Status | Source in design                      |
 | -------------------------------- | ------ | ------------------------------------- |
@@ -215,8 +218,8 @@ Content already fully written in the design's data arrays — this is mostly lay
 | Blog index + articles            | ⬜     | `BLOG` (3 full posts)                 |
 | FAQ / Help                       | ⬜     | `FAQS` (7 Q&A)                        |
 | Careers                          | ⬜     | `CAREERS` (values, benefits, 3 roles) |
-| Legal — Privacy                  | ⬜     | `LEGAL.privacy` (7 sections)          |
-| Legal — Terms                    | ⬜     | `LEGAL.terms` (7 sections)            |
+| Legal — Privacy                  | ⬜     | `docs/legal/privacy.md` (draft)       |
+| Legal — Terms                    | ⬜     | `docs/legal/terms.md` (draft)         |
 | Safety & limitations             | ⬜     | see Epic 16                           |
 | Contact                          | ⬜     | `state.contactEmail/contactMsg`       |
 | Download                         | ⬜     |                                       |

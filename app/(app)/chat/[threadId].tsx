@@ -7,6 +7,8 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
   StyleSheet,
@@ -21,17 +23,22 @@ import { Icon, IconButton, type IconName } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
-import { font, radius } from "../../../src/lib/theme";
+import { font, radius, shadow } from "../../../src/lib/theme";
 import { useLanguage } from "../../../src/lib/useLanguage";
+
+// Matches the mockup's `onMainScroll`.
+const FOLLOW_THRESHOLD = 240;
 
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const lang = useLanguage();
   const listRef = useRef<FlatList<UIMessage>>(null);
   const [draft, setDraft] = useState("");
   const [failed, setFailed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef = useRef(true);
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
@@ -96,6 +103,31 @@ export default function Chat() {
 
   const newThread = useCallback(() => router.replace("/home"), []);
 
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const fromBottom =
+      contentSize.height - contentOffset.y - layoutMeasurement.height;
+    const next = fromBottom <= FOLLOW_THRESHOLD;
+    atBottomRef.current = next;
+    setAtBottom((prev) => (prev === next ? prev : next));
+  }, []);
+
+  // `scrollToEnd` only reaches the end of the rows FlatList has measured, so
+  // mid-stream it lands short and the gap reads as the reader having scrolled
+  // away. `onContentSizeChange` reports the real height — scroll to that.
+  const followIfAtBottom = useCallback((height?: number) => {
+    if (!atBottomRef.current) return;
+    const list = listRef.current;
+    if (height == null) list?.scrollToEnd({ animated: false });
+    else list?.scrollToOffset({ offset: height, animated: false });
+  }, []);
+
+  const scrollToLatest = useCallback(() => {
+    atBottomRef.current = true;
+    setAtBottom(true);
+    listRef.current?.scrollToEnd({ animated: true });
+  }, []);
+
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
@@ -123,49 +155,73 @@ export default function Chat() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <FlatList
-          ref={listRef}
-          style={styles.flex}
-          data={results}
-          keyExtractor={(m) => m.key}
-          renderItem={({ item, index }) => (
-            <Message
-              message={item}
-              isLast={index === results.length - 1}
-              colors={colors}
-              lang={lang}
-              styles={styles}
-              rating={feedbackMap.get(item.key) ?? null}
-              onRate={(next) => rate(item.key, next)}
-            />
-          )}
-          contentContainerStyle={styles.list}
-          onContentSizeChange={() =>
-            listRef.current?.scrollToEnd({ animated: true })
-          }
-          ListFooterComponent={
-            <>
-              {thinking ? (
-                <View style={styles.thinkingRow}>
-                  <View style={styles.avatar}>
-                    <Icon name="logo" size={16} color={colors.accent} />
+        <View style={styles.flex}>
+          <FlatList
+            ref={listRef}
+            style={styles.flex}
+            data={results}
+            keyExtractor={(m) => m.key}
+            renderItem={({ item, index }) => (
+              <Message
+                message={item}
+                isLast={index === results.length - 1}
+                colors={colors}
+                lang={lang}
+                styles={styles}
+                rating={feedbackMap.get(item.key) ?? null}
+                onRate={(next) => rate(item.key, next)}
+              />
+            )}
+            contentContainerStyle={styles.list}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={(_w, h) => followIfAtBottom(h)}
+            onLayout={() => followIfAtBottom()}
+            ListFooterComponent={
+              <>
+                {thinking ? (
+                  <View style={styles.thinkingRow}>
+                    <View style={styles.avatar}>
+                      <Icon name="logo" size={16} color={colors.accent} />
+                    </View>
+                    <Text style={styles.thinkingText}>
+                      {t(lang, "thinking")}
+                    </Text>
                   </View>
-                  <Text style={styles.thinkingText}>{t(lang, "thinking")}</Text>
-                </View>
-              ) : null}
-              {failed ? (
-                <View style={styles.errorCard}>
-                  <Text style={styles.errorTitle}>
-                    {t(lang, "somethingWentWrong")}
-                  </Text>
-                  <Pressable onPress={send} style={styles.retryBtn}>
-                    <Text style={styles.retryText}>{t(lang, "tryAgain")}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </>
-          }
-        />
+                ) : null}
+                {failed ? (
+                  <View style={styles.errorCard}>
+                    <Text style={styles.errorTitle}>
+                      {t(lang, "somethingWentWrong")}
+                    </Text>
+                    <Pressable onPress={send} style={styles.retryBtn}>
+                      <Text style={styles.retryText}>
+                        {t(lang, "tryAgain")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </>
+            }
+          />
+
+          {atBottom ? null : (
+            <View style={styles.scrollBtnWrap} pointerEvents="box-none">
+              <Pressable
+                onPress={scrollToLatest}
+                accessibilityRole="button"
+                accessibilityLabel={t(lang, "scrollToLatest")}
+                style={({ pressed }) => [
+                  styles.scrollBtn,
+                  shadow(mode),
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Icon name="chevronDown" size={17} color={colors.textSoft} />
+              </Pressable>
+            </View>
+          )}
+        </View>
 
         <View style={styles.dock}>
           <Composer
@@ -426,6 +482,24 @@ function makeStyles(colors: Colors) {
       borderRadius: radius.pill,
     },
     retryText: { color: colors.text, fontSize: 13.5, ...font.medium },
+    // Scroll to latest
+    scrollBtnWrap: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 8,
+      alignItems: "center",
+    },
+    scrollBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     // Dock
     dock: {
       paddingHorizontal: 16,

@@ -102,6 +102,14 @@ npx convex env set AWS_SECRET_ACCESS_KEY ...
 npx convex env set AUTH_EMAIL_FROM "Dhee <noreply@yourdomain.com>"
 ```
 
+**On a local backend the `AWS_*` block is optional.** Leave those unset and
+sign-in mail is skipped rather than attempted — the OTP is already written to
+the deployment logs, so you can sign in from the `convex dev` output without an
+inbox or an AWS account. Set them and mail goes out as normal. A cloud
+deployment always requires them: there, missing credentials throw instead of
+being ignored, because sign-in mail that silently vanishes looks like a healthy
+deploy.
+
 Check the credentials without mailing anyone — this calls SES's read-only
 GetAccount, and also tells you whether the account is still sandboxed:
 

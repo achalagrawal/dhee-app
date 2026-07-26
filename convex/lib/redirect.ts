@@ -7,6 +7,8 @@
 // it by the smallest amount that makes Expo work — and by exact origin/scheme
 // match, never a substring test.
 
+import { isLoopback } from "./backend";
+
 // Must match `expo.scheme` in app.json.
 const APP_SCHEME = "dhee:";
 
@@ -16,22 +18,11 @@ const APP_SCHEME = "dhee:";
 // — i.e. someone's local `convex dev`.
 const EXPO_GO_SCHEME = "exp:";
 
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
-
 function originOf(url: string): string | null {
   try {
     return new URL(url).origin;
   } catch {
     return null;
-  }
-}
-
-function isLoopback(url: string | undefined): boolean {
-  if (!url) return false;
-  try {
-    return LOOPBACK_HOSTS.has(new URL(url).hostname);
-  } catch {
-    return false;
   }
 }
 

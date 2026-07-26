@@ -26,9 +26,7 @@ import { type Colors } from "../../../src/lib/theme";
 import { font, radius, shadow } from "../../../src/lib/theme";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
-// How far from the bottom the person can be and still have the view follow a
-// streaming reply. Past this, they're reading something further up and the
-// scroll-to-latest button takes over. Mirrors the mockup's `onMainScroll`.
+// Matches the mockup's `onMainScroll`.
 const FOLLOW_THRESHOLD = 240;
 
 export default function Chat() {
@@ -39,14 +37,8 @@ export default function Chat() {
   const [draft, setDraft] = useState("");
   const [failed, setFailed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // Auto-scroll follows the newest message only while the person is already
-  // near the bottom. A reply streams in many chunks, so an unconditional
-  // scroll-to-end would yank them back down every chunk while they read.
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef = useRef(true);
-  // The first landing jumps straight to the newest message rather than
-  // animating through the whole transcript.
-  const landedRef = useRef(false);
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
@@ -111,9 +103,6 @@ export default function Chat() {
 
   const newThread = useCallback(() => router.replace("/home"), []);
 
-  // Distance from the bottom, past which we stop following the stream and
-  // offer the scroll-to-latest button instead. Matches the mockup's
-  // `onMainScroll` threshold.
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     const fromBottom =
@@ -123,16 +112,14 @@ export default function Chat() {
     setAtBottom((prev) => (prev === next ? prev : next));
   }, []);
 
-  // Called on every stream chunk (content grows) and when the keyboard opens
-  // (viewport shrinks) — both must respect the same "only if they're already
-  // down here" rule.
-  const followIfAtBottom = useCallback(() => {
-    if (!landedRef.current) {
-      landedRef.current = true;
-      listRef.current?.scrollToEnd({ animated: false });
-      return;
-    }
-    if (atBottomRef.current) listRef.current?.scrollToEnd({ animated: true });
+  // `scrollToEnd` only reaches the end of the rows FlatList has measured, so
+  // mid-stream it lands short and the gap reads as the reader having scrolled
+  // away. `onContentSizeChange` reports the real height — scroll to that.
+  const followIfAtBottom = useCallback((height?: number) => {
+    if (!atBottomRef.current) return;
+    const list = listRef.current;
+    if (height == null) list?.scrollToEnd({ animated: false });
+    else list?.scrollToOffset({ offset: height, animated: false });
   }, []);
 
   const scrollToLatest = useCallback(() => {
@@ -188,8 +175,8 @@ export default function Chat() {
             contentContainerStyle={styles.list}
             onScroll={onScroll}
             scrollEventThrottle={16}
-            onContentSizeChange={followIfAtBottom}
-            onLayout={followIfAtBottom}
+            onContentSizeChange={(_w, h) => followIfAtBottom(h)}
+            onLayout={() => followIfAtBottom()}
             ListFooterComponent={
               <>
                 {thinking ? (
@@ -218,7 +205,6 @@ export default function Chat() {
             }
           />
 
-          {/* The way back down — what makes suppressing auto-scroll safe. */}
           {atBottom ? null : (
             <View style={styles.scrollBtnWrap} pointerEvents="box-none">
               <Pressable
@@ -496,7 +482,7 @@ function makeStyles(colors: Colors) {
       borderRadius: radius.pill,
     },
     retryText: { color: colors.text, fontSize: 13.5, ...font.medium },
-    // Scroll to latest — floats just above the composer dock.
+    // Scroll to latest
     scrollBtnWrap: {
       position: "absolute",
       left: 0,

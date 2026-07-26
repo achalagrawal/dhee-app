@@ -18,6 +18,8 @@
     "android": "expo start --android",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
+    "build:legal": "node scripts/build-legal.mjs",
+    "build:web": "pnpm build:legal && expo export -p web",
     "typecheck": "tsc --noEmit && tsc --noEmit -p convex",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -68,6 +70,7 @@
     "@types/node": "^26.1.1",
     "@types/react": "~19.2.0",
     "convex-test": "^0.0.54",
+    "marked": "^18.0.7",
     "prettier": "^3.9.6",
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"

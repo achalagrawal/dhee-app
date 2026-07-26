@@ -119,12 +119,16 @@ have to be true in the world for the published text to stay true.
 **Things that must exist before either page goes live.** Each is a sentence in
 the documents that is false until someone does it:
 
-- **Nothing in the app links to either document.** Verified: `app/sign-in.tsx`
-  has no agreement footer, `app/(app)/settings.tsx` has no legal links, and
-  there are no `/privacy` or `/terms` routes. A policy nobody can reach is not
-  published, an app-store submission needs a reachable privacy policy URL, and
-  the consent the GDPR section relies on cannot be given against a document the
-  person has never been shown. This is the blocking item.
+- ~~**Nothing in the app links to either document.**~~ Done. `scripts/build-legal.mjs`
+  renders both files into `public/*.html` during the web build and `vercel.json`
+  serves them at `/privacy` and `/terms`; `app/sign-in.tsx` carries an agreement
+  footer pointing at both. They are static HTML rather than app routes on
+  purpose — the web build is `output: "single"`, so an in-app route serves a
+  crawler an empty shell, and a privacy policy URL that reads as empty is one
+  that fails Google's OAuth review and an app-store submission alike.
+  `app/(app)/settings.tsx` still has no legal links, and the **explicit consent**
+  the GDPR section relies on is still not collected — the footer is notice, not
+  a recorded, withdrawable act. See the gaps below.
 - **`privacy@dhee.app` must receive mail.** It is the only route for erasure
   requests, grievances, and account closure, and it is named in both documents.
   `dhee.app` needs MX records, which is a separate job from pointing the domain

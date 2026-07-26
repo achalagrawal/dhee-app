@@ -40,12 +40,19 @@ those URLs are what Google's OAuth verification and the app stores are given.
 `vercel.json` disables automatic deployments for every branch except `main`:
 
 ```json
-"git": { "deploymentEnabled": { "*": false, "main": true } }
+"git": { "deploymentEnabled": { "**": false, "main": true } }
 ```
 
 (A branch matching several rules deploys if any rule is `true`, so `main` wins
-over the `*` rule.) Pushes and PRs get no Vercel build and no deployment check —
+over the `**` rule.) Pushes and PRs get no Vercel build and no deployment check —
 correctness is enforced by CI, and you review changes by running the app locally.
+
+The pattern is `**`, not `*`. Vercel matches these keys with
+[minimatch](https://vercel.com/docs/project-configuration/git-configuration),
+where `*` stops at a `/` — so under `*` every slash-named branch (`feat/…`,
+`fix/…`, `perf/…`) matched no rule, fell back to the default of `true`, and
+deployed anyway. Only flat branch names were ever suppressed, and `main` deploys
+either way, which is why the hole stayed invisible for a while.
 
 Two things follow from this:
 

@@ -13,8 +13,7 @@ _Draft dated 26 July 2026._
 ## The short version
 
 Dhee is for private reflection, and it is built to hold your trust. We collect
-as little as we can, we do not sell your data, and we do not use your
-conversations to train models.
+as little as we can, and we do not sell your data.
 
 Two things are worth knowing before you read further, because they surprise
 people:
@@ -28,9 +27,9 @@ people:
 
 ## Who we are
 
-Dhee is run by **Achal Agrawal**, an individual based in Gandhinagar, Gujarat,
-India — not a company. "We" throughout this policy means him. For anything
-here, including a complaint, write to **privacy@dhee.app**.
+Dhee is run by **Achal Agrawal**, an individual in India — not a company. "We"
+throughout this policy means him. For anything here, including a complaint,
+write to **privacy@dhee.app**.
 
 Under India's Digital Personal Data Protection Act, 2023, he is the **Data
 Fiduciary** for the personal data described here, and you are the **Data
@@ -120,12 +119,15 @@ and delete every part of that picture.
 Dhee cannot answer you without showing your message to a language model. There
 is no version of this product where that does not happen.
 
-We do not train models. There is no training pipeline here, and your
-conversations are never assembled into a dataset — not for us, and not for
-anyone else. What we send to a provider we send in order to get one reply back.
-Those requests are then handled under that provider's own terms, which you can
-read for yourself: they are the same terms any developer using them gets, and
-we have no private arrangement that widens them.
+What we send to a provider we send in order to get one reply back. Those
+requests are then handled under that provider's own terms, which you can read
+for yourself: they are the same terms any developer using them gets, and we
+have no private arrangement that widens them.
+
+If we ever use what you write for anything beyond answering you — including to
+train or tune a model — that is a new purpose, not a quiet extension of this
+one. We will say so in this policy and tell you in the app before it starts,
+as set out in [Changes to this policy](#changes-to-this-policy).
 
 ## If you are in Europe or the UK
 
@@ -133,9 +135,9 @@ Anyone can use Dhee, from anywhere, which means the GDPR and the UK GDPR apply
 to people using it from those places even though we are in India. This section
 is for you.
 
-**Who is responsible.** Achal Agrawal, at the address above, is the controller.
-There is no data protection officer: this is one person, and that person is the
-one you will reach at privacy@dhee.app.
+**Who is responsible.** Achal Agrawal, in India, is the controller. There is no
+data protection officer: this is one person, and that person is the one you will
+reach at privacy@dhee.app.
 
 **Why we process, and on what basis.** As set out just above: contract for the
 service itself, your explicit consent for the sensitive things you choose to
@@ -288,8 +290,9 @@ than quietly reposting the page.
 
 ## Contact and grievances
 
-Questions, requests, or complaints: **Achal Agrawal**, Gandhinagar, Gujarat,
-India — **privacy@dhee.app**.
+Questions, requests, or complaints: **Achal Agrawal**, India —
+**privacy@dhee.app**. A postal address is not published here; if you need one
+for a formal notice, ask at that address and we will give it to you.
 
 He is also the Grievance Officer for the purposes of the Act. We will
 acknowledge your grievance within **three working days** and resolve it within

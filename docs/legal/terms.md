@@ -16,9 +16,8 @@ Dhee is a tool for reflection and thinking, offered as it is. By using it you
 agree to these terms and to our [Privacy Policy](./privacy.md). If you do not
 agree, please do not use the service.
 
-Dhee is run by **Achal Agrawal**, an individual based in Gandhinagar, Gujarat,
-India — not a company. "We" and "us" mean him; "you" means the person using
-Dhee.
+Dhee is run by **Achal Agrawal**, an individual in India — not a company. "We"
+and "us" mean him; "you" means the person using Dhee.
 
 Anyone can use Dhee, from anywhere. It is built and run from India, and these
 terms are governed by Indian law. If using it would break the law where you
@@ -92,7 +91,7 @@ To run the service, you give us permission to store your content, send it to
 the providers listed in the Privacy Policy so a reply can be generated, and
 derive from it the notes Dhee keeps about you. That permission exists only to
 operate Dhee for you, it is not exclusive, and it ends for any content when you
-delete it. We do not use your conversations to train models.
+delete it.
 
 You are responsible for what you send — including for not sending other people's
 personal information, or anything you are not free to share.
@@ -165,4 +164,4 @@ you accept the updated terms.
 
 ## Contact
 
-**Achal Agrawal**, Gandhinagar, Gujarat, India — **privacy@dhee.app**.
+**Achal Agrawal**, India — **privacy@dhee.app**.

@@ -1,9 +1,13 @@
 # Legal drafts
 
-Working drafts of the two documents Dhee has to publish before launch:
+Working drafts of the pages Dhee publishes at the root of the site, rendered to
+static HTML by [`scripts/build-legal.mjs`](../../scripts/build-legal.mjs):
 
-- [`privacy.md`](./privacy.md) — Privacy Policy
-- [`terms.md`](./terms.md) — Terms of Use
+- [`privacy.md`](./privacy.md) — Privacy Policy, served at `/privacy`
+- [`terms.md`](./terms.md) — Terms of Use, served at `/terms`
+- [`safety.md`](./safety.md) — Safety & limitations, served at `/safety`. Not a
+  legal document, but it lives here because the terms link to it from the
+  emergency section and it ships through the same pipeline.
 
 **Neither is legal advice and neither is ready to publish.** They were written by
 engineering from the code, which is the part engineering can actually do well:
@@ -132,7 +136,7 @@ both documents.
 
 **No placeholders remain.** Every value is filled in: operator, contact address,
 city for governing law, grievance windows (three working days to acknowledge,
-thirty to resolve), liability cap, and the Safety page URL. The text can be
+thirty to resolve), and the liability cap. The text can be
 published as written. What follows is not drafting work — it is the things that
 have to be true in the world for the published text to stay true.
 
@@ -150,18 +154,28 @@ the documents that is false until someone does it:
   the GDPR section relies on is still not collected — the footer is notice, not
   a recorded, withdrawable act. See the gaps below.
 - **`privacy@dhee.app` must receive mail.** It is the only route for erasure
-  requests, grievances, and account closure, and it is named in both documents.
-  `dhee.app` needs MX records, which is a separate job from pointing the domain
-  at Vercel.
-- **`https://dhee.app/safety` must resolve.** The terms link to it from the
-  emergency section, which is the worst page to 404. Epic 16 and Epic 17 both
-  track it.
-- **`dhee.app` must point at the deployment at all.** `docs/deployment.md`
-  records that the DNS records were never added, so today production is only
-  reachable at its `*.vercel.app` URL — while both documents cite `dhee.app`
-  addresses and links.
+  requests, grievances, account closure, and now the postal address the contact
+  section offers on request. `dhee.app` already has ForwardEmail MX records and
+  forwards `contact@`; `privacy@` needs its own `forward-email=` value in the
+  apex TXT record (or a catch-all). **Send a test message to it before either
+  document is treated as published** — every right in them routes through that
+  address, and an address that silently bounces is worse than one that does not
+  exist, because the person believes they have made a request.
+- ~~**`https://dhee.app/safety` must resolve.**~~ Done. [`safety.md`](./safety.md)
+  is drafted from the design's `SAFETY` page and served at `/safety`, and the
+  terms now link to it as a sibling document so the build fails if it goes
+  missing. The crisis resources were verified against the operators' own sites
+  and the Ministry of Health on 26 July 2026 — the table in `safety.md` records
+  what each was checked against. **They are still the live claim in this
+  repository most likely to hurt someone if it goes stale**, and nothing in CI
+  can catch a number that changes: re-check them on a schedule, not when someone
+  reports a wrong one.
+- ~~**`dhee.app` must point at the deployment.**~~ Done — the domain resolves to
+  the Vercel deployment and serves the app.
 - **A postal address, if you submit to the app stores.** Not required by the
-  documents as written, but Apple and Google both ask a developer for one.
+  documents as written, but Apple and Google both ask a developer for one — and
+  the privacy policy now promises to give one out on request, so it has to exist
+  somewhere even though it is not published.
 
 **Claims that depend on configuration, not code.** None of these can be checked
 from this repository:

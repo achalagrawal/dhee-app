@@ -54,7 +54,7 @@ If you are in danger, or thinking about harming yourself or someone else,
 contact your local emergency number or a crisis line immediately. **Dhee cannot
 provide emergency help.** It cannot call anyone for you, it is not monitored by
 a human, and no one is watching your conversation for signs that you need help.
-See [Safety & limitations](https://dhee.app/safety) for resources.
+See [Safety & limitations](./safety.md) for resources.
 
 ## What Dhee can and can't do
 

@@ -230,7 +230,17 @@ function LegalFooter({
         </Text>
         .
       </Text>
-      <Text style={styles.legalText}>{t(lang, "notMedical")}</Text>
+      {/* The disclaimer carries the link rather than standing alone: the moment
+          someone needs a crisis line is not the moment to go looking for one. */}
+      <Text style={styles.legalText}>
+        {t(lang, "notMedical")}{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => Linking.openURL(legalUrls.safety)}
+        >
+          {t(lang, "safetyAndLimits")}
+        </Text>
+      </Text>
     </View>
   );
 }

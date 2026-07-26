@@ -61,20 +61,28 @@ Preview environment, and set the Preview default env vars in Convex so preview
 backends have credentials. Each branch then gets its own throwaway Convex
 deployment, auto-cleaned 5 days after creation (14 on Pro).
 
-## Remaining setup
+## DNS
 
-`dhee.app` has no DNS record pointing at Vercel yet — until it does, production
-is only reachable at its `*.vercel.app` URL. In the dhee-app project:
+`dhee.app` resolves to the Vercel deployment and serves production. The zone is
+**Route 53**, hosted zone `Z0622971PZ3I7JYRF5DY` in AWS account `573562677649`
+(SSO profile `k4m2a`, `ap-south-1`).
 
-1. **Git → Production Branch** = `main` (confirm).
-2. **Domains** → add `dhee.app` (optionally `www.dhee.app` redirecting to it) and
-   assign it to Production; make `dhee.app` the primary production domain.
-   `dev.dhee.app` is unused now — remove it, or leave it aliased to production.
-3. **DNS** (nameservers are Google) — add what Vercel shows, typically:
-   - `A  dhee.app  76.76.21.21`
-   - `CNAME  www  cname.vercel-dns.com.` (if using `www.dhee.app`)
+Mail is **ForwardEmail**, configured entirely through DNS: `MX` to
+`mx1/mx2.forwardemail.net`, and one `forward-email=` value per alias in the apex
+`TXT` record. Domain-verification tokens (Google Search Console) live in that
+same record set.
 
-Vercel verifies automatically once the records propagate.
+That shared record set is the thing to be careful about. Route 53 has no "append
+a value" operation — `UPSERT` replaces every value in a record set — so adding a
+verification token by writing only that token silently deletes the SPF record
+and every mail alias with it. Read the current values first and send them all
+back:
+
+```
+aws route53 list-resource-record-sets --profile k4m2a \
+  --hosted-zone-id Z0622971PZ3I7JYRF5DY \
+  --query "ResourceRecordSets[?Type=='TXT' && Name=='dhee.app.']"
+```
 
 > The waitlist lives on a separate domain (`dhee.co`) and a separate Vercel
 > project (`dhee-waitlist`); none of the above touches it.

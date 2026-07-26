@@ -61,13 +61,13 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 
 | Feature                                   | Status | Where                                    | Notes                                                                     |
 | ----------------------------------------- | ------ | ---------------------------------------- | ------------------------------------------------------------------------- |
-| Streaming reply                           | 🟡     | `chat.streamReply`                       | Backend streams; UI polish                                                |
-| Thinking indicator                        | 🟡     | —                                        | `state.thinking`                                                          |
+| Streaming reply                           | 🟡     | `chat.streamReply`                       | Built; cadence + caret unverified against mockup                          |
+| Thinking indicator                        | ✅     | `chat/[threadId].tsx`                    | Suppressed once text arrives                                              |
 | Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept                                     |
 | Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost; marks the bubble edited |
 | Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared                                 |
 | Copy message                              | ✅     | clipboard                                |                                                                           |
-| Message feedback (👍/👎)                  | 🟡     | `chat.setMessageFeedback/threadFeedback` | Backend done                                                              |
+| Message feedback (👍/👎)                  | ✅     | `chat.setMessageFeedback/threadFeedback` | UI wired too; active rating shown in `accentStrong`                       |
 | Message action sheet (mobile)             | 🟡     | `ThreadMenuSheet`                        |                                                                           |
 | Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts                       |
 | Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                                           |

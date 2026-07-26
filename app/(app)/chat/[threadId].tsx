@@ -33,13 +33,30 @@ const FOLLOW_THRESHOLD = 240;
 
 const keyExtractor = (m: UIMessage) => m.key;
 
+type FailureReason = "error" | "rate";
+
+// A failure carries what to retry: the composer draft is empty after a failed
+// regenerate or edit, so re-running `send` would silently do nothing.
+type RetryTarget =
+  "send" | "regenerate" | { messageId: string; prompt: string };
+
+type Failure = { reason: FailureReason; retry: RetryTarget } | null;
+
+// Rate limiting arrives as a message, not a code, so this is best-effort.
+// Misreading it costs nothing worse than the generic wording.
+function failureFrom(error: unknown): FailureReason {
+  const text = String(error).toLowerCase();
+  return text.includes("rate") || text.includes("too many") ? "rate" : "error";
+}
+
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
   const { colors, mode } = useTheme();
   const lang = useLanguage();
   const listRef = useRef<FlatList<UIMessage>>(null);
   const [draft, setDraft] = useState("");
-  const [failed, setFailed] = useState(false);
+  // A stop is deliberately not a failure. Spec §7.
+  const [failure, setFailure] = useState<Failure>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef = useRef(true);
@@ -118,12 +135,12 @@ export default function Chat() {
     const prompt = draft.trim();
     if (!prompt || !threadId) return;
     setDraft("");
-    setFailed(false);
+    setFailure(null);
     try {
       await sendMessage({ threadId, prompt });
-    } catch {
+    } catch (e) {
       setDraft(prompt);
-      setFailed(true);
+      setFailure({ reason: failureFrom(e), retry: "send" });
     }
   }, [draft, threadId, sendMessage]);
 
@@ -143,11 +160,11 @@ export default function Chat() {
 
   const regenerate = useCallback(async () => {
     if (!threadId) return;
-    setFailed(false);
+    setFailure(null);
     try {
       await regenerateReply({ threadId });
-    } catch {
-      setFailed(true);
+    } catch (e) {
+      setFailure({ reason: failureFrom(e), retry: "regenerate" });
     }
   }, [threadId, regenerateReply]);
 
@@ -158,15 +175,23 @@ export default function Chat() {
     async (messageId: string, prompt: string) => {
       if (!threadId) return;
       cancelEdit();
-      setFailed(false);
+      setFailure(null);
       try {
         await editAndResend({ threadId, messageId, prompt });
-      } catch {
-        setFailed(true);
+      } catch (e) {
+        setFailure({ reason: failureFrom(e), retry: { messageId, prompt } });
       }
     },
     [threadId, editAndResend, cancelEdit],
   );
+
+  const retryFailure = useCallback(() => {
+    if (!failure) return;
+    const { retry } = failure;
+    if (retry === "send") void send();
+    else if (retry === "regenerate") void regenerate();
+    else void runEdit(retry.messageId, retry.prompt);
+  }, [failure, send, regenerate, runEdit]);
 
   // Losing just the reply to the newest turn is the ordinary case and proceeds
   // quietly. The editor stays open behind the dialog, so Cancel keeps the draft.
@@ -309,12 +334,27 @@ export default function Chat() {
                     </Text>
                   </View>
                 ) : null}
-                {failed ? (
+                {failure ? (
                   <View style={styles.errorCard}>
-                    <Text style={styles.errorTitle}>
-                      {t(lang, "somethingWentWrong")}
-                    </Text>
-                    <Pressable onPress={send} style={styles.retryBtn}>
+                    <View style={styles.errorBody}>
+                      <Text style={styles.errorTitle}>
+                        {t(
+                          lang,
+                          failure.reason === "rate"
+                            ? "rateErrorTitle"
+                            : "modelErrorTitle",
+                        )}
+                      </Text>
+                      <Text style={styles.errorText}>
+                        {t(
+                          lang,
+                          failure.reason === "rate"
+                            ? "rateErrorBody"
+                            : "modelErrorBody",
+                        )}
+                      </Text>
+                    </View>
+                    <Pressable onPress={retryFailure} style={styles.retryBtn}>
                       <Text style={styles.retryText}>
                         {t(lang, "tryAgain")}
                       </Text>
@@ -514,9 +554,8 @@ const Message = memo(function Message({
     );
   }
 
-  // While generating, "considering…" stands in. Once done and still empty, the
-  // turn was stopped before its first token — an actions row attached to no
-  // text is worse than no bubble. Spec §2.
+  // However it got there — considering, stopped, failed — an actions row on no
+  // text is worse than no bubble. The card below reports the failure. §2.
   if (!message.text.trim()) return null;
 
   const actions: { icon: IconName; label: string; onPress: () => void }[] = [
@@ -724,7 +763,7 @@ function makeStyles(colors: Colors) {
     },
     errorCard: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
       gap: 13,
       backgroundColor: colors.surface2,
@@ -733,11 +772,17 @@ function makeStyles(colors: Colors) {
       borderRadius: radius.md,
       padding: 14,
     },
+    errorBody: { flex: 1, gap: 4 },
     errorTitle: {
-      flex: 1,
       color: colors.text,
       fontSize: 14.5,
       ...font.semibold,
+    },
+    errorText: {
+      color: colors.textSoft,
+      fontSize: 14,
+      lineHeight: 21,
+      ...font.regular,
     },
     retryBtn: {
       borderWidth: 1,

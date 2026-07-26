@@ -1,8 +1,18 @@
 import { describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { resolveRedirect } from "./lib/redirect";
 import { asUser, createUser, initTest } from "./test.setup";
 import { normalizeProviderName } from "./users";
+
+// Names of functions currently sitting on the scheduler queue (not yet run).
+async function scheduledNames(
+  t: ReturnType<typeof initTest>,
+): Promise<string[]> {
+  return await t.run(async (ctx) => {
+    const fns = await ctx.db.system.query("_scheduled_functions").collect();
+    return fns.map((f) => f.name);
+  });
+}
 
 // The OAuth round trip and the component's HTTP surface can't run under
 // convex-test, so these cover our own logic: the redirect allowlist, the
@@ -107,5 +117,94 @@ describe("identity resolution", () => {
     const profile = await asUser(t, mine).query(api.users.currentProfile, {});
     expect(profile?.userId).toBe(mine);
     expect(profile?.userId).not.toBe(theirs);
+  });
+});
+
+describe("triggers.user.onCreate", () => {
+  test("firing twice for one email does not create two users rows", async () => {
+    const t = initTest();
+    const email = "achal@example.test";
+
+    // An email-OTP sign-up, then Google linking to the same address — the
+    // scenario accountLinking.trustedProviders is meant to collapse into one
+    // component-side user. This test defends the app's own mirror in case it
+    // doesn't: two onCreate calls for the same email must still leave one row.
+    await t.mutation(internal.auth.onCreate, {
+      model: "user",
+      doc: { _id: "auth:otp-1", email, name: "Achal" },
+    });
+    await t.mutation(internal.auth.onCreate, {
+      model: "user",
+      doc: { _id: "auth:google-1", email, name: "Achal Agrawal" },
+    });
+
+    const rows = await t.run(async (ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .collect(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].authId).toBe("auth:google-1");
+  });
+
+  test("first sign-in seeds a profile stub and schedules the avatar import", async () => {
+    const t = initTest();
+    const email = "new@example.test";
+
+    await t.mutation(internal.auth.onCreate, {
+      model: "user",
+      doc: {
+        _id: "auth:new-1",
+        email,
+        name: "New Person",
+        image: "https://example.test/avatar.png",
+      },
+    });
+
+    const user = await t.run(async (ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .unique(),
+    );
+    expect(user).not.toBeNull();
+
+    const profile = await t.run(async (ctx) =>
+      ctx.db
+        .query("profiles")
+        .withIndex("by_user", (q) => q.eq("userId", user!._id))
+        .unique(),
+    );
+    expect(profile?.name).toBe("New Person");
+    expect(profile?.onboarded).toBe(false);
+
+    // Never run importOAuthAvatar here — it would reach out for a real image.
+    expect(await scheduledNames(t)).toContain("users:importOAuthAvatar");
+  });
+
+  test("no name and no image seed cleanly, without scheduling an avatar import", async () => {
+    const t = initTest();
+    const email = "bare@example.test";
+
+    await t.mutation(internal.auth.onCreate, {
+      model: "user",
+      doc: { _id: "auth:bare-1", email },
+    });
+
+    const user = await t.run(async (ctx) =>
+      ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .unique(),
+    );
+    const profile = await t.run(async (ctx) =>
+      ctx.db
+        .query("profiles")
+        .withIndex("by_user", (q) => q.eq("userId", user!._id))
+        .unique(),
+    );
+    expect(profile?.name).toBeUndefined();
+    expect(await scheduledNames(t)).not.toContain("users:importOAuthAvatar");
   });
 });

@@ -31,6 +31,22 @@ export const authComponent: ReturnType<typeof createClient<DataModel>> =
       user: {
         onCreate: async (ctx, doc) => {
           const name = normalizeProviderName(doc.name);
+
+          // Account linking (see accountLinking.trustedProviders below) means
+          // this can fire twice for one person — an email OTP sign-up
+          // followed by Google on the same address. If our own row already
+          // exists for that email, adopt the new authId rather than creating
+          // a second `users` row; nothing past this point (profile seeding,
+          // avatar import) should run again for someone who already onboarded.
+          const existing = await ctx.db
+            .query("users")
+            .withIndex("by_email", (q) => q.eq("email", doc.email))
+            .unique();
+          if (existing) {
+            await ctx.db.patch(existing._id, { authId: doc._id, name });
+            return;
+          }
+
           const userId = await ctx.db.insert("users", {
             authId: doc._id,
             email: doc.email,

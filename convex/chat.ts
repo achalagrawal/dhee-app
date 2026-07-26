@@ -42,6 +42,10 @@ const STOP_REASON = "Stopped by the person.";
 // Bounds the read; a turn is a handful of rows, so it should never be reached.
 const TURN_LOOKBACK = 100;
 
+// Bounds both the read and the delete to one mutation's budget; past it the
+// person is told, rather than half the tail silently surviving.
+const EDIT_LOOKBACK = 200;
+
 // NOT the message `_id`: the agent collapses one assistant turn's several
 // documents into a single UIMessage keyed by the first, and that key is what
 // `messageFeedback.messageId` holds.
@@ -59,6 +63,46 @@ async function clearFeedbackFor(
       .withIndex("by_message", (q) => q.eq("messageId", key))
       .unique();
     if (row) await ctx.db.delete(row._id);
+  }
+}
+
+// A message and everything after it — the tail an edit discards. Collected
+// rather than deleted by order range because the feedback rows go too, and
+// they are keyed by position: replies after an edit reuse those positions, so
+// a row left behind would attach a rating to a message nobody rated.
+async function messagesFrom(
+  ctx: MutationCtx,
+  threadId: string,
+  messageId: string,
+): Promise<MessageDoc[]> {
+  const { page } = await listMessages(ctx, components.agent, {
+    threadId,
+    paginationOpts: { cursor: null, numItems: EDIT_LOOKBACK },
+  });
+  // Newest first, so the tail is everything up to and including the target.
+  const index = page.findIndex((m) => m._id === messageId);
+  if (index === -1) {
+    throw new Error("That message is too far back to edit.");
+  }
+  return page.slice(0, index + 1);
+}
+
+// Refuse the destructive rewrites (regenerate, edit) while a reply is in
+// flight: deleting its row pulls it out from under the running action. A reply
+// that has started shows up as an active stream, one only scheduled as a
+// pending row in `tail` — both here, so a third caller can't inherit half a
+// guard.
+async function assertNoActiveReply(
+  ctx: MutationCtx,
+  threadId: string,
+  tail: MessageDoc[],
+): Promise<void> {
+  const streaming = await listStreams(ctx, components.agent, {
+    threadId,
+    includeStatuses: ["streaming"],
+  });
+  if (streaming.length > 0 || tail.some((m) => m.status === "pending")) {
+    throw new Error("Dhee is still replying.");
   }
 }
 
@@ -297,20 +341,11 @@ export const regenerate = mutation({
     await authorizeThread(ctx, threadId);
     const userId = await requireUserId(ctx);
 
-    const active = await listStreams(ctx, components.agent, {
-      threadId,
-      includeStatuses: ["streaming"],
-    });
-    if (active.length > 0) throw new Error("Dhee is still replying.");
-
     const turn = await lastUserTurn(ctx, threadId);
     if (!turn || turn.after.length === 0) {
       throw new Error("There's no reply to try again yet.");
     }
-    // Scheduled but not yet streaming — regenerating now would leave two.
-    if (turn.after.some((m) => m.status === "pending")) {
-      throw new Error("Dhee is still replying.");
-    }
+    await assertNoActiveReply(ctx, threadId, turn.after);
 
     await clearFeedbackFor(ctx, turn.after);
     await dhee.deleteMessages(ctx, {
@@ -322,6 +357,58 @@ export const regenerate = mutation({
     await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
       threadId,
       promptMessageId: turn.prompt._id,
+      userId,
+    });
+    return null;
+  },
+});
+
+// Edit a message you sent and ask again from there. The conversation forks at
+// that point: everything after the edited turn is dropped, because the replies
+// that followed answered a question that is no longer the one being asked.
+// See docs/build/specs/chat-loop.md §6.
+export const editAndResend = mutation({
+  args: { threadId: v.string(), messageId: v.string(), prompt: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId, messageId, prompt }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+
+    const trimmed = prompt.trim();
+    if (!trimmed) throw new Error("A message needs something in it.");
+
+    const [target] = await ctx.runQuery(
+      components.agent.messages.getMessagesByIds,
+      { messageIds: [messageId] },
+    );
+    // Bound to the caller's own thread: a foreign id can't reach into another
+    // conversation.
+    if (!target || target.threadId !== threadId) {
+      throw new Error("That message is not in this conversation.");
+    }
+    // Never an assistant message: rewriting one puts words in Dhee's mouth, and
+    // memory extraction would later read them back as things it said.
+    if (target.message?.role !== "user") {
+      throw new Error("Only your own messages can be edited.");
+    }
+
+    const discarded = await messagesFrom(ctx, threadId, target._id);
+    await assertNoActiveReply(ctx, threadId, discarded);
+
+    await clearFeedbackFor(ctx, discarded);
+    await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
+
+    const { messageId: newMessageId } = await dhee.saveMessage(ctx, {
+      threadId,
+      prompt: trimmed,
+      skipEmbeddings: true,
+    });
+
+    // No turn bump: the edited turn replaces a turn rather than adding one, so
+    // counting it would run memory extraction a turn early.
+    await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
+      threadId,
+      promptMessageId: newMessageId,
       userId,
     });
     return null;

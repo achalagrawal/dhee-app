@@ -64,7 +64,7 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 | Streaming reply                           | 🟡     | `chat.streamReply`                       | Backend streams; UI polish                          |
 | Thinking indicator                        | 🟡     | —                                        | `state.thinking`                                    |
 | Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept               |
-| Edit & resend user message                | 🟡     | design only                              | `state.editingIndex/editDraft/resendCount`          |
+| Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost    |
 | Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared           |
 | Copy message                              | ✅     | clipboard                                |                                                     |
 | Message feedback (👍/👎)                  | 🟡     | `chat.setMessageFeedback/threadFeedback` | Backend done                                        |

@@ -4,5 +4,9 @@ dist/
 .expo/
 .vercel/
 convex/_generated/
+# Local backend state (`convex deployment create local`). Git already ignores it
+# via .convex/.gitignore, but Prettier doesn't read that, so `pnpm format:check`
+# fails for anyone developing against a local deployment.
+.convex/
 pnpm-lock.yaml
 mockup/

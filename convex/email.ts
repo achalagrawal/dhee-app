@@ -1,4 +1,5 @@
 import { AwsClient } from "aws4fetch";
+import { isLoopback } from "./lib/backend";
 
 // Transactional email over the SES v2 HTTP API.
 //
@@ -27,9 +28,39 @@ function requireEnv(name: string): string {
   return value;
 }
 
+/** A local backend with no SES credentials skips the send instead of throwing.
+ *
+ *  This is what lets someone clone the repo and sign in without being handed
+ *  AWS keys at all: `convex dev --local` logs the OTP in the clear (auth.ts),
+ *  and without this guard `requireEnv` would throw right afterwards and fail
+ *  the mutation that just logged a perfectly usable code.
+ *
+ *  Both halves matter. Set the AWS vars on a local backend and mail goes out
+ *  normally, so the real send path stays testable; and on a cloud deployment
+ *  missing credentials still throw, because silently dropping sign-in mail in
+ *  production is the worst outcome available. */
+export function shouldSkipSend(env: {
+  convexCloudUrl?: string;
+  awsAccessKeyId?: string;
+}): boolean {
+  return isLoopback(env.convexCloudUrl) && !env.awsAccessKeyId;
+}
+
 /** Plain function, not a Convex function: the Better Auth handler already runs
  *  in an action, so there is nothing to gain from another hop. */
 export async function sendEmail({ to, subject, text }: EmailArgs) {
+  if (
+    shouldSkipSend({
+      convexCloudUrl: process.env.CONVEX_CLOUD_URL,
+      awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    })
+  ) {
+    console.log(
+      `[dev] SES is not configured on this local backend — not sending "${subject}" to ${to}.`,
+    );
+    return;
+  }
+
   const region = requireEnv("AWS_REGION");
   const from = requireEnv("AUTH_EMAIL_FROM");
 

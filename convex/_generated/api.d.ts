@@ -17,6 +17,7 @@ import type * as dev from "../dev.js";
 import type * as devEmail from "../devEmail.js";
 import type * as email from "../email.js";
 import type * as http from "../http.js";
+import type * as lib_backend from "../lib/backend.js";
 import type * as lib_mcp from "../lib/mcp.js";
 import type * as lib_redirect from "../lib/redirect.js";
 import type * as md from "../md.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   devEmail: typeof devEmail;
   email: typeof email;
   http: typeof http;
+  "lib/backend": typeof lib_backend;
   "lib/mcp": typeof lib_mcp;
   "lib/redirect": typeof lib_redirect;
   md: typeof md;

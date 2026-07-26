@@ -7,6 +7,7 @@ import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import authConfig from "./auth.config";
 import { sendEmail } from "./email";
+import { isLoopback } from "./lib/backend";
 import { normalizeProviderName } from "./users";
 
 // Auth foundation. See docs/build/specs/auth-foundation.md.
@@ -151,8 +152,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
         allowedAttempts: 3,
         sendVerificationOTP: async ({ email, otp }) => {
           // Dev convenience: surface the code in the Convex logs so a
-          // developer can sign in without opening an inbox. Local only.
-          if (process.env.CONVEX_CLOUD_URL?.includes("127.0.0.1")) {
+          // developer can sign in without opening an inbox — and, on a local
+          // backend with no AWS keys, without SES existing at all (email.ts
+          // skips the send rather than throwing). Local only.
+          if (isLoopback(process.env.CONVEX_CLOUD_URL)) {
             console.log(`[dev] OTP for ${email}: ${otp}`);
           }
           await sendEmail({

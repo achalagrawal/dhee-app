@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authClient } from "../src/lib/auth-client";
 import { t } from "../src/lib/i18n";
+import { legalUrls } from "../src/lib/legal";
 import { signInWithGoogle } from "../src/lib/oauth";
 import { useTheme } from "../src/lib/ThemeContext";
 import { type Colors, font, radius, spacing } from "../src/lib/theme";
@@ -190,9 +192,46 @@ export default function SignIn() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
+
+          <LegalFooter lang={lang} styles={styles} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+// Sign-in is where a person hands over an email address, so it is where the two
+// documents have to be reachable — and on web this screen is what `/` redirects
+// to, which makes it the page Google's OAuth review lands on when it checks
+// that the homepage links to the privacy policy.
+function LegalFooter({
+  lang,
+  styles,
+}: {
+  lang: "en";
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View style={styles.legal}>
+      <Text style={styles.legalText}>
+        {t(lang, "legalIntro")}{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => Linking.openURL(legalUrls.terms)}
+        >
+          {t(lang, "termsOfUse")}
+        </Text>{" "}
+        {t(lang, "and")}{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => Linking.openURL(legalUrls.privacy)}
+        >
+          {t(lang, "privacyPolicy")}
+        </Text>
+        .
+      </Text>
+      <Text style={styles.legalText}>{t(lang, "notMedical")}</Text>
+    </View>
   );
 }
 
@@ -314,6 +353,15 @@ function makeStyles(colors: Colors) {
       fontSize: 17,
       ...font.medium,
     },
+    legal: { marginTop: spacing.xl, gap: spacing.xs },
+    legalText: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      color: colors.textFaint,
+      textAlign: "center",
+      ...font.regular,
+    },
+    legalLink: { color: colors.textSoft, textDecorationLine: "underline" },
     textButton: { alignItems: "center", paddingVertical: spacing.sm },
     textButtonLabel: { color: colors.textSoft, fontSize: 15, ...font.regular },
     error: {

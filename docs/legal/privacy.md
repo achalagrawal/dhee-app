@@ -1,12 +1,16 @@
 # Privacy Policy
 
+<!-- internal:start -->
+
 **Status: complete draft, awaiting legal review.** Written by engineering from
 what the code actually does. Every value is filled in and the text is ready to
 publish as written — but it has not been reviewed by a lawyer, and it should
 not go live until it has. See [README.md](./README.md) for the traceability map
 back to the repo and the work that still has to happen outside these documents.
 
-_Draft dated 26 July 2026._
+<!-- internal:end -->
+
+_Last updated 26 July 2026._
 
 ---
 

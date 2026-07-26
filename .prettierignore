@@ -10,3 +10,4 @@ convex/_generated/
 .convex/
 pnpm-lock.yaml
 mockup/
+public/

@@ -19,7 +19,7 @@ locally against your own Convex dev deployment; merging to `main` ships.
 Vercel runs:
 
 ```
-npx convex deploy --cmd 'pnpm expo export -p web' --cmd-url-env-var-name EXPO_PUBLIC_CONVEX_URL
+npx convex deploy --cmd 'pnpm build:web' --cmd-url-env-var-name EXPO_PUBLIC_CONVEX_URL
 ```
 
 `convex deploy` picks its target **from the `CONVEX_DEPLOY_KEY` it's given** —
@@ -27,6 +27,13 @@ set in Vercel for the Production environment only, holding a Convex _production_
 deploy key. It pushes the backend, then sets `EXPO_PUBLIC_CONVEX_URL` to that
 deployment's URL and runs the Expo web export inside it. The frontend bundle
 therefore can't point at the wrong backend: one key decides both halves.
+
+`build:web` is `build:legal && expo export -p web`. The first step renders
+`docs/legal/*.md` into `public/*.html`, which the export copies into `dist/`;
+`vercel.json` then serves them at `/privacy` and `/terms`. Export directly with
+`expo export` and the site builds without its legal pages, which is why the
+deploy goes through the script. See [legal/README.md](legal/README.md) —
+those URLs are what Google's OAuth verification and the app stores are given.
 
 ## Preview deployments are off
 

@@ -144,15 +144,15 @@ far richer than today's flat screen.
 
 ## Epic 10 — Auth & onboarding
 
-| Feature                                                         | Status | Where                               | Notes                                                                                                         |
-| --------------------------------------------------------------- | ------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Email OTP sign-in + verify flow                                 | ✅     | `auth.ts` (Better Auth), `email.ts` | Rebuilt on Better Auth + SES HTTP; verified end to end on web. Spec: `specs/auth-foundation.md`               |
-| **Continue with Google (OAuth)**                                | ✅     | `auth.ts`, `src/lib/oauth.ts`       | Verified end to end on web. Specs: `specs/google-oauth.md`, `specs/auth-foundation.md`                        |
-| Guest mode ("Maybe later")                                      | ⬜     | —                                   | `state.authed` — use before signing in; auth is a gate to _persist_                                           |
-| Terms/privacy agreement + "not a medical/crisis service" notice | ⬜     | —                                   | In auth modal footer                                                                                          |
-| Auth as modal (design variant)                                  | 🟡     | `sign-in.tsx` (full screen)         | `state.showAuth`                                                                                              |
-| Onboarding — 3 intro slides                                     | 🟡     | design `ONBOARD`                    | "Welcome to Dhee" → "What it is, and isn't" (not a therapist/crisis service) → "One or two things"            |
-| Onboarding — profile setup (name → goal → tradition)            | 🟡     | `users.completeOnboarding`          | `state.onboardStep/onboardName/onboardGoal/onboardTradition`; goal = one of the 6 `MODES`; tradition optional |
+| Feature                                                         | Status | Where                               | Notes                                                                                                                      |
+| --------------------------------------------------------------- | ------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Email OTP sign-in + verify flow                                 | ✅     | `auth.ts` (Better Auth), `email.ts` | Rebuilt on Better Auth + SES HTTP; verified end to end on web. Spec: `specs/auth-foundation.md`                            |
+| **Continue with Google (OAuth)**                                | ✅     | `auth.ts`, `src/lib/oauth.ts`       | Verified end to end on web. Specs: `specs/google-oauth.md`, `specs/auth-foundation.md`                                     |
+| Guest mode ("Maybe later")                                      | ⬜     | —                                   | `state.authed` — use before signing in; auth is a gate to _persist_                                                        |
+| Terms/privacy agreement + "not a medical/crisis service" notice | 🟡     | `sign-in.tsx`, `src/lib/legal.ts`   | Footer links to the published pages. Notice only — the explicit sign-up consent the privacy policy claims is still missing |
+| Auth as modal (design variant)                                  | 🟡     | `sign-in.tsx` (full screen)         | `state.showAuth`                                                                                                           |
+| Onboarding — 3 intro slides                                     | 🟡     | design `ONBOARD`                    | "Welcome to Dhee" → "What it is, and isn't" (not a therapist/crisis service) → "One or two things"                         |
+| Onboarding — profile setup (name → goal → tradition)            | 🟡     | `users.completeOnboarding`          | `state.onboardStep/onboardName/onboardGoal/onboardTradition`; goal = one of the 6 `MODES`; tradition optional              |
 
 ## Epic 11 — Attachments & media backend
 
@@ -218,8 +218,8 @@ flows live in [`docs/legal/`](../legal/README.md), pending legal review.
 | Blog index + articles            | ⬜     | `BLOG` (3 full posts)                 |
 | FAQ / Help                       | ⬜     | `FAQS` (7 Q&A)                        |
 | Careers                          | ⬜     | `CAREERS` (values, benefits, 3 roles) |
-| Legal — Privacy                  | ⬜     | `docs/legal/privacy.md` (draft)       |
-| Legal — Terms                    | ⬜     | `docs/legal/terms.md` (draft)         |
+| Legal — Privacy                  | 🟡     | `docs/legal/privacy.md` → `/privacy`  |
+| Legal — Terms                    | 🟡     | `docs/legal/terms.md` → `/terms`      |
 | Safety & limitations             | ⬜     | see Epic 16                           |
 | Contact                          | ⬜     | `state.contactEmail/contactMsg`       |
 | Download                         | ⬜     |                                       |

@@ -56,6 +56,9 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 3 — Chat & messages
 
+Conventions for the whole epic — streaming, stop, regenerate, edit & resend,
+failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-loop.md).
+
 | Feature                                   | Status | Where                                    | Notes                                               |
 | ----------------------------------------- | ------ | ---------------------------------------- | --------------------------------------------------- |
 | Streaming reply                           | 🟡     | `chat.streamReply`                       | Backend streams; UI polish                          |

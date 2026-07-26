@@ -56,20 +56,23 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 3 — Chat & messages
 
+Conventions for the whole epic — streaming, stop, regenerate, edit & resend,
+failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-loop.md).
+
 | Feature                                   | Status | Where                                    | Notes                                               |
 | ----------------------------------------- | ------ | ---------------------------------------- | --------------------------------------------------- |
 | Streaming reply                           | 🟡     | `chat.streamReply`                       | Backend streams; UI polish                          |
 | Thinking indicator                        | 🟡     | —                                        | `state.thinking`                                    |
-| Stop generating                           | ⬜     | —                                        | `state.aborted`                                     |
+| Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept               |
 | Edit & resend user message                | 🟡     | design only                              | `state.editingIndex/editDraft/resendCount`          |
-| Regenerate response                       | ⬜     | —                                        | Claude/ChatGPT convention                           |
+| Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared           |
 | Copy message                              | ✅     | clipboard                                |                                                     |
 | Message feedback (👍/👎)                  | 🟡     | `chat.setMessageFeedback/threadFeedback` | Backend done                                        |
 | Message action sheet (mobile)             | 🟡     | `ThreadMenuSheet`                        |                                                     |
 | Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts |
 | Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                     |
 | Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                    |
-| Scroll-to-bottom button + pull-to-refresh | ⬜     | —                                        | `state.showScrollBtn/pullDist`                      |
+| Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)         |
 
 ## Epic 4 — History / Library
 

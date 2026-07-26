@@ -2,11 +2,13 @@ import { useUIMessages, type UIMessage } from "@convex-dev/agent/react";
 import { useMutation, useQuery } from "convex/react";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
   StyleSheet,
@@ -21,19 +23,28 @@ import { Icon, IconButton, type IconName } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
-import { font, radius } from "../../../src/lib/theme";
+import { font, radius, shadow } from "../../../src/lib/theme";
 import { useLanguage } from "../../../src/lib/useLanguage";
+
+// Matches the mockup's `onMainScroll`.
+const FOLLOW_THRESHOLD = 240;
 
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const lang = useLanguage();
   const listRef = useRef<FlatList<UIMessage>>(null);
   const [draft, setDraft] = useState("");
   const [failed, setFailed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef = useRef(true);
+  // So the button flips back without waiting for the abort to round-trip.
+  const [stopping, setStopping] = useState(false);
 
   const sendMessage = useMutation(api.chat.sendMessage);
+  const stopGeneration = useMutation(api.chat.stopGeneration);
+  const regenerateReply = useMutation(api.chat.regenerate);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
   const { results } = useUIMessages(
     api.chat.listThreadMessages,
@@ -94,7 +105,56 @@ export default function Chat() {
     }
   }, [draft, threadId, sendMessage]);
 
+  const stop = useCallback(async () => {
+    if (!threadId) return;
+    setStopping(true);
+    try {
+      await stopGeneration({ threadId });
+    } catch {
+      // Nothing to stop, or it finished first — neither is worth reporting.
+    }
+  }, [threadId, stopGeneration]);
+
+  useEffect(() => {
+    if (!generating) setStopping(false);
+  }, [generating]);
+
+  const regenerate = useCallback(async () => {
+    if (!threadId) return;
+    setFailed(false);
+    try {
+      await regenerateReply({ threadId });
+    } catch {
+      setFailed(true);
+    }
+  }, [threadId, regenerateReply]);
+
   const newThread = useCallback(() => router.replace("/home"), []);
+
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const fromBottom =
+      contentSize.height - contentOffset.y - layoutMeasurement.height;
+    const next = fromBottom <= FOLLOW_THRESHOLD;
+    atBottomRef.current = next;
+    setAtBottom((prev) => (prev === next ? prev : next));
+  }, []);
+
+  // `scrollToEnd` only reaches the end of the rows FlatList has measured, so
+  // mid-stream it lands short and the gap reads as the reader having scrolled
+  // away. `onContentSizeChange` reports the real height — scroll to that.
+  const followIfAtBottom = useCallback((height?: number) => {
+    if (!atBottomRef.current) return;
+    const list = listRef.current;
+    if (height == null) list?.scrollToEnd({ animated: false });
+    else list?.scrollToOffset({ offset: height, animated: false });
+  }, []);
+
+  const scrollToLatest = useCallback(() => {
+    atBottomRef.current = true;
+    setAtBottom(true);
+    listRef.current?.scrollToEnd({ animated: true });
+  }, []);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -123,49 +183,74 @@ export default function Chat() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <FlatList
-          ref={listRef}
-          style={styles.flex}
-          data={results}
-          keyExtractor={(m) => m.key}
-          renderItem={({ item, index }) => (
-            <Message
-              message={item}
-              isLast={index === results.length - 1}
-              colors={colors}
-              lang={lang}
-              styles={styles}
-              rating={feedbackMap.get(item.key) ?? null}
-              onRate={(next) => rate(item.key, next)}
-            />
-          )}
-          contentContainerStyle={styles.list}
-          onContentSizeChange={() =>
-            listRef.current?.scrollToEnd({ animated: true })
-          }
-          ListFooterComponent={
-            <>
-              {thinking ? (
-                <View style={styles.thinkingRow}>
-                  <View style={styles.avatar}>
-                    <Icon name="logo" size={16} color={colors.accent} />
+        <View style={styles.flex}>
+          <FlatList
+            ref={listRef}
+            style={styles.flex}
+            data={results}
+            keyExtractor={(m) => m.key}
+            renderItem={({ item, index }) => (
+              <Message
+                message={item}
+                isLast={index === results.length - 1}
+                colors={colors}
+                lang={lang}
+                styles={styles}
+                rating={feedbackMap.get(item.key) ?? null}
+                onRate={(next) => rate(item.key, next)}
+                onRegenerate={generating ? undefined : regenerate}
+              />
+            )}
+            contentContainerStyle={styles.list}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={(_w, h) => followIfAtBottom(h)}
+            onLayout={() => followIfAtBottom()}
+            ListFooterComponent={
+              <>
+                {thinking ? (
+                  <View style={styles.thinkingRow}>
+                    <View style={styles.avatar}>
+                      <Icon name="logo" size={16} color={colors.accent} />
+                    </View>
+                    <Text style={styles.thinkingText}>
+                      {t(lang, "thinking")}
+                    </Text>
                   </View>
-                  <Text style={styles.thinkingText}>{t(lang, "thinking")}</Text>
-                </View>
-              ) : null}
-              {failed ? (
-                <View style={styles.errorCard}>
-                  <Text style={styles.errorTitle}>
-                    {t(lang, "somethingWentWrong")}
-                  </Text>
-                  <Pressable onPress={send} style={styles.retryBtn}>
-                    <Text style={styles.retryText}>{t(lang, "tryAgain")}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </>
-          }
-        />
+                ) : null}
+                {failed ? (
+                  <View style={styles.errorCard}>
+                    <Text style={styles.errorTitle}>
+                      {t(lang, "somethingWentWrong")}
+                    </Text>
+                    <Pressable onPress={send} style={styles.retryBtn}>
+                      <Text style={styles.retryText}>
+                        {t(lang, "tryAgain")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </>
+            }
+          />
+
+          {atBottom ? null : (
+            <View style={styles.scrollBtnWrap} pointerEvents="box-none">
+              <Pressable
+                onPress={scrollToLatest}
+                accessibilityRole="button"
+                accessibilityLabel={t(lang, "scrollToLatest")}
+                style={({ pressed }) => [
+                  styles.scrollBtn,
+                  shadow(mode),
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Icon name="chevronDown" size={17} color={colors.textSoft} />
+              </Pressable>
+            </View>
+          )}
+        </View>
 
         <View style={styles.dock}>
           <Composer
@@ -174,8 +259,8 @@ export default function Chat() {
             onSubmit={send}
             placeholder={t(lang, "replyPlaceholder")}
             minHeight={24}
-            generating={generating}
-            onStop={() => Alert.alert(t(lang, "stop"), t(lang, "comingSoon"))}
+            generating={generating && !stopping}
+            onStop={stop}
           />
           <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
         </View>
@@ -198,6 +283,7 @@ function Message({
   styles,
   rating,
   onRate,
+  onRegenerate,
 }: {
   message: UIMessage;
   isLast: boolean;
@@ -206,6 +292,8 @@ function Message({
   styles: ReturnType<typeof makeStyles>;
   rating: "up" | "down" | null;
   onRate: (rating: "up" | "down") => void;
+  /** Undefined while a reply is generating — try again is unavailable then. */
+  onRegenerate?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -235,9 +323,10 @@ function Message({
     );
   }
 
-  // Before the assistant has produced text, the "considering…" indicator
-  // stands in — don't also render an empty bubble with a lone caret.
-  if (!message.text.trim() && !done) return null;
+  // While generating, "considering…" stands in. Once done and still empty, the
+  // turn was stopped before its first token — an actions row attached to no
+  // text is worse than no bubble. Spec §2.
+  if (!message.text.trim()) return null;
 
   const actions: { icon: IconName; label: string; onPress: () => void }[] = [
     {
@@ -256,11 +345,11 @@ function Message({
       onPress: () => soon(t(lang, "speak")),
     },
   ];
-  if (isLast) {
+  if (isLast && onRegenerate) {
     actions.push({
       icon: "refresh",
       label: t(lang, "tryAgain"),
-      onPress: () => soon(t(lang, "tryAgain")),
+      onPress: onRegenerate,
     });
   }
 
@@ -426,6 +515,24 @@ function makeStyles(colors: Colors) {
       borderRadius: radius.pill,
     },
     retryText: { color: colors.text, fontSize: 13.5, ...font.medium },
+    // Scroll to latest
+    scrollBtnWrap: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 8,
+      alignItems: "center",
+    },
+    scrollBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     // Dock
     dock: {
       paddingHorizontal: 16,

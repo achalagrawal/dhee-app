@@ -110,6 +110,10 @@ export default defineSchema({
     pinned: v.optional(v.boolean()),
     // UIMessage keys of messages the person rewrote, for the "edited" label.
     editedMessages: v.optional(v.array(v.string())),
+    // UIMessage keys of replies the person stopped. A stopped turn and a turn
+    // the model failed both finalize as `failed`, and only this tells them
+    // apart — a stop must show no error surface at all (spec §7).
+    stoppedMessages: v.optional(v.array(v.string())),
   })
     .index("by_thread", ["threadId"])
     .index("by_user", ["userId"]),

@@ -52,14 +52,17 @@ function uiMessageKey(doc: MessageDoc): string {
   return `${doc.threadId}-${doc.order}-${doc.stepOrder}`;
 }
 
-// Drops everything keyed to a message's position — rating, "edited" mark —
-// and returns the marks that survived. Whatever replaces a discarded tail
-// reuses those positions, so a mark left behind lands on the wrong message.
+type Marks = { edited: string[]; stopped: string[] };
+
+// Drops everything keyed to a message's position — rating, "edited" mark,
+// "stopped" mark — and returns the marks that survived. Whatever replaces a
+// discarded tail reuses those positions, so a mark left behind lands on the
+// wrong message: a rating nobody gave, or a failure read as a deliberate stop.
 async function clearMarksFor(
   ctx: MutationCtx,
   threadId: string,
   docs: MessageDoc[],
-): Promise<string[]> {
+): Promise<Marks> {
   const keys = new Set(docs.map(uiMessageKey));
   for (const key of keys) {
     const row = await ctx.db
@@ -69,10 +72,20 @@ async function clearMarksFor(
     if (row) await ctx.db.delete(row._id);
   }
   const meta = await threadMetaFor(ctx, threadId);
-  const marks = meta?.editedMessages ?? [];
-  const kept = marks.filter((k) => !keys.has(k));
-  if (meta && kept.length !== marks.length) {
-    await ctx.db.patch(meta._id, { editedMessages: kept });
+  const edited = meta?.editedMessages ?? [];
+  const stopped = meta?.stoppedMessages ?? [];
+  const kept: Marks = {
+    edited: edited.filter((k) => !keys.has(k)),
+    stopped: stopped.filter((k) => !keys.has(k)),
+  };
+  const dropped =
+    kept.edited.length !== edited.length ||
+    kept.stopped.length !== stopped.length;
+  if (meta && dropped) {
+    await ctx.db.patch(meta._id, {
+      editedMessages: kept.edited,
+      stoppedMessages: kept.stopped,
+    });
   }
   return kept;
 }
@@ -163,6 +176,7 @@ async function upsertThreadMeta(
     starred: boolean;
     pinned: boolean;
     editedMessages: string[];
+    stoppedMessages: string[];
   }>,
 ): Promise<void> {
   const meta = await threadMetaFor(ctx, threadId);
@@ -324,17 +338,31 @@ export const stopGeneration = mutation({
   returns: v.boolean(),
   handler: async (ctx, { threadId }) => {
     await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
     const active = await listStreams(ctx, components.agent, {
       threadId,
       includeStatuses: ["streaming"],
     });
     let stopped = false;
+    const marked: string[] = [];
     for (const stream of active) {
       const didAbort = await abortStream(ctx, components.agent, {
         streamId: stream.streamId,
         reason: STOP_REASON,
       });
+      if (didAbort) {
+        marked.push(`${threadId}-${stream.order}-${stream.stepOrder}`);
+      }
       stopped = stopped || didAbort;
+    }
+    // The turn finalizes as `failed` either way, so without this the client
+    // can't tell a stop from a model failure and would show an error card on
+    // something that worked exactly as asked. Spec §7.
+    if (marked.length > 0) {
+      const meta = await threadMetaFor(ctx, threadId);
+      await upsertThreadMeta(ctx, threadId, userId, {
+        stoppedMessages: [...(meta?.stoppedMessages ?? []), ...marked],
+      });
     }
     return stopped;
   },
@@ -408,7 +436,7 @@ export const editAndResend = mutation({
     );
 
     await upsertThreadMeta(ctx, threadId, userId, {
-      editedMessages: [...marks, uiMessageKey(saved)],
+      editedMessages: [...marks.edited, uiMessageKey(saved)],
     });
 
     // No turn bump: this replaces a turn rather than adding one, so counting it
@@ -631,13 +659,21 @@ export const threadFeedback = query({
   },
 });
 
-export const threadEdits = query({
+// Both marks on one subscription: the screen needs them at the same moments,
+// and each extra query is another socket round-trip per delta.
+export const threadMarks = query({
   args: { threadId: v.string() },
-  returns: v.array(v.string()),
+  returns: v.object({
+    edited: v.array(v.string()),
+    stopped: v.array(v.string()),
+  }),
   handler: async (ctx, { threadId }) => {
     await authorizeThread(ctx, threadId);
     const meta = await threadMetaFor(ctx, threadId);
-    return meta?.editedMessages ?? [];
+    return {
+      edited: meta?.editedMessages ?? [],
+      stopped: meta?.stoppedMessages ?? [],
+    };
   },
 });
 

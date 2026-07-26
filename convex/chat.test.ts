@@ -265,6 +265,94 @@ describe("chat — stop generating", () => {
     });
     expect(after.page.map((m) => m.text)).toContain("still here?");
   });
+
+  // A stopped turn and a turn the model failed both finalize as `failed`.
+  // These marks are the only thing that tells them apart, and the client shows
+  // an error card on one and nothing at all on the other. Spec §7 / #59 / #60.
+  test("records the stopped reply's position", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await startStream(t, threadId);
+
+    expect(
+      (await as.query(api.chat.threadMarks, { threadId })).stopped,
+    ).toEqual([]);
+    await as.mutation(api.chat.stopGeneration, { threadId });
+
+    // `startStream` builds the row at order 1, stepOrder 0.
+    expect(
+      (await as.query(api.chat.threadMarks, { threadId })).stopped,
+    ).toEqual([`${threadId}-1-0`]);
+  });
+
+  test("stopping with nothing in flight marks nothing", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await as.mutation(api.chat.stopGeneration, { threadId });
+
+    expect(
+      (await as.query(api.chat.threadMarks, { threadId })).stopped,
+    ).toEqual([]);
+  });
+
+  test("the mark goes when regenerate discards the stopped reply", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await as.mutation(api.chat.sendMessage, { threadId, prompt: "hello" });
+    // The stopped reply lands at the position `startStream` used.
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.messages.addMessages, {
+        threadId,
+        userId: user,
+        agentName: "Dhee",
+        messages: [
+          {
+            message: { role: "assistant", content: "half a thou" },
+            status: "success",
+          },
+        ],
+      });
+    });
+    const reply = await t.run(async (ctx) => {
+      const { page } = await ctx.runQuery(
+        components.agent.messages.listMessagesByThreadId,
+        {
+          threadId,
+          order: "desc",
+          paginationOpts: { cursor: null, numItems: 1 },
+        },
+      );
+      return page[0];
+    });
+    // Stopped through the real path, at the position that reply occupies.
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.streams.create, {
+        threadId,
+        order: reply.order,
+        stepOrder: reply.stepOrder,
+        format: "UIMessageChunk",
+      });
+    });
+    await as.mutation(api.chat.stopGeneration, { threadId });
+    expect(
+      (await as.query(api.chat.threadMarks, { threadId })).stopped,
+    ).toEqual([`${threadId}-${reply.order}-${reply.stepOrder}`]);
+
+    await as.mutation(api.chat.regenerate, { threadId });
+
+    // The new reply reuses that position: a mark left behind would read as a
+    // stop the person never made, and swallow a real failure's error card.
+    expect(
+      (await as.query(api.chat.threadMarks, { threadId })).stopped,
+    ).toEqual([]);
+  });
 });
 
 describe("chat — regenerate", () => {
@@ -682,7 +770,9 @@ describe("chat — edit & resend", () => {
     const threadId = await as.mutation(api.chat.startThread, {});
     await exchange(t, user, threadId, "first", "reply one");
 
-    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([]);
+    expect((await as.query(api.chat.threadMarks, { threadId })).edited).toEqual(
+      [],
+    );
 
     const first = (await docs(t, threadId))[0];
     await as.mutation(api.chat.editAndResend, {
@@ -693,9 +783,9 @@ describe("chat — edit & resend", () => {
 
     // The key the client renders by, so the label lands on the right bubble.
     const rewritten = (await docs(t, threadId))[0];
-    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([
-      `${threadId}-${rewritten.order}-${rewritten.stepOrder}`,
-    ]);
+    expect((await as.query(api.chat.threadMarks, { threadId })).edited).toEqual(
+      [`${threadId}-${rewritten.order}-${rewritten.stepOrder}`],
+    );
   });
 
   test("the mark goes when a later edit discards the message wearing it", async () => {
@@ -713,7 +803,9 @@ describe("chat — edit & resend", () => {
       messageId: before[2]._id,
       prompt: "second, rewritten",
     });
-    expect(await as.query(api.chat.threadEdits, { threadId })).toHaveLength(1);
+    expect(
+      (await as.query(api.chat.threadMarks, { threadId })).edited,
+    ).toHaveLength(1);
 
     await as.mutation(api.chat.editAndResend, {
       threadId,
@@ -724,9 +816,9 @@ describe("chat — edit & resend", () => {
     // Only the first turn is marked now. Positions are reused, so a mark left
     // behind would label a message nobody edited.
     const rewritten = (await docs(t, threadId))[0];
-    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([
-      `${threadId}-${rewritten.order}-${rewritten.stepOrder}`,
-    ]);
+    expect((await as.query(api.chat.threadMarks, { threadId })).edited).toEqual(
+      [`${threadId}-${rewritten.order}-${rewritten.stepOrder}`],
+    );
   });
 
   test("regenerate marks nothing", async () => {
@@ -738,7 +830,9 @@ describe("chat — edit & resend", () => {
 
     await as.mutation(api.chat.regenerate, { threadId });
 
-    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([]);
+    expect((await as.query(api.chat.threadMarks, { threadId })).edited).toEqual(
+      [],
+    );
   });
 });
 

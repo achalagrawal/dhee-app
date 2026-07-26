@@ -244,7 +244,18 @@ export const streamReply = internalAction({
     } finally {
       // In `finally` because a stopped stream makes the consume throw, and a
       // thread stopped on its first turn still needs a name.
-      await ctx.scheduler.runAfter(0, internal.chat.titleThread, { threadId });
+      //
+      // `titleThread` no-ops once a title exists, so scheduling it every turn
+      // spent an action invocation per turn to do this same read and give up.
+      // Reading it here keeps the read and drops the scheduler round-trip.
+      const { title } = await getThreadMetadata(ctx, components.agent, {
+        threadId,
+      });
+      if (!title?.trim()) {
+        await ctx.scheduler.runAfter(0, internal.chat.titleThread, {
+          threadId,
+        });
+      }
     }
     return null;
   },

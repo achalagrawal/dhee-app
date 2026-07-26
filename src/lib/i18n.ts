@@ -161,7 +161,6 @@ const strings = {
       "The free plan includes one lens. Remove the current one to choose a different framework.",
     traditionPrompt: "Do you think within a particular tradition?",
     traditionOptional: "Optional — you can add this later in settings.",
-    skip: "Skip",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -349,7 +348,6 @@ const strings = {
       "मुफ़्त योजना में एक ही परंपरा चुनी जा सकती है। दूसरी चुनने के लिए पहले मौजूदा हटाएँ।",
     traditionPrompt: "क्या आप किसी विचार-परंपरा के भीतर सोचते हैं?",
     traditionOptional: "वैकल्पिक — इसे बाद में सेटिंग्स में भी जोड़ सकते हैं।",
-    skip: "छोड़ें",
     // History groups
     starred: "तारांकित",
     today: "आज",

@@ -32,10 +32,14 @@ import { useLanguage } from "../../src/lib/useLanguage";
 
 type Pending = "forget" | "deleteChats" | null;
 
-// Matches the server cap in users.setPersonalization. Kept here only so the
-// input can stop typing at the same place the server would truncate — the
-// server is still the one that enforces it.
+// Match the server caps in users.setPersonalization / setTraditions. Kept here
+// only so an input stops typing where the server would truncate — the server is
+// still the one that enforces them, so these are a courtesy, not a check.
+const NAME_MAX = 60;
+const NICKNAME_MAX = 60;
+const OCCUPATION_MAX = 120;
 const ABOUT_YOU_MAX = 600;
+const TRADITION_MAX = 60;
 
 // Free plan gets one lens (design `PRICING`). Mirrored from the server, which
 // is where it is actually enforced — this copy only decides when to explain
@@ -274,7 +278,7 @@ export default function Settings() {
               placeholder={t(lang, "namePlaceholderSettings")}
               placeholderTextColor={colors.textFaint}
               returnKeyType="done"
-              maxLength={60}
+              maxLength={NAME_MAX}
             />
           </View>
           <View
@@ -314,7 +318,7 @@ export default function Settings() {
               placeholder={t(lang, "nicknamePlaceholder")}
               placeholderTextColor={colors.textFaint}
               returnKeyType="done"
-              maxLength={60}
+              maxLength={NICKNAME_MAX}
             />
           </View>
           <View
@@ -334,7 +338,7 @@ export default function Settings() {
               placeholder={t(lang, "occupationPlaceholder")}
               placeholderTextColor={colors.textFaint}
               returnKeyType="done"
-              maxLength={120}
+              maxLength={OCCUPATION_MAX}
             />
           </View>
           <View
@@ -379,7 +383,7 @@ export default function Settings() {
               placeholder={t(lang, "traditionPlaceholder")}
               placeholderTextColor={colors.textFaint}
               returnKeyType="done"
-              maxLength={60}
+              maxLength={TRADITION_MAX}
             />
             {/* A tradition not on the list is first-class, not a fallback. */}
             {canAddTyped ? (

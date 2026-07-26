@@ -31,6 +31,8 @@ export default function Onboarding() {
   // field opens already filled. Once only — after that the field is theirs,
   // including if they clear it.
   const prefilled = useRef(false);
+  // "Next" on the name field has to land somewhere, or the key does nothing.
+  const traditionInput = useRef<TextInput>(null);
   useEffect(() => {
     if (prefilled.current || !profile?.name) return;
     prefilled.current = true;
@@ -83,6 +85,7 @@ export default function Onboarding() {
               placeholderTextColor={colors.textFaint}
               value={name}
               onChangeText={setName}
+              onSubmitEditing={() => traditionInput.current?.focus()}
               returnKeyType="next"
             />
           </View>
@@ -91,6 +94,7 @@ export default function Onboarding() {
           <View style={styles.block}>
             <Text style={styles.label}>{t(lang, "traditionPrompt")}</Text>
             <TextInput
+              ref={traditionInput}
               style={styles.input}
               placeholder={t(lang, "traditionPlaceholder")}
               placeholderTextColor={colors.textFaint}

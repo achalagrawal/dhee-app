@@ -16,8 +16,12 @@ Dhee is a tool for reflection and thinking, offered as it is. By using it you
 agree to these terms and to our [Privacy Policy](./privacy.md). If you do not
 agree, please do not use the service.
 
-Dhee is provided by **[legal entity name]**, **[registered address]**
-("we", "us"). "You" means the person using Dhee.
+Dhee is run by **Achal Agrawal**, an individual based in India — not a company.
+"We" and "us" mean him; "you" means the person using Dhee.
+
+Anyone can use Dhee, from anywhere. It is built and run from India, and these
+terms are governed by Indian law. If using it would break the law where you
+are, that is your call to make and not ours to police.
 
 ## Who can use it
 
@@ -115,7 +119,9 @@ data.
 
 You can stop using Dhee at any time. You can delete your conversations and
 everything Dhee remembers from inside the app, and you can ask us to close your
-account entirely by writing to **[contact address]**.
+account entirely by writing to **[privacy@dhee.app — see the Privacy Policy]**.
+Closing an account deletes what it held: the profile and photo, the
+conversations, and everything Dhee had inferred about you.
 
 We may suspend or terminate an account that breaches these terms, or where we
 are required to. Where it is reasonable to do so, we will tell you why and give
@@ -138,8 +144,13 @@ Nothing here limits any right you have as a consumer that cannot be waived.
 ## Governing law and disputes
 
 These terms are governed by the laws of India, and the courts at **[city]**
-have exclusive jurisdiction. **[Confirm with counsel, alongside whether a
-consumer-dispute or arbitration clause belongs here.]**
+have exclusive jurisdiction.
+
+Because Dhee is open to people anywhere, that clause may not hold everywhere.
+Some countries give consumers a right to sue at home, or apply their own
+consumer law whatever a contract says. Nothing here takes away a mandatory right
+you have where you live. **[Counsel to confirm this clause, and whether serving
+users outside India needs more than a governing-law line — see README.]**
 
 ## Changes to these terms
 
@@ -149,4 +160,4 @@ you accept the updated terms.
 
 ## Contact
 
-**[contact address]**, **[legal entity name]**, **[registered address]**.
+**Achal Agrawal**, **[privacy@dhee.app — see the Privacy Policy]**.

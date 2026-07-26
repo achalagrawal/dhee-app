@@ -126,21 +126,21 @@ larger personalization surface.
 The design's settings is a multi-section modal (nav + sections + mobile drill-in),
 far richer than today's flat screen.
 
-| Section / feature                                                              | Status | Where                                                     | Notes                                 |
-| ------------------------------------------------------------------------------ | ------ | --------------------------------------------------------- | ------------------------------------- |
-| Multi-section modal layout                                                     | 🟡     | `settings.tsx` (flat)                                     | Design has nav + mobile back          |
-| Account (name, avatar, username, email)                                        | 🟡     | `users.setName/setAvatar`                                 | Username/email fields missing         |
-| Custom instructions section                                                    | ⬜     | —                                                         | See Epic 8                            |
-| Memory section                                                                 | 🟡     | `understanding.*`                                         | Toggles missing                       |
-| Appearance (theme + accent + contrast)                                         | 🟡     | `ThemeContext`                                            | Contrast option missing               |
-| Language (English / हिन्दी)                                                    | ✅     | `users.setLanguage`, `i18n.ts`                            | Design ships English + Hindi strings  |
-| Dictation preference                                                           | ⬜     | —                                                         | `state.dictationPref`                 |
-| Notifications (push, email, follow-up nudges, weekly reflection, product news) | ⬜     | —                                                         | `state.notify/notifyPush/notifyEmail` |
-| Security (change password, 2FA, active sessions, log out all)                  | ⬜     | —                                                         | `state.mfaEnabled`                    |
-| Data (export your data, manage storage)                                        | ⬜     | —                                                         | Export to text file                   |
-| Usage & plan (limits, cancel plan)                                             | ⬜     | —                                                         | `state.plan`; see Epic 14             |
-| Delete chats / delete account / delete everything                              | 🟡     | `chat.deleteAllThreads`, `understanding.forgetEverything` | Delete-account missing                |
-| Sign out                                                                       | ✅     | `authClient.signOut`                                      |                                       |
+| Section / feature                                                              | Status | Where                                                                              | Notes                                                                          |
+| ------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Multi-section modal layout                                                     | 🟡     | `settings.tsx` (flat)                                                              | Design has nav + mobile back                                                   |
+| Account (name, avatar, username, email)                                        | 🟡     | `users.setName/setAvatar`                                                          | Username/email fields missing                                                  |
+| Custom instructions section                                                    | ⬜     | —                                                                                  | See Epic 8                                                                     |
+| Memory section                                                                 | 🟡     | `understanding.*`                                                                  | Toggles missing                                                                |
+| Appearance (theme + accent + contrast)                                         | 🟡     | `ThemeContext`                                                                     | Contrast option missing                                                        |
+| Language (English / हिन्दी)                                                    | ✅     | `users.setLanguage`, `i18n.ts`                                                     | Design ships English + Hindi strings                                           |
+| Dictation preference                                                           | ⬜     | —                                                                                  | `state.dictationPref`                                                          |
+| Notifications (push, email, follow-up nudges, weekly reflection, product news) | ⬜     | —                                                                                  | `state.notify/notifyPush/notifyEmail`                                          |
+| Security (change password, 2FA, active sessions, log out all)                  | ⬜     | —                                                                                  | `state.mfaEnabled`                                                             |
+| Data (export your data, manage storage)                                        | ⬜     | —                                                                                  | Export to text file                                                            |
+| Usage & plan (limits, cancel plan)                                             | ⬜     | —                                                                                  | `state.plan`; see Epic 14                                                      |
+| Delete chats / delete account / delete everything                              | 🟡     | `chat.deleteAllThreads`, `understanding.forgetEverything`, `account.purgeUserData` | Erasure cascade lands on user delete; no self-serve delete-account control yet |
+| Sign out                                                                       | ✅     | `authClient.signOut`                                                               |                                                                                |
 
 ## Epic 10 — Auth & onboarding
 

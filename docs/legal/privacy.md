@@ -28,13 +28,15 @@ people:
 
 ## Who we are
 
-Dhee is provided by **[legal entity name]**, **[registered address]**. For
-anything in this policy, including a complaint, write to **[privacy contact
-address]**.
+Dhee is run by **Achal Agrawal**, an individual based in India — not a company.
+"We" throughout this policy means him. For anything here, including a
+complaint, write to **[privacy@dhee.app — create this mailbox, or replace it
+with the address you want published]**.
 
-Under India's Digital Personal Data Protection Act, 2023, we are the **Data
+Under India's Digital Personal Data Protection Act, 2023, he is the **Data
 Fiduciary** for the personal data described here, and you are the **Data
-Principal**. Our Grievance Officer is named at the end of this policy.
+Principal**. He is also the Grievance Officer; the details are at the end of
+this policy.
 
 ## What we collect
 
@@ -79,18 +81,37 @@ requests we send to the model provider or to the corpus service. What those
 requests do contain is the text you wrote — so if you type your own name or
 someone else's into a message, it goes with it.
 
-Some of these services operate outside India. We rely on the Act's allowance
-for cross-border transfer, which permits transfers except to countries the
-government has restricted.
+Most of these services operate outside India, and your data crosses borders to
+reach them. Indian law permits this except to countries the government has
+restricted. If you are somewhere with its own rules about where your data may
+go, read the next section.
+
+## Where you are
+
+Anyone can use Dhee, from anywhere. It is built and run from India, its
+governing law is Indian, and this policy is written to the Indian Act.
+
+If you are in a place with its own data-protection law — the EEA, the UK, or a
+US state with a privacy statute, among others — you may have rights this policy
+does not spell out, and we may have obligations it does not describe. We would
+rather say that plainly than imply a compliance we have not done the work for.
+Write to us and we will honour any request we are able to, wherever you are.
+**[This paragraph is the honest engineering position, not a legal one. Counsel
+must decide whether serving EEA/UK users requires a GDPR-shaped policy, a
+lawful-basis analysis, a representative in the EU or UK, and a transfer
+mechanism — see README.]**
 
 ## Sending your words to a model
 
 Dhee cannot answer you without showing your message to a language model. There
 is no version of this product where that does not happen.
 
-We do not use your conversations to train models, and we do not permit our
-providers to train on them. **[Verify against the current OpenRouter account
-settings and the upstream provider's terms before publishing — see README.]**
+We do not use your conversations to train any model of our own, and we have no
+training pipeline of any kind. What the providers who receive those requests do
+with them is governed by their own terms and by the settings on our account
+with them. **[We have not yet verified those settings — do it before
+publishing, and reword this paragraph to say what is actually true. See
+README.]**
 
 ## Looking things up in the source texts
 
@@ -173,9 +194,12 @@ Under the Digital Personal Data Protection Act, 2023, you also have the right to
 a summary of the personal data we hold and how we process it, the right to
 correction and erasure, the right to nominate someone to exercise your rights if
 you die or become incapacitated, and the right to complain to us and then to the
-Data Protection Board of India. Write to **[privacy contact address]** for
-anything the app does not already let you do yourself — including deleting your
-account outright, which we currently handle by request.
+Data Protection Board of India. Write to us for anything the app does not
+already let you do yourself — including closing your account, which we handle by
+request today rather than with a button.
+
+Closing an account is a real deletion, not a flag: the profile and its photo,
+every conversation, and every inference are removed along with the account.
 
 ## How long we keep things
 
@@ -183,7 +207,8 @@ We keep your conversations and your profile until you delete them or ask us to
 close your account; we do not expire them on a timer. Sign-in codes are stored
 hashed, expire in fifteen minutes, and stop working after three wrong guesses.
 Once you delete a conversation or an inference, it is removed from our database
-rather than flagged as hidden.
+rather than flagged as hidden. Deleted data may persist for a short while in
+routine backups before those age out.
 
 ## Keeping it safe
 
@@ -211,9 +236,10 @@ than quietly reposting the page.
 
 ## Contact and grievances
 
-Questions, requests, or complaints: **[privacy contact address]**.
+Questions, requests, or complaints: **Achal Agrawal**, **[privacy@dhee.app —
+see above]**, **[postal address, if counsel says one must be published]**.
 
-Grievance Officer: **[name]**, **[address]**, **[email]**. We will acknowledge
-your grievance within **[N]** days and respond within **[N]** days. If you are
-not satisfied with our response, you may complain to the Data Protection Board
-of India.
+He is also the Grievance Officer for the purposes of the Act. We will
+acknowledge your grievance within **[N]** days and respond within **[N]** days.
+If you are not satisfied with our response, you may complain to the Data
+Protection Board of India.

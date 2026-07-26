@@ -29,11 +29,31 @@ service".
 
 ## Decisions taken while drafting
 
-**Jurisdiction: India first.** The drafts are written to the Digital Personal
-Data Protection Act, 2023 — Data Fiduciary/Data Principal framing, the rights in
-sections 11–14, breach notification, and a named Grievance Officer — rather than
-a GDPR-shaped template. If there will be EU or UK users at launch, that is a
-second set of obligations and a second pass over both documents.
+**Operated by an individual.** Both documents name **Achal Agrawal** — the
+repository owner and the `author` in `package.json` — as the operator, in his
+personal capacity rather than through a company. Confirm that is right before
+publishing: an individual operator carries personal, unlimited liability for
+everything these documents promise, which is a reason people incorporate before
+launching a product that invites people's grief and mental distress. Contact
+addresses are written as `privacy@dhee.app`, a mailbox that does not exist yet.
+
+**Jurisdiction: Indian law, but open to everyone.** The product will be
+available worldwide, so the drafts are written to the Digital Personal Data
+Protection Act, 2023 — Data Fiduciary/Data Principal framing, the rights in
+sections 11–14, breach notification, a named Grievance Officer — and then say
+plainly that people elsewhere may have rights the policy does not enumerate,
+rather than implying a compliance nobody has done the work for.
+
+**That is the largest unresolved risk in these drafts.** Serving EEA or UK
+users from India engages the GDPR and UK GDPR on the targeting limb, which is
+not satisfied by a governing-law clause: it wants a lawful basis for each
+purpose, an Article 13 notice, a transfer mechanism, arguably a representative
+in the EU and UK, and a DPIA — plausibly required here, given profiling and the
+sensitive categories people bring to Dhee. US state privacy statutes come with
+their own thresholds. None of that is drafted. The realistic options are to do
+that work with counsel, or to geo-limit signups at launch and open up later.
+Someone has to choose; the drafts currently disclose the gap instead of hiding
+it.
 
 **Minimum age 18, not 16.** The design says 16. Under the DPDP Act a "child" is
 anyone under 18, and processing their data needs verifiable parental consent,
@@ -80,42 +100,52 @@ the fact that it happens in incognito conversations too.
 | Sessions live in device secure storage (native) or browser storage (web)               | `src/lib/auth-client.ts`                                                              |
 | No analytics, advertising, or tracking SDKs                                            | Absence of any such dependency in `package.json`; no tracking code in `src/`          |
 | The web app is hosted on Vercel                                                        | `docs/deployment.md`, `vercel.json`                                                   |
+| Closing an account deletes the profile, photo, conversations, and inferences           | `account.purgeUserData`, scheduled by `triggers.user.onDelete` in `convex/auth.ts`    |
 | Daily message limit, incognito counting towards it, manual upgrade requests            | Issue #11 and its children (#7, #8) — **not yet built**                               |
 
 ## Before publishing — the checklist
 
-**Values to fill in.** Legal entity name and registered address; privacy contact
-address; grievance officer name, address, email, and response windows; the city
-whose courts have jurisdiction; the Safety & limitations page URL. None of these
-exist anywhere in the repo today.
+**Values to fill in.** A working `privacy@dhee.app` mailbox (or whatever address
+replaces it); a postal address, if counsel says one must be published; the
+grievance acknowledgement and response windows; the city whose courts have
+jurisdiction; the Safety & limitations page URL. None of these exist in the repo
+today.
 
 **Claims that depend on configuration, not code.** These are true only if
 someone has set them that way, and none of them can be verified from this
 repository:
 
-- That OpenRouter is not logging prompts for our account, and that the upstream
-  model provider does not train on or retain our requests beyond its terms. The
-  policy currently asserts this — verify or reword it.
+- Whether prompt logging is off for our OpenRouter account, and what the
+  upstream model provider retains or trains on. The policy currently says we
+  have not verified this — verify it, then rewrite that paragraph to state what
+  is actually true.
 - Whether the corpus service at `md-mcp.achal.xyz` is first-party or a third
   party, where it runs, and whether it logs the queries it receives. If it is a
   third party, it needs a processing agreement and a named mention.
 - The Convex, SES, Vercel, and Google regions and data-residency positions,
-  which decide how the cross-border transfer paragraph should read.
+  which decide how the cross-border transfer paragraph should read — and which
+  matter more now that the product is open to users everywhere.
+- Convex's backup and snapshot retention, which is the basis for the policy's
+  one-line hedge that deleted data may survive briefly in backups. Confirm it or
+  drop the sentence.
 - Whether a DPDP consent notice needs to be shown at sign-up as a separate
   artefact from this policy.
 
 **Gaps between the drafts and the code.** Each of these is a place where the
 document and the app do not yet agree:
 
-- **Account deletion has no code path.** The drafts promise it by email request,
-  which is honest but manual. `docs/build/FEATURES.md` Epic 9 already tracks
-  "delete account" as missing.
-- **Deleting a user does not cascade.** `triggers.user.onDelete` in
-  `convex/auth.ts` deletes the app-side `users` row only; `profiles`,
-  `inquiries`, `observations`, `conceptsTouched`, `contextBlocks`, `threadMeta`,
-  `messageFeedback`, stored avatars, and the agent component's threads and
-  messages are all left behind. Anything that promises erasure needs this fixed
-  first.
+- **Erasure now cascades — fixed here.** `triggers.user.onDelete` in
+  `convex/auth.ts` used to delete the app-side `users` row and nothing else,
+  stranding the profile, the avatar in storage, every conversation, and every
+  inference. It now schedules `internal.account.purgeUserData`
+  (`convex/account.ts`, covered by `convex/account.test.ts`), which removes all
+  of it. The trigger itself only fires when the auth component deletes a user,
+  which `convex-test` never does, so the end-to-end path is a live-deployment
+  check — see `specs/auth-foundation.md`.
+- **Nothing in the app calls it yet.** There is still no self-serve "delete my
+  account" control, so closing an account is a manual step for whoever handles
+  the request, and both drafts describe it that way. `docs/build/FEATURES.md`
+  Epic 9 tracks the missing control.
 - **There is no export.** The design promised one; the drafts do not. If the
   DPDP right to a summary of processing is to be self-serve, it needs building.
 - **Plans and limits are described ahead of the code.** The "Plans, limits, and

@@ -100,6 +100,12 @@ surface. Each needs one `npx convex dev` run:
 3. **JWKS / OIDC route.** `registerRoutes` mounts
    `/.well-known/openid-configuration`; confirm `auth.config.ts` points at the
    right issuer and that Convex validates the token.
+4. **Delete cascade.** `triggers.user.onDelete` schedules
+   `internal.account.purgeUserData` before dropping the `users` row.
+   `convex/account.test.ts` covers the purge itself, but the trigger only fires
+   when the component deletes a user, which `convex-test` never does. Delete a
+   real account and confirm the profile, avatar, threads, and every user-model
+   row are gone — the privacy policy's erasure claim rests on it.
 
 ## Verification
 

@@ -112,8 +112,8 @@ write it down rather than change it:
 - **Does not count as a user turn** — `threadMeta.turnsSinceExtraction` is
   unchanged, or memory extraction fires early on a conversation that didn't
   actually advance.
-- **Does consume the daily allowance** (#7). It is a real model call. Recorded
-  here and in the limits spec so the two don't disagree.
+- **Does consume the daily allowance** (#7). It is a real model call. #6's spec
+  must record the same, so the two don't disagree.
 - Titling is unchanged: `titleThread` no-ops when a title exists, so regenerating
   turn one keeps the first title. Accepted.
 
@@ -151,29 +151,46 @@ There are **three** distinct reasons a turn can fail, and they must not all
 render as one generic "something went wrong" (mockup: `chatError` is
 `null | 'error' | 'rate'`, with different copy per value — ~3656–3658):
 
-| Reason                       | Surface                                                          | Recovery                                                                                                                 |
-| ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Model / network error**    | Retry card below the transcript. Draft restored to the composer. | Try again retries the action that failed — a failed regenerate retries the regeneration, a failed edit the same rewrite. |
-| **Stopped by the user**      | **No error surface at all.** Partial text + normal actions row.  | Regenerate, or keep typing.                                                                                              |
-| **Daily limit reached** (#7) | Limit card in the composer dock, with when the limit resets.     | Not a retry — the upgrade path (#10).                                                                                    |
+| Reason                       | Surface                                                           | Recovery                                                                                                                 |
+| ---------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Model / network error**    | Retry card below the transcript. Draft restored to the composer.  | Try again retries the action that failed — a failed regenerate retries the regeneration, a failed edit the same rewrite. |
+| **Stopped by the user**      | **No error surface at all.** Partial text + normal actions row.   | Regenerate, or keep typing.                                                                                              |
+| **Daily limit reached** (#7) | Limit card in the composer dock (#9), with when the limit resets. | Not a retry — the upgrade path (#10).                                                                                    |
 
 A stop is not a failure. This is the single most important line in this section:
 if stopping shows an error card, the feature reads as broken.
 
 ### 8. Scroll (#17)
 
-- Auto-scroll to the newest message is allowed **only when the user is already
-  near the bottom** (threshold: within ~240px, matching the mockup's
-  `fromBottom > 240` in `onMainScroll`).
-- As soon as the user scrolls away from the bottom, auto-scroll **stops** —
-  including mid-stream, where content size changes on every chunk. Scrolling up
-  to re-read something must not yank the view back down.
-- A **scroll-to-latest button** appears whenever auto-scroll is suppressed: a
+- Auto-scroll follows the newest message **only while the reader is within 240px
+  of the bottom** (`FOLLOW_THRESHOLD`, matching the mockup's `fromBottom > 240`
+  in `onMainScroll`). One threshold decides both things — whether the view
+  follows and whether the button shows — so there is never a band where
+  following is off and no way back is offered.
+- Scrolling away stops the follow, including mid-stream where content grows on
+  every chunk. Scrolling up to re-read something must not yank the view back
+  down.
+- **Follow by scrolling to the height `onContentSizeChange` reports, via
+  `scrollToOffset` — not `scrollToEnd`.** `scrollToEnd` only reaches the end of
+  the rows FlatList has already measured, which mid-stream lands short of the
+  real bottom (measured 667px short on a real thread). That gap is past the
+  threshold, so the position check reads the app's own undershoot as the reader
+  having scrolled away and disables following for good. Automatic follows are
+  **unanimated** for the same reason: an animated scroll is still in flight when
+  the next chunk lands, and its mid-flight position reads the same way.
+  Animation belongs on the button tap, which is a deliberate action.
+- A **scroll-to-latest button** appears whenever the follow is suppressed: a
   38px circular `surface` button with a down chevron, centered above the composer
-  dock. Tapping it scrolls to the newest message and hides itself. The button is
-  what makes suppressing auto-scroll safe — there is always a way back.
+  dock. Tapping it returns to the newest message, resumes following, and hides
+  itself.
+- **Sending while scrolled away does not pull the view back down.** The reader
+  chose that position; only the button returns them. (Deliberate — it differs
+  from ChatGPT, which snaps to the bottom on send.)
 - Opening a thread from history lands at the newest message **without animating**
-  through the whole transcript.
+  through the transcript. This follows from every automatic follow being instant;
+  it is not a separate first-landing case, and a latch that fires once on mount
+  cannot do it — content size settles before the messages query resolves, so the
+  latch is spent on an empty list.
 - **Pull-to-refresh is not implemented.** Convex's live queries mean there is
   nothing to refetch; the mockup's 650ms fake spinner would be a lie. Recorded as
   a deliberate omission rather than a gap.
@@ -182,17 +199,34 @@ if stopping shows an error card, the feature reads as broken.
 
 Functions this spec governs (implemented by the issues named):
 
-| Function                                          | Issue | Notes                                                   |
-| ------------------------------------------------- | ----- | ------------------------------------------------------- |
-| `chat.sendMessage(threadId, prompt)`              | done  | Optimistic-send contract above.                         |
-| `chat.stopGeneration(threadId, ...)`              | #13   | Authorized; no-op when no active stream.                |
-| `chat.regenerate(threadId)`                       | #14   | Refuses while streaming; clears feedback; no turn bump. |
-| `chat.editAndResend(threadId, messageId, prompt)` | #15   | User messages only; truncates; clears feedback.         |
+| Function                                                 | Issue | Notes                                                   |
+| -------------------------------------------------------- | ----- | ------------------------------------------------------- |
+| `chat.sendMessage(threadId, prompt) → null`              | done  | Optimistic-send contract above.                         |
+| `chat.stopGeneration(threadId) → null`                   | #13   | Authorized; no-op when no active stream.                |
+| `chat.regenerate(threadId) → null`                       | #14   | Refuses while streaming; clears feedback; no turn bump. |
+| `chat.editAndResend(threadId, messageId, prompt) → null` | #15   | User messages only; truncates; clears feedback.         |
+
+**Schema changes: none.** All three new functions work against existing tables
+and the agent component's message store.
 
 Rules that hold for **all** of them:
 
 - Every entry point calls `authorizeThread` first. A thread belongs to one
   person and no mutation may touch another person's conversation.
+- **Feedback rows are keyed by the agent's UIMessage key**
+  (`threadId-order-stepOrder` — the `key` the client rates against), **not by a
+  message `_id`**; see the `messageFeedback` comment in `convex/schema.ts`. One
+  assistant turn can be several documents collapsed into a single UIMessage
+  keyed by the first, so clearing by `_id` passes a naive test and leaves the
+  row behind — and messages created after an edit reuse the same order
+  positions, so that orphan later rates a message nobody rated. `deleteThread`
+  clears a whole thread through the `by_thread` index; §5 and §6 delete a
+  _range_, which has no such shortcut. Resolve the discarded turns to their
+  UIMessage keys first.
+- **Every path that accepts user text runs the same checks as `sendMessage`.**
+  `editAndResend` is a second way for a person's words to reach the model, so
+  crisis detection (#19) and the daily limit (#7) cannot live only in
+  `sendMessage` — rewording through an edit would slip past both.
 - Destructive work happens in a **mutation**, so it is transactional; the model
   call is always a scheduled action afterwards.
 - **Tests never invoke the model.** `streamReply` is only _scheduled_; assert

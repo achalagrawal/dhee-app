@@ -118,6 +118,7 @@ const strings = {
     stop: "Stop",
     scrollToLatest: "Scroll to latest",
     editMessage: "Edit message",
+    edited: "edited",
     saveAndSend: "Save & send",
     editDropsRepliesTitle: "This will drop what came after",
     editDropsRepliesBody:
@@ -267,6 +268,7 @@ const strings = {
     stop: "रोकें",
     scrollToLatest: "नए तक जाएँ",
     editMessage: "संदेश बदलें",
+    edited: "बदला गया",
     saveAndSend: "सहेजकर भेजें",
     editDropsRepliesTitle: "इसके बाद की बातें हट जाएँगी",
     editDropsRepliesBody:

@@ -73,6 +73,11 @@ export default function Chat() {
     for (const f of feedback ?? []) m.set(f.messageId, f.rating);
     return m;
   }, [feedback]);
+  const edits = useQuery(
+    api.chat.threadEdits,
+    threadId ? { threadId } : "skip",
+  );
+  const editedKeys = useMemo(() => new Set(edits ?? []), [edits]);
 
   // Read through refs so `rate` and `submitEdit` keep one identity for the life
   // of the screen. Closing over `feedbackMap` or `results` directly would
@@ -238,6 +243,7 @@ export default function Chat() {
         rating={feedbackMap.get(item.key) ?? null}
         onRate={rate}
         onRegenerate={generating ? undefined : regenerate}
+        edited={editedKeys.has(item.key)}
         editing={item.key === editingKey}
         onStartEdit={generating ? undefined : startEdit}
         onCancelEdit={cancelEdit}
@@ -253,6 +259,7 @@ export default function Chat() {
       rate,
       generating,
       regenerate,
+      editedKeys,
       editingKey,
       startEdit,
       cancelEdit,
@@ -439,6 +446,7 @@ const Message = memo(function Message({
   rating,
   onRate,
   onRegenerate,
+  edited,
   editing,
   onStartEdit,
   onCancelEdit,
@@ -453,6 +461,7 @@ const Message = memo(function Message({
   onRate: (messageKey: string, rating: "up" | "down") => void;
   /** Undefined while a reply is generating — try again is unavailable then. */
   onRegenerate?: () => void;
+  edited: boolean;
   editing: boolean;
   /** Undefined while a reply is generating — editing is unavailable then. */
   onStartEdit?: (message: UIMessage) => void;
@@ -492,6 +501,9 @@ const Message = memo(function Message({
           <Text style={styles.userText}>{message.text}</Text>
         </View>
         <View style={styles.userMeta}>
+          {edited ? (
+            <Text style={styles.editedLabel}>{t(lang, "edited")}</Text>
+          ) : null}
           {onStartEdit ? (
             <Pressable
               onPress={() => onStartEdit(message)}
@@ -631,6 +643,12 @@ function makeStyles(colors: Colors) {
     },
     userMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaBtn: { padding: 5, borderRadius: 7 },
+    editedLabel: {
+      color: colors.textFaint,
+      fontSize: 12,
+      marginRight: 4,
+      ...font.regular,
+    },
     // Editing a message you sent — the bubble becomes the editor in place.
     editCard: {
       width: "100%",

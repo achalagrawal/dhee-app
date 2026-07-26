@@ -59,20 +59,20 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 Conventions for the whole epic — streaming, stop, regenerate, edit & resend,
 failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-loop.md).
 
-| Feature                                   | Status | Where                                    | Notes                                               |
-| ----------------------------------------- | ------ | ---------------------------------------- | --------------------------------------------------- |
-| Streaming reply                           | 🟡     | `chat.streamReply`                       | Backend streams; UI polish                          |
-| Thinking indicator                        | 🟡     | —                                        | `state.thinking`                                    |
-| Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept               |
-| Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost    |
-| Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared           |
-| Copy message                              | ✅     | clipboard                                |                                                     |
-| Message feedback (👍/👎)                  | 🟡     | `chat.setMessageFeedback/threadFeedback` | Backend done                                        |
-| Message action sheet (mobile)             | 🟡     | `ThreadMenuSheet`                        |                                                     |
-| Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts |
-| Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                     |
-| Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                    |
-| Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)         |
+| Feature                                   | Status | Where                                    | Notes                                                                     |
+| ----------------------------------------- | ------ | ---------------------------------------- | ------------------------------------------------------------------------- |
+| Streaming reply                           | 🟡     | `chat.streamReply`                       | Backend streams; UI polish                                                |
+| Thinking indicator                        | 🟡     | —                                        | `state.thinking`                                                          |
+| Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept                                     |
+| Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost; marks the bubble edited |
+| Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared                                 |
+| Copy message                              | ✅     | clipboard                                |                                                                           |
+| Message feedback (👍/👎)                  | 🟡     | `chat.setMessageFeedback/threadFeedback` | Backend done                                                              |
+| Message action sheet (mobile)             | 🟡     | `ThreadMenuSheet`                        |                                                                           |
+| Crisis / safety flag banner               | ⬜     | —                                        | `state.crisisFlag` → safety page + trusted contacts                       |
+| Artifacts in-message + sheet              | ⬜     | —                                        | `state.artifactsOpen/codeDraft`                                           |
+| Lightbox (image viewer)                   | ⬜     | —                                        | `state.lightbox`                                                          |
+| Scroll-to-bottom button + pull-to-refresh | ✅     | `chat/[threadId].tsx`                    | Pull-to-refresh dropped by design (spec §8)                               |
 
 ## Epic 4 — History / Library
 

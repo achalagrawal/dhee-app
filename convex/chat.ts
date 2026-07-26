@@ -53,16 +53,28 @@ function uiMessageKey(doc: MessageDoc): string {
   return `${doc.threadId}-${doc.order}-${doc.stepOrder}`;
 }
 
-async function clearFeedbackFor(
+// Everything keyed to a message's position — its rating, its "edited" mark —
+// dropped along with the message. Whatever replaces a discarded tail reuses
+// those positions, so a mark left behind would label a message that never
+// earned it.
+async function clearMarksFor(
   ctx: MutationCtx,
+  threadId: string,
   docs: MessageDoc[],
 ): Promise<void> {
-  for (const key of new Set(docs.map(uiMessageKey))) {
+  const keys = new Set(docs.map(uiMessageKey));
+  for (const key of keys) {
     const row = await ctx.db
       .query("messageFeedback")
       .withIndex("by_message", (q) => q.eq("messageId", key))
       .unique();
     if (row) await ctx.db.delete(row._id);
+  }
+  const meta = await threadMetaFor(ctx, threadId);
+  if (!meta?.editedMessages) return;
+  const kept = meta.editedMessages.filter((k) => !keys.has(k));
+  if (kept.length !== meta.editedMessages.length) {
+    await ctx.db.patch(meta._id, { editedMessages: kept });
   }
 }
 
@@ -138,6 +150,13 @@ async function authorizeThread(
   }
 }
 
+function threadMetaFor(ctx: QueryCtx | MutationCtx, threadId: string) {
+  return ctx.db
+    .query("threadMeta")
+    .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+    .unique();
+}
+
 // Upsert Dhee's per-thread metadata row. Threads originate in the agent
 // component, so their first `threadMeta` row is created lazily the first time
 // we need to attach something (a turn count, a star, a pin).
@@ -149,12 +168,10 @@ async function upsertThreadMeta(
     turnsSinceExtraction: number;
     starred: boolean;
     pinned: boolean;
+    editedMessages: string[];
   }>,
 ): Promise<void> {
-  const meta = await ctx.db
-    .query("threadMeta")
-    .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-    .unique();
+  const meta = await threadMetaFor(ctx, threadId);
   if (meta) {
     await ctx.db.patch(meta._id, patch);
   } else {
@@ -204,10 +221,7 @@ export const sendMessage = mutation({
     });
 
     // Count turns so the extraction workflow fires every N.
-    const meta = await ctx.db
-      .query("threadMeta")
-      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .unique();
+    const meta = await threadMetaFor(ctx, threadId);
     const turns = (meta?.turnsSinceExtraction ?? 0) + 1;
     await upsertThreadMeta(ctx, threadId, userId, {
       turnsSinceExtraction: turns,
@@ -347,7 +361,7 @@ export const regenerate = mutation({
     }
     await assertNoActiveReply(ctx, threadId, turn.after);
 
-    await clearFeedbackFor(ctx, turn.after);
+    await clearMarksFor(ctx, threadId, turn.after);
     await dhee.deleteMessages(ctx, {
       messageIds: turn.after.map((m) => m._id),
     });
@@ -395,7 +409,7 @@ export const editAndResend = mutation({
     const discarded = await messagesFrom(ctx, threadId, target._id);
     await assertNoActiveReply(ctx, threadId, discarded);
 
-    await clearFeedbackFor(ctx, discarded);
+    await clearMarksFor(ctx, threadId, discarded);
     await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
 
     const { messageId: newMessageId } = await dhee.saveMessage(ctx, {
@@ -403,6 +417,19 @@ export const editAndResend = mutation({
       prompt: trimmed,
       skipEmbeddings: true,
     });
+
+    // Mark the rewrite so the bubble can say "edited". Read back rather than
+    // predicted: the key is the position the component gave it.
+    const [saved] = await ctx.runQuery(
+      components.agent.messages.getMessagesByIds,
+      { messageIds: [newMessageId] },
+    );
+    const meta = await threadMetaFor(ctx, threadId);
+    if (saved) {
+      await upsertThreadMeta(ctx, threadId, userId, {
+        editedMessages: [...(meta?.editedMessages ?? []), uiMessageKey(saved)],
+      });
+    }
 
     // No turn bump: the edited turn replaces a turn rather than adding one, so
     // counting it would run memory extraction a turn early.
@@ -478,10 +505,7 @@ export const deleteThread = mutation({
     // Async deletion pages through messages and streams, so a long
     // conversation doesn't blow the mutation's time budget.
     await dhee.deleteThreadAsync(ctx, { threadId });
-    const meta = await ctx.db
-      .query("threadMeta")
-      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .unique();
+    const meta = await threadMetaFor(ctx, threadId);
     if (meta) await ctx.db.delete(meta._id);
     const feedback = await ctx.db
       .query("messageFeedback")
@@ -624,6 +648,17 @@ export const threadFeedback = query({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .collect();
     return rows.map((r) => ({ messageId: r.messageId, rating: r.rating }));
+  },
+});
+
+// UIMessage keys of the messages this person rewrote, for the "edited" label.
+export const threadEdits = query({
+  args: { threadId: v.string() },
+  returns: v.array(v.string()),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const meta = await threadMetaFor(ctx, threadId);
+    return meta?.editedMessages ?? [];
   },
 });
 

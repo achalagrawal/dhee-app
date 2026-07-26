@@ -442,7 +442,9 @@ describe("chat — edit & resend", () => {
   async function docs(
     t: ReturnType<typeof initTest>,
     threadId: string,
-  ): Promise<{ _id: string; text?: string; order: number }[]> {
+  ): Promise<
+    { _id: string; text?: string; order: number; stepOrder: number }[]
+  > {
     const { page } = await t.run(
       async (ctx) =>
         await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
@@ -671,6 +673,72 @@ describe("chat — edit & resend", () => {
         prompt: "changed my mind",
       }),
     ).rejects.toThrow("still replying");
+  });
+
+  test("the rewritten message is marked edited, at its own position", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([]);
+
+    const first = (await docs(t, threadId))[0];
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: first._id,
+      prompt: "first, rewritten",
+    });
+
+    // The key the client renders by, so the label lands on the right bubble.
+    const rewritten = (await docs(t, threadId))[0];
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([
+      `${threadId}-${rewritten.order}-${rewritten.stepOrder}`,
+    ]);
+  });
+
+  test("the mark goes when a later edit discards the message wearing it", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+    await exchange(t, user, threadId, "second", "reply two");
+
+    // Edit the second turn, then edit the first — which discards the second.
+    const before = await docs(t, threadId);
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: before[2]._id,
+      prompt: "second, rewritten",
+    });
+    expect(await as.query(api.chat.threadEdits, { threadId })).toHaveLength(1);
+
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: before[0]._id,
+      prompt: "first, rewritten",
+    });
+
+    // Only the first turn is marked now. Positions are reused, so a mark left
+    // behind would label a message nobody edited.
+    const rewritten = (await docs(t, threadId))[0];
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([
+      `${threadId}-${rewritten.order}-${rewritten.stepOrder}`,
+    ]);
+  });
+
+  test("regenerate marks nothing", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+
+    await as.mutation(api.chat.regenerate, { threadId });
+
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([]);
   });
 });
 

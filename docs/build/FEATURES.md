@@ -126,21 +126,21 @@ larger personalization surface.
 The design's settings is a multi-section modal (nav + sections + mobile drill-in),
 far richer than today's flat screen.
 
-| Section / feature                                                              | Status | Where                                                     | Notes                                 |
-| ------------------------------------------------------------------------------ | ------ | --------------------------------------------------------- | ------------------------------------- |
-| Multi-section modal layout                                                     | 🟡     | `settings.tsx` (flat)                                     | Design has nav + mobile back          |
-| Account (name, avatar, username, email)                                        | 🟡     | `users.setName/setAvatar`                                 | Username/email fields missing         |
-| Custom instructions section                                                    | ⬜     | —                                                         | See Epic 8                            |
-| Memory section                                                                 | 🟡     | `understanding.*`                                         | Toggles missing                       |
-| Appearance (theme + accent + contrast)                                         | 🟡     | `ThemeContext`                                            | Contrast option missing               |
-| Language (English / हिन्दी)                                                    | ✅     | `users.setLanguage`, `i18n.ts`                            | Design ships English + Hindi strings  |
-| Dictation preference                                                           | ⬜     | —                                                         | `state.dictationPref`                 |
-| Notifications (push, email, follow-up nudges, weekly reflection, product news) | ⬜     | —                                                         | `state.notify/notifyPush/notifyEmail` |
-| Security (change password, 2FA, active sessions, log out all)                  | ⬜     | —                                                         | `state.mfaEnabled`                    |
-| Data (export your data, manage storage)                                        | ⬜     | —                                                         | Export to text file                   |
-| Usage & plan (limits, cancel plan)                                             | ⬜     | —                                                         | `state.plan`; see Epic 14             |
-| Delete chats / delete account / delete everything                              | 🟡     | `chat.deleteAllThreads`, `understanding.forgetEverything` | Delete-account missing                |
-| Sign out                                                                       | ✅     | `authClient.signOut`                                      |                                       |
+| Section / feature                                                              | Status | Where                                                                              | Notes                                                                          |
+| ------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Multi-section modal layout                                                     | 🟡     | `settings.tsx` (flat)                                                              | Design has nav + mobile back                                                   |
+| Account (name, avatar, username, email)                                        | 🟡     | `users.setName/setAvatar`                                                          | Username/email fields missing                                                  |
+| Custom instructions section                                                    | ⬜     | —                                                                                  | See Epic 8                                                                     |
+| Memory section                                                                 | 🟡     | `understanding.*`                                                                  | Toggles missing                                                                |
+| Appearance (theme + accent + contrast)                                         | 🟡     | `ThemeContext`                                                                     | Contrast option missing                                                        |
+| Language (English / हिन्दी)                                                    | ✅     | `users.setLanguage`, `i18n.ts`                                                     | Design ships English + Hindi strings                                           |
+| Dictation preference                                                           | ⬜     | —                                                                                  | `state.dictationPref`                                                          |
+| Notifications (push, email, follow-up nudges, weekly reflection, product news) | ⬜     | —                                                                                  | `state.notify/notifyPush/notifyEmail`                                          |
+| Security (change password, 2FA, active sessions, log out all)                  | ⬜     | —                                                                                  | `state.mfaEnabled`                                                             |
+| Data (export your data, manage storage)                                        | ⬜     | —                                                                                  | Export to text file                                                            |
+| Usage & plan (limits, cancel plan)                                             | ⬜     | —                                                                                  | `state.plan`; see Epic 14                                                      |
+| Delete chats / delete account / delete everything                              | 🟡     | `chat.deleteAllThreads`, `understanding.forgetEverything`, `account.purgeUserData` | Erasure cascade lands on user delete; no self-serve delete-account control yet |
+| Sign out                                                                       | ✅     | `authClient.signOut`                                                               |                                                                                |
 
 ## Epic 10 — Auth & onboarding
 
@@ -205,6 +205,9 @@ far richer than today's flat screen.
 ## Epic 17 — Marketing & static site (web)
 
 Content already fully written in the design's data arrays — this is mostly layout.
+The exception is the two legal pages: the design's `LEGAL` copy describes a
+browser-local prototype and cannot be shipped. Drafts written from the real data
+flows live in [`docs/legal/`](../legal/README.md), pending legal review.
 
 | Page                             | Status | Source in design                      |
 | -------------------------------- | ------ | ------------------------------------- |
@@ -215,8 +218,8 @@ Content already fully written in the design's data arrays — this is mostly lay
 | Blog index + articles            | ⬜     | `BLOG` (3 full posts)                 |
 | FAQ / Help                       | ⬜     | `FAQS` (7 Q&A)                        |
 | Careers                          | ⬜     | `CAREERS` (values, benefits, 3 roles) |
-| Legal — Privacy                  | ⬜     | `LEGAL.privacy` (7 sections)          |
-| Legal — Terms                    | ⬜     | `LEGAL.terms` (7 sections)            |
+| Legal — Privacy                  | ⬜     | `docs/legal/privacy.md` (draft)       |
+| Legal — Terms                    | ⬜     | `docs/legal/terms.md` (draft)         |
 | Safety & limitations             | ⬜     | see Epic 16                           |
 | Contact                          | ⬜     | `state.contactEmail/contactMsg`       |
 | Download                         | ⬜     |                                       |

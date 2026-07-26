@@ -99,6 +99,15 @@ export const authComponent: ReturnType<typeof createClient<DataModel>> =
             .withIndex("by_auth_id", (q) => q.eq("authId", doc._id))
             .unique();
           if (!user) return;
+
+          // Deleting this row alone would strand everything pointing at it —
+          // the profile and its photo, the conversations, and every inference
+          // Dhee drew about the person. Scheduled before the delete so the id
+          // is still in hand; paging a long history is more work than belongs
+          // on a trigger.
+          await ctx.scheduler.runAfter(0, internal.account.purgeUserData, {
+            userId: user._id,
+          });
           await ctx.db.delete(user._id);
         },
       },

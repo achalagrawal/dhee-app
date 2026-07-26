@@ -6,10 +6,22 @@
 the copy come from the `SAFETY` page in `mockup/project/Dhee Web.dc.html`. Two
 things changed: the design's privacy paragraph describes a browser-local
 prototype and is false about this app, and the design's crisis resources are
-labelled "sample resources shown for demonstration" — real numbers are used
-here instead. **Every number below must be re-checked before anyone relies on
-it, and re-checked periodically after that.** A helpline that has changed its
-number is worse than no helpline at all. See [README.md](./README.md).
+labelled "sample resources shown for demonstration" — real ones are used here
+instead.
+
+**Crisis resources verified 26 July 2026** against, in each case, the operator's
+own site or the responsible ministry:
+
+| Resource     | Checked against                                                                                      |
+| ------------ | ---------------------------------------------------------------------------------------------------- |
+| Tele-MANAS   | DGHS, Ministry of Health & Family Welfare — `dghs.mohfw.gov.in/national-mental-health-programme.php` |
+| 988 Lifeline | `988lifeline.org`                                                                                    |
+| Samaritans   | `samaritans.org`                                                                                     |
+| Directories  | `befrienders.org` and `findahelpline.com`, both loaded and serving helpline finders                  |
+
+**Re-check on a schedule, not when someone reports a wrong number.** A helpline
+that has changed its number is worse than no helpline at all. See
+[README.md](./README.md).
 
 <!-- internal:end -->
 
@@ -30,10 +42,11 @@ Dhee cannot help in an emergency. It cannot call anyone for you, no human is
 monitoring your conversation, and nothing you write here reaches someone who can
 act on it.
 
-- **India** — Tele-MANAS: **14416** or **1800-891-4416**, 24×7, in several
-  languages.
-- **United States** — 988 Suicide & Crisis Lifeline: call or text **988**.
-- **United Kingdom & Ireland** — Samaritans: **116 123**.
+- **India** — Tele-MANAS: **14416** or **1800-89-14416**, free, 24×7, in around
+  20 languages.
+- **United States** — 988 Suicide & Crisis Lifeline: call or text **988**, free,
+  24/7.
+- **United Kingdom & Ireland** — Samaritans: **116 123**, free, 24/7.
 - **Anywhere** — [Befrienders Worldwide](https://befrienders.org) and
   [Find A Helpline](https://findahelpline.com) both list crisis lines by
   country.

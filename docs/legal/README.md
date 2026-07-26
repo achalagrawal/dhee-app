@@ -164,9 +164,12 @@ the documents that is false until someone does it:
 - ~~**`https://dhee.app/safety` must resolve.**~~ Done. [`safety.md`](./safety.md)
   is drafted from the design's `SAFETY` page and served at `/safety`, and the
   terms now link to it as a sibling document so the build fails if it goes
-  missing. **The crisis numbers in it are the live claim in this repository most
-  likely to hurt someone if it goes stale** — re-check them on a schedule, not
-  when someone reports a wrong number.
+  missing. The crisis resources were verified against the operators' own sites
+  and the Ministry of Health on 26 July 2026 — the table in `safety.md` records
+  what each was checked against. **They are still the live claim in this
+  repository most likely to hurt someone if it goes stale**, and nothing in CI
+  can catch a number that changes: re-check them on a schedule, not when someone
+  reports a wrong one.
 - ~~**`dhee.app` must point at the deployment.**~~ Done — the domain resolves to
   the Vercel deployment and serves the app.
 - **A postal address, if you submit to the app stores.** Not required by the

@@ -63,7 +63,7 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 | ----------------------------------------- | ------ | ---------------------------------------- | --------------------------------------------------- |
 | Streaming reply                           | 🟡     | `chat.streamReply`                       | Backend streams; UI polish                          |
 | Thinking indicator                        | 🟡     | —                                        | `state.thinking`                                    |
-| Stop generating                           | ⬜     | —                                        | `state.aborted`                                     |
+| Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept               |
 | Edit & resend user message                | 🟡     | design only                              | `state.editingIndex/editDraft/resendCount`          |
 | Regenerate response                       | ⬜     | —                                        | Claude/ChatGPT convention                           |
 | Copy message                              | ✅     | clipboard                                |                                                     |

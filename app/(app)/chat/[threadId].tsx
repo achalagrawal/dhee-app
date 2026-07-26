@@ -2,7 +2,7 @@ import { useUIMessages, type UIMessage } from "@convex-dev/agent/react";
 import { useMutation, useQuery } from "convex/react";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -39,8 +39,11 @@ export default function Chat() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef = useRef(true);
+  // So the button flips back without waiting for the abort to round-trip.
+  const [stopping, setStopping] = useState(false);
 
   const sendMessage = useMutation(api.chat.sendMessage);
+  const stopGeneration = useMutation(api.chat.stopGeneration);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
   const { results } = useUIMessages(
     api.chat.listThreadMessages,
@@ -100,6 +103,20 @@ export default function Chat() {
       setFailed(true);
     }
   }, [draft, threadId, sendMessage]);
+
+  const stop = useCallback(async () => {
+    if (!threadId) return;
+    setStopping(true);
+    try {
+      await stopGeneration({ threadId });
+    } catch {
+      // Nothing to stop, or it finished first — neither is worth reporting.
+    }
+  }, [threadId, stopGeneration]);
+
+  useEffect(() => {
+    if (!generating) setStopping(false);
+  }, [generating]);
 
   const newThread = useCallback(() => router.replace("/home"), []);
 
@@ -230,8 +247,8 @@ export default function Chat() {
             onSubmit={send}
             placeholder={t(lang, "replyPlaceholder")}
             minHeight={24}
-            generating={generating}
-            onStop={() => Alert.alert(t(lang, "stop"), t(lang, "comingSoon"))}
+            generating={generating && !stopping}
+            onStop={stop}
           />
           <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
         </View>
@@ -291,9 +308,10 @@ function Message({
     );
   }
 
-  // Before the assistant has produced text, the "considering…" indicator
-  // stands in — don't also render an empty bubble with a lone caret.
-  if (!message.text.trim() && !done) return null;
+  // While generating, "considering…" stands in. Once done and still empty, the
+  // turn was stopped before its first token — an actions row attached to no
+  // text is worse than no bubble. Spec §2.
+  if (!message.text.trim()) return null;
 
   const actions: { icon: IconName; label: string; onPress: () => void }[] = [
     {

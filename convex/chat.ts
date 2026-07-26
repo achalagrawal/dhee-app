@@ -1,6 +1,8 @@
 import {
+  abortStream,
   createThread,
   getThreadMetadata,
+  listStreams,
   listUIMessages,
   syncStreams,
   updateThreadMetadata,
@@ -30,6 +32,10 @@ import { requireUserId } from "./users";
 // Flow: `sendMessage` mutation saves the user turn and schedules the reply,
 // so the client can render optimistically while `streamReply` streams deltas
 // over websockets.
+//
+// Loop conventions are written down once in docs/build/specs/chat-loop.md.
+
+const STOP_REASON = "Stopped by the person.";
 
 async function authorizeThread(
   ctx: QueryCtx | MutationCtx | ActionCtx,
@@ -185,19 +191,47 @@ export const streamReply = internalAction({
       internal.memory.contextBlockForUser,
       { userId },
     );
-    const result = await dhee.streamText(
-      ctx,
-      { threadId, userId },
-      { promptMessageId, system: buildSystemPrompt(contextBlock) },
-      { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
-    );
-    await result.consumeStream();
-
-    // Title the thread once there's a real exchange to summarize. Without
-    // this every row in the conversation list reads "New conversation" and
-    // history is unnavigable.
-    await ctx.scheduler.runAfter(0, internal.chat.titleThread, { threadId });
+    try {
+      const result = await dhee.streamText(
+        ctx,
+        { threadId, userId },
+        { promptMessageId, system: buildSystemPrompt(contextBlock) },
+        { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
+      );
+      await result.consumeStream();
+    } finally {
+      // In `finally` because a stopped stream makes the consume throw, and a
+      // thread stopped on its first turn still needs a name.
+      await ctx.scheduler.runAfter(0, internal.chat.titleThread, { threadId });
+    }
     return null;
+  },
+});
+
+// Aborting cancels the model request itself: the component's stream row leaves
+// "streaming", the generating action's next delta write fails, and that aborts
+// the `AbortController` whose signal `streamText` handed to the model call.
+// Deltas already written are finalized into a real message, so the partial
+// reply stays readable.
+export const stopGeneration = mutation({
+  args: { threadId: v.string() },
+  // False when there was nothing in flight — a no-op, not an error.
+  returns: v.boolean(),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const active = await listStreams(ctx, components.agent, {
+      threadId,
+      includeStatuses: ["streaming"],
+    });
+    let stopped = false;
+    for (const stream of active) {
+      const didAbort = await abortStream(ctx, components.agent, {
+        streamId: stream.streamId,
+        reason: STOP_REASON,
+      });
+      stopped = stopped || didAbort;
+    }
+    return stopped;
   },
 });
 

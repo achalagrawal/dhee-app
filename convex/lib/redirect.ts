@@ -1,8 +1,8 @@
-// Where Convex Auth is allowed to send someone after an OAuth sign-in.
+// Where Better Auth is allowed to send someone after an OAuth sign-in.
 //
 // This is the security-critical half of Google sign-in: the redirect carries
 // the OAuth `code`, so anything we allow here is somewhere an attacker could
-// have that code delivered. Convex Auth's default (relative paths and SITE_URL)
+// have that code delivered. Better Auth's default (relative paths and SITE_URL)
 // is exactly right for web but rejects the deep link native needs, so we widen
 // it by the smallest amount that makes Expo work — and by exact origin/scheme
 // match, never a substring test.

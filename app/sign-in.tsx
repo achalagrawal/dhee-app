@@ -1,4 +1,3 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { Redirect } from "expo-router";
 import { useMemo, useState } from "react";
@@ -13,13 +12,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { authClient } from "../src/lib/auth-client";
 import { t } from "../src/lib/i18n";
+import { signInWithGoogle } from "../src/lib/oauth";
 import { useTheme } from "../src/lib/ThemeContext";
 import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
 export default function SignIn() {
   const { colors } = useTheme();
-  const { signIn } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -37,11 +37,31 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
-      await signIn("email-otp", { email: email.trim() });
+      const { error } = await authClient.emailOtp.sendVerificationOtp({
+        email: email.trim(),
+        type: "sign-in",
+      });
+      if (error) throw new Error(error.message);
       setStep("code");
     } catch {
       setError(t(lang, "somethingWentWrong"));
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitGoogle = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const outcome = await signInWithGoogle();
+      // On success the redirect below takes over once isAuthenticated flips,
+      // so `busy` deliberately stays true. Backing out of the browser sheet
+      // just returns the screen to idle — it isn't a failure.
+      if (outcome === "cancelled") setBusy(false);
+    } catch {
+      setError(t(lang, "somethingWentWrong"));
       setBusy(false);
     }
   };
@@ -51,7 +71,11 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
-      await signIn("email-otp", { email: email.trim(), code: code.trim() });
+      const { error } = await authClient.signIn.emailOtp({
+        email: email.trim(),
+        otp: code.trim(),
+      });
+      if (error) throw new Error(error.message);
       // Success falls through to the redirect below once isAuthenticated
       // flips; busy stays true so the button can't be pressed twice while
       // the session settles.
@@ -79,6 +103,29 @@ export default function SignIn() {
           <View style={styles.form}>
             {step === "email" ? (
               <>
+                <Pressable
+                  onPress={submitGoogle}
+                  disabled={busy}
+                  style={({ pressed }) => [
+                    styles.googleButton,
+                    busy && styles.buttonDisabled,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <View style={styles.googleBadge}>
+                    <Text style={styles.googleBadgeLetter}>G</Text>
+                  </View>
+                  <Text style={styles.googleLabel}>
+                    {t(lang, "continueWithGoogle")}
+                  </Text>
+                </Pressable>
+
+                <View style={styles.divider}>
+                  <View style={styles.dividerRule} />
+                  <Text style={styles.dividerLabel}>{t(lang, "or")}</Text>
+                  <View style={styles.dividerRule} />
+                </View>
+
                 <Text style={styles.label}>{t(lang, "signInSubtitle")}</Text>
                 <TextInput
                   style={styles.input}
@@ -237,6 +284,31 @@ function makeStyles(colors: Colors) {
     },
     buttonDisabled: { opacity: 0.4 },
     buttonPressed: { opacity: 0.85 },
+    // Inverted against the page, per the mockup's auth modal — this is the
+    // primary way in, so it outweighs the accent-coloured email button below.
+    googleButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      backgroundColor: colors.text,
+      borderRadius: radius.md,
+      paddingVertical: 15,
+      minHeight: 54,
+    },
+    googleBadge: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: colors.bg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    googleBadgeLetter: { fontSize: 12, color: colors.text, ...font.medium },
+    googleLabel: { fontSize: 15, color: colors.bg, ...font.medium },
+    divider: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    dividerRule: { flex: 1, height: 1, backgroundColor: colors.border },
+    dividerLabel: { fontSize: 13, color: colors.textFaint, ...font.regular },
     buttonLabel: {
       color: colors.onAccent,
       fontSize: 17,

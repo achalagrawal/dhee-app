@@ -140,19 +140,19 @@ far richer than today's flat screen.
 | Data (export your data, manage storage)                                        | ⬜     | —                                                         | Export to text file                   |
 | Usage & plan (limits, cancel plan)                                             | ⬜     | —                                                         | `state.plan`; see Epic 14             |
 | Delete chats / delete account / delete everything                              | 🟡     | `chat.deleteAllThreads`, `understanding.forgetEverything` | Delete-account missing                |
-| Sign out                                                                       | ✅     | `@convex-dev/auth`                                        |                                       |
+| Sign out                                                                       | ✅     | `authClient.signOut`                                      |                                       |
 
 ## Epic 10 — Auth & onboarding
 
-| Feature                                                         | Status | Where                            | Notes                                                                                                         |
-| --------------------------------------------------------------- | ------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Email OTP sign-in + verify flow                                 | ✅     | `EmailOTP`, `email.sendOtpEmail` | `state.emailDraft`                                                                                            |
-| **Continue with Google (OAuth)**                                | ⬜     | —                                | In auth modal; not yet in backend                                                                             |
-| Guest mode ("Maybe later")                                      | ⬜     | —                                | `state.authed` — use before signing in; auth is a gate to _persist_                                           |
-| Terms/privacy agreement + "not a medical/crisis service" notice | ⬜     | —                                | In auth modal footer                                                                                          |
-| Auth as modal (design variant)                                  | 🟡     | `sign-in.tsx` (full screen)      | `state.showAuth`                                                                                              |
-| Onboarding — 3 intro slides                                     | 🟡     | design `ONBOARD`                 | "Welcome to Dhee" → "What it is, and isn't" (not a therapist/crisis service) → "One or two things"            |
-| Onboarding — profile setup (name → goal → tradition)            | 🟡     | `users.completeOnboarding`       | `state.onboardStep/onboardName/onboardGoal/onboardTradition`; goal = one of the 6 `MODES`; tradition optional |
+| Feature                                                         | Status | Where                               | Notes                                                                                                         |
+| --------------------------------------------------------------- | ------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Email OTP sign-in + verify flow                                 | ✅     | `auth.ts` (Better Auth), `email.ts` | Rebuilt on Better Auth + SES HTTP; verified end to end on web. Spec: `specs/auth-foundation.md`               |
+| **Continue with Google (OAuth)**                                | ✅     | `auth.ts`, `src/lib/oauth.ts`       | Verified end to end on web. Specs: `specs/google-oauth.md`, `specs/auth-foundation.md`                        |
+| Guest mode ("Maybe later")                                      | ⬜     | —                                   | `state.authed` — use before signing in; auth is a gate to _persist_                                           |
+| Terms/privacy agreement + "not a medical/crisis service" notice | ⬜     | —                                   | In auth modal footer                                                                                          |
+| Auth as modal (design variant)                                  | 🟡     | `sign-in.tsx` (full screen)         | `state.showAuth`                                                                                              |
+| Onboarding — 3 intro slides                                     | 🟡     | design `ONBOARD`                    | "Welcome to Dhee" → "What it is, and isn't" (not a therapist/crisis service) → "One or two things"            |
+| Onboarding — profile setup (name → goal → tradition)            | 🟡     | `users.completeOnboarding`          | `state.onboardStep/onboardName/onboardGoal/onboardTradition`; goal = one of the 6 `MODES`; tradition optional |
 
 ## Epic 11 — Attachments & media backend
 

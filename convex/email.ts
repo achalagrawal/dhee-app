@@ -1,58 +1,73 @@
-"use node";
+import { AwsClient } from "aws4fetch";
 
-import { v } from "convex/values";
-import nodemailer from "nodemailer";
-import { internalAction } from "./_generated/server";
-
-// SMTP delivery for sign-in codes.
+// Transactional email over the SES v2 HTTP API.
 //
-// This module is Node-runtime because SMTP needs a raw TLS socket, which
-// Convex's default V8 runtime cannot open — it only has fetch. Convex Auth
-// passes `ctx` into sendVerificationRequest, so the provider (V8) can hop
-// here via ctx.runAction.
+// This module deliberately runs in Convex's default V8 runtime. The previous
+// implementation used nodemailer over SMTP, which needs a raw TLS socket and
+// so forced `"use node"` — a second bundle and a slower cold start on the
+// sign-in path. SigV4 over `fetch` needs neither, so V8 is now the only
+// runtime this backend uses.
 //
-// Note on SES: the credentials here are SES *SMTP* credentials, which are
-// not IAM API credentials. An SES SMTP password is derived one-way from an
-// IAM secret key, so it cannot be used to sign SigV4 requests against the
-// SES HTTP API. SMTP is the only option with these.
+// Note on credentials: these are ordinary **IAM** keys (`ses:SendEmail`), not
+// SES *SMTP* credentials. An SES SMTP password is derived one-way from an IAM
+// secret and cannot sign SigV4, so the two are not interchangeable — if you
+// are migrating from the SMTP setup you need to mint a fresh IAM key.
 
-export const sendOtpEmail = internalAction({
-  args: {
-    to: v.string(),
-    subject: v.string(),
-    text: v.string(),
-  },
-  returns: v.null(),
-  handler: async (_ctx, { to, subject, text }) => {
-    const host = process.env.EMAIL_HOST;
-    const user = process.env.EMAIL_USERNAME;
-    const pass = process.env.EMAIL_PASSWORD;
-    const from = process.env.AUTH_EMAIL_FROM;
-    const port = Number(process.env.EMAIL_PORT ?? 465);
+export type EmailArgs = {
+  to: string;
+  subject: string;
+  text: string;
+};
 
-    if (!host || !from) {
-      throw new Error(
-        "Email is not configured. Set EMAIL_HOST and AUTH_EMAIL_FROM in the Convex deployment.",
-      );
-    }
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not set in the Convex deployment.`);
+  }
+  return value;
+}
 
-    const transport = nodemailer.createTransport({
-      host,
-      port,
-      // 465 is implicit TLS; 587 upgrades via STARTTLS.
-      secure: port === 465,
-      // Some SMTP servers accept unauthenticated relay on a private network.
-      auth: user && pass ? { user, pass } : undefined,
-    });
+/** Plain function, not a Convex function: the Better Auth handler already runs
+ *  in an action, so there is nothing to gain from another hop. */
+export async function sendEmail({ to, subject, text }: EmailArgs) {
+  const region = requireEnv("AWS_REGION");
+  const from = requireEnv("AUTH_EMAIL_FROM");
 
-    await transport.sendMail({
-      from,
-      to,
-      subject,
-      text,
-      // Sign-in mail may be Devanagari.
-      textEncoding: "base64",
-    });
-    return null;
-  },
-});
+  const aws = new AwsClient({
+    accessKeyId: requireEnv("AWS_ACCESS_KEY_ID"),
+    secretAccessKey: requireEnv("AWS_SECRET_ACCESS_KEY"),
+    // Present only when running under temporary credentials.
+    sessionToken: process.env.AWS_SESSION_TOKEN,
+    service: "ses",
+    region,
+  });
+
+  const response = await aws.fetch(
+    `https://email.${region}.amazonaws.com/v2/email/outbound-emails`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        FromEmailAddress: from,
+        Destination: { ToAddresses: [to] },
+        Content: {
+          Simple: {
+            // Sign-in mail may be Devanagari, so both parts are explicitly
+            // UTF-8 rather than relying on the default.
+            Subject: { Data: subject, Charset: "UTF-8" },
+            Body: { Text: { Data: text, Charset: "UTF-8" } },
+          },
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    // SES returns a JSON body with a message; surface it, since the common
+    // failures (unverified identity, still in sandbox) are self-explanatory
+    // and otherwise invisible.
+    throw new Error(
+      `SES SendEmail failed: HTTP ${response.status} ${await response.text()}`,
+    );
+  }
+}

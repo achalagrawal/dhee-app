@@ -6,7 +6,6 @@ import {
   updateThreadMetadata,
   vStreamArgs,
 } from "@convex-dev/agent";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { z } from "zod";
@@ -36,7 +35,7 @@ async function authorizeThread(
   ctx: QueryCtx | MutationCtx | ActionCtx,
   threadId: string,
 ): Promise<void> {
-  const userId = await requireUserId(ctx as QueryCtx);
+  const userId = await requireUserId(ctx);
   const { userId: threadUserId } = await getThreadMetadata(
     ctx,
     components.agent,
@@ -154,8 +153,7 @@ export const incognitoReply = action({
   },
   returns: v.string(),
   handler: async (ctx, { messages }) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) throw new Error("Not signed in.");
+    const userId = await requireUserId(ctx);
     const { text } = await dhee.generateText(
       ctx,
       { userId },

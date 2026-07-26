@@ -1,6 +1,6 @@
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -22,7 +22,18 @@ export default function Onboarding() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
+  const profile = useQuery(api.users.currentProfile);
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Signing in with Google gives us a name before anyone types one, so the
+  // field opens already filled. Once only — after that the field is theirs,
+  // including if they clear it.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !profile?.name) return;
+    prefilled.current = true;
+    setName(profile.name);
+  }, [profile?.name]);
 
   const start = async () => {
     if (busy) return;

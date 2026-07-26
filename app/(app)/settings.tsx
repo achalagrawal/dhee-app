@@ -1,4 +1,3 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -27,6 +26,7 @@ import {
   getColors,
   radius,
 } from "../../src/lib/theme";
+import { authClient } from "../../src/lib/auth-client";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 type Pending = "forget" | "deleteChats" | null;
@@ -34,7 +34,6 @@ type Pending = "forget" | "deleteChats" | null;
 export default function Settings() {
   const { colors, mode, pref, accent, setPref, setAccent } = useTheme();
   const lang = useLanguage();
-  const { signOut } = useAuthActions();
   const account = useQuery(api.users.accountSummary);
 
   const setName = useMutation(api.users.setName);
@@ -254,7 +253,7 @@ export default function Settings() {
             colors={colors}
             icon="chevronRight"
             label={t(lang, "signOut")}
-            onPress={() => void signOut()}
+            onPress={() => void authClient.signOut()}
           />
         </Group>
       </ScrollView>

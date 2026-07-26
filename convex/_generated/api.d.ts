@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as EmailOTP from "../EmailOTP.js";
 import type * as agents_config from "../agents/config.js";
 import type * as agents_dhee from "../agents/dhee.js";
 import type * as auth from "../auth.js";
@@ -19,6 +18,7 @@ import type * as devEmail from "../devEmail.js";
 import type * as email from "../email.js";
 import type * as http from "../http.js";
 import type * as lib_mcp from "../lib/mcp.js";
+import type * as lib_redirect from "../lib/redirect.js";
 import type * as md from "../md.js";
 import type * as memory from "../memory.js";
 import type * as seed from "../seed.js";
@@ -33,7 +33,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  EmailOTP: typeof EmailOTP;
   "agents/config": typeof agents_config;
   "agents/dhee": typeof agents_dhee;
   auth: typeof auth;
@@ -44,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   email: typeof email;
   http: typeof http;
   "lib/mcp": typeof lib_mcp;
+  "lib/redirect": typeof lib_redirect;
   md: typeof md;
   memory: typeof memory;
   seed: typeof seed;
@@ -80,5 +80,6 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   agent: import("@convex-dev/agent/_generated/component.js").ComponentApi<"agent">;
+  betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
 };

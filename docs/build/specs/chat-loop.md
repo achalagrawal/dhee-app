@@ -160,6 +160,28 @@ render as one generic "something went wrong" (mockup: `chatError` is
 A stop is not a failure. This is the single most important line in this section:
 if stopping shows an error card, the feature reads as broken.
 
+**How the two are told apart.** A stopped turn and a turn the model failed both
+finalize as `failed` with the same shape, so the message alone cannot say which
+happened. `stopGeneration` therefore records the aborted reply's position in
+`threadMeta.stoppedMessages`, and the client reads a trailing `failed` message
+as a genuine failure **only when it carries no stop mark**. Don't reintroduce
+sniffing the error string for this — the string is the agent component's, not
+ours, and it changes without warning.
+
+Two consequences that are easy to miss:
+
+- **The mark is positional**, like feedback and the "edited" label, so it must be
+  cleared whenever a regenerate or an edit discards the turn wearing it.
+  Otherwise the replacement inherits it and a real failure renders as silence.
+- **A failure that arrives mid-stream never rejects a mutation.** `streamReply`
+  is scheduled, so the only evidence it died is the message it left behind. The
+  retry card has to be derived from the transcript, not only from a `catch`
+  around a mutation call.
+
+A stop before the first token is the awkward case: it leaves an empty `failed`
+turn that renders nothing, which also takes the regenerate control off the reply
+above it. That prompt gets its own Try again, so the thread is never a dead end.
+
 ### 8. Scroll (#17)
 
 - Auto-scroll follows the newest message **only while the reader is within 240px

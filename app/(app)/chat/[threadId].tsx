@@ -87,11 +87,12 @@ export default function Chat() {
     for (const f of feedback ?? []) m.set(f.messageId, f.rating);
     return m;
   }, [feedback]);
-  const edits = useQuery(
-    api.chat.threadEdits,
+  const marks = useQuery(
+    api.chat.threadMarks,
     threadId ? { threadId } : "skip",
   );
-  const editedKeys = useMemo(() => new Set(edits ?? []), [edits]);
+  const editedKeys = useMemo(() => new Set(marks?.edited ?? []), [marks]);
+  const stoppedKeys = useMemo(() => new Set(marks?.stopped ?? []), [marks]);
 
   // Read through refs so `rate` and `submitEdit` keep one identity. Closing
   // over these directly rebuilds them on every delta, defeating Message's memo.
@@ -130,6 +131,39 @@ export default function Chat() {
       !last.text.trim()
     );
   }, [results]);
+
+  // The turn the person is owed something about: the newest reply, once it has
+  // finalized as `failed`. A stop finalizes the same way, so `stoppedKeys` is
+  // what separates "it broke" from "you stopped it".
+  const stalled = useMemo(() => {
+    const last = results[results.length - 1];
+    if (last?.role !== "assistant" || last.status !== "failed") return null;
+    const prompt = results[results.length - 2];
+    return {
+      stopped: stoppedKeys.has(last.key),
+      empty: !last.text.trim(),
+      promptKey: prompt?.role === "user" ? prompt.key : null,
+    };
+  }, [results, stoppedKeys]);
+
+  // A turn that dies inside `streamReply` never rejects a mutation, so the
+  // message it leaves behind is the only evidence. Retry is regenerate: the
+  // prompt is already saved, and `chat.regenerate` discards the failed reply
+  // and re-runs from it. Issue #60.
+  const streamFailure = useMemo<Failure>(
+    () =>
+      stalled && !stalled.stopped
+        ? { reason: "error", retry: "regenerate" }
+        : null,
+    [stalled],
+  );
+
+  // A stop before the first token renders nothing at all, which also takes the
+  // refresh icon off the reply above it — leaving no way back into the thread.
+  // The stop gets no error card by design (§7), so the retry goes on the
+  // prompt itself. Issue #59.
+  const retryPromptKey =
+    stalled?.stopped && stalled.empty ? stalled.promptKey : null;
 
   const send = useCallback(async () => {
     const prompt = draft.trim();
@@ -185,13 +219,17 @@ export default function Chat() {
     [threadId, editAndResend, cancelEdit],
   );
 
+  // A mutation that just rejected wins over one read off the transcript: it's
+  // the more recent thing the person did, and it carries the better retry.
+  const activeFailure = failure ?? streamFailure;
+
   const retryFailure = useCallback(() => {
-    if (!failure) return;
-    const { retry } = failure;
+    if (!activeFailure) return;
+    const { retry } = activeFailure;
     if (retry === "send") void send();
     else if (retry === "regenerate") void regenerate();
     else void runEdit(retry.messageId, retry.prompt);
-  }, [failure, send, regenerate, runEdit]);
+  }, [activeFailure, send, regenerate, runEdit]);
 
   // Losing just the reply to the newest turn is the ordinary case and proceeds
   // quietly. The editor stays open behind the dialog, so Cancel keeps the draft.
@@ -266,6 +304,7 @@ export default function Chat() {
         onStartEdit={generating ? undefined : startEdit}
         onCancelEdit={cancelEdit}
         onSubmitEdit={submitEdit}
+        onRetry={item.key === retryPromptKey ? regenerate : undefined}
       />
     ),
     [
@@ -282,6 +321,7 @@ export default function Chat() {
       startEdit,
       cancelEdit,
       submitEdit,
+      retryPromptKey,
     ],
   );
 
@@ -334,13 +374,13 @@ export default function Chat() {
                     </Text>
                   </View>
                 ) : null}
-                {failure ? (
+                {activeFailure ? (
                   <View style={styles.errorCard}>
                     <View style={styles.errorBody}>
                       <Text style={styles.errorTitle}>
                         {t(
                           lang,
-                          failure.reason === "rate"
+                          activeFailure.reason === "rate"
                             ? "rateErrorTitle"
                             : "modelErrorTitle",
                         )}
@@ -348,7 +388,7 @@ export default function Chat() {
                       <Text style={styles.errorText}>
                         {t(
                           lang,
-                          failure.reason === "rate"
+                          activeFailure.reason === "rate"
                             ? "rateErrorBody"
                             : "modelErrorBody",
                         )}
@@ -483,6 +523,7 @@ const Message = memo(function Message({
   onStartEdit,
   onCancelEdit,
   onSubmitEdit,
+  onRetry,
 }: {
   message: UIMessage;
   isLast: boolean;
@@ -499,6 +540,11 @@ const Message = memo(function Message({
   onStartEdit?: (message: UIMessage) => void;
   onCancelEdit: () => void;
   onSubmitEdit: (message: UIMessage, prompt: string) => void;
+  /**
+   * Set only on a prompt whose reply was stopped before it said anything.
+   * That reply renders nothing, so this is the thread's only way forward.
+   */
+  onRetry?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -549,6 +595,16 @@ const Message = memo(function Message({
           <Pressable onPress={copy} hitSlop={6} style={styles.metaBtn}>
             <Icon name="copy" size={14} color={colors.textFaint} />
           </Pressable>
+          {onRetry ? (
+            <Pressable
+              onPress={onRetry}
+              hitSlop={6}
+              accessibilityLabel={t(lang, "tryAgain")}
+              style={styles.metaBtn}
+            >
+              <Icon name="refresh" size={14} color={colors.textFaint} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
     );

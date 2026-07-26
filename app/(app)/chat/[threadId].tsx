@@ -44,6 +44,7 @@ export default function Chat() {
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const stopGeneration = useMutation(api.chat.stopGeneration);
+  const regenerateReply = useMutation(api.chat.regenerate);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
   const { results } = useUIMessages(
     api.chat.listThreadMessages,
@@ -118,6 +119,16 @@ export default function Chat() {
     if (!generating) setStopping(false);
   }, [generating]);
 
+  const regenerate = useCallback(async () => {
+    if (!threadId) return;
+    setFailed(false);
+    try {
+      await regenerateReply({ threadId });
+    } catch {
+      setFailed(true);
+    }
+  }, [threadId, regenerateReply]);
+
   const newThread = useCallback(() => router.replace("/home"), []);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -187,6 +198,7 @@ export default function Chat() {
                 styles={styles}
                 rating={feedbackMap.get(item.key) ?? null}
                 onRate={(next) => rate(item.key, next)}
+                onRegenerate={generating ? undefined : regenerate}
               />
             )}
             contentContainerStyle={styles.list}
@@ -271,6 +283,7 @@ function Message({
   styles,
   rating,
   onRate,
+  onRegenerate,
 }: {
   message: UIMessage;
   isLast: boolean;
@@ -279,6 +292,8 @@ function Message({
   styles: ReturnType<typeof makeStyles>;
   rating: "up" | "down" | null;
   onRate: (rating: "up" | "down") => void;
+  /** Undefined while a reply is generating — try again is unavailable then. */
+  onRegenerate?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -330,11 +345,11 @@ function Message({
       onPress: () => soon(t(lang, "speak")),
     },
   ];
-  if (isLast) {
+  if (isLast && onRegenerate) {
     actions.push({
       icon: "refresh",
       label: t(lang, "tryAgain"),
-      onPress: () => soon(t(lang, "tryAgain")),
+      onPress: onRegenerate,
     });
   }
 

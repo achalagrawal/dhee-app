@@ -1,7 +1,9 @@
 import {
+  type MessageDoc,
   abortStream,
   createThread,
   getThreadMetadata,
+  listMessages,
   listStreams,
   listUIMessages,
   syncStreams,
@@ -36,6 +38,46 @@ import { requireUserId } from "./users";
 // Loop conventions are written down once in docs/build/specs/chat-loop.md.
 
 const STOP_REASON = "Stopped by the person.";
+
+// Bounds the read; a turn is a handful of rows, so it should never be reached.
+const TURN_LOOKBACK = 100;
+
+// NOT the message `_id`: the agent collapses one assistant turn's several
+// documents into a single UIMessage keyed by the first, and that key is what
+// `messageFeedback.messageId` holds.
+function uiMessageKey(doc: MessageDoc): string {
+  return `${doc.threadId}-${doc.order}-${doc.stepOrder}`;
+}
+
+async function clearFeedbackFor(
+  ctx: MutationCtx,
+  docs: MessageDoc[],
+): Promise<void> {
+  for (const key of new Set(docs.map(uiMessageKey))) {
+    const row = await ctx.db
+      .query("messageFeedback")
+      .withIndex("by_message", (q) => q.eq("messageId", key))
+      .unique();
+    if (row) await ctx.db.delete(row._id);
+  }
+}
+
+// Compares positions rather than assuming how the component numbers a reply
+// relative to its prompt: `listMessages` returns newest-first, so everything
+// before the first user message it yields is later in the conversation.
+async function lastUserTurn(
+  ctx: MutationCtx,
+  threadId: string,
+): Promise<{ prompt: MessageDoc; after: MessageDoc[] } | null> {
+  const { page } = await listMessages(ctx, components.agent, {
+    threadId,
+    paginationOpts: { cursor: null, numItems: TURN_LOOKBACK },
+  });
+  const index = page.findIndex((m) => m.message?.role === "user");
+  const prompt = index === -1 ? undefined : page[index];
+  if (!prompt) return null;
+  return { prompt, after: page.slice(0, index) };
+}
 
 async function authorizeThread(
   ctx: QueryCtx | MutationCtx | ActionCtx,
@@ -232,6 +274,46 @@ export const stopGeneration = mutation({
       stopped = stopped || didAbort;
     }
     return stopped;
+  },
+});
+
+// Replaces rather than appends: no "1 of 2 responses" browser, so keeping the
+// discarded reply would only leave an unreachable row. Spec §5.
+export const regenerate = mutation({
+  args: { threadId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+
+    const active = await listStreams(ctx, components.agent, {
+      threadId,
+      includeStatuses: ["streaming"],
+    });
+    if (active.length > 0) throw new Error("Dhee is still replying.");
+
+    const turn = await lastUserTurn(ctx, threadId);
+    if (!turn || turn.after.length === 0) {
+      throw new Error("There's no reply to try again yet.");
+    }
+    // Scheduled but not yet streaming — regenerating now would leave two.
+    if (turn.after.some((m) => m.status === "pending")) {
+      throw new Error("Dhee is still replying.");
+    }
+
+    await clearFeedbackFor(ctx, turn.after);
+    await dhee.deleteMessages(ctx, {
+      messageIds: turn.after.map((m) => m._id),
+    });
+
+    // `turnsSinceExtraction` deliberately untouched: not a new user turn, and
+    // counting it would fire memory extraction on a conversation that hasn't moved.
+    await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
+      threadId,
+      promptMessageId: turn.prompt._id,
+      userId,
+    });
+    return null;
   },
 });
 

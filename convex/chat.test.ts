@@ -158,9 +158,8 @@ describe("chat — delete", () => {
 });
 
 describe("chat — stop generating", () => {
-  // Stand in for a reply in flight: the component row `streamReply` would have
-  // created. Building it directly keeps the model out of the test while still
-  // exercising the real abort path.
+  // The row `streamReply` would have created — built directly so the real
+  // abort path runs without the model.
   async function startStream(
     t: ReturnType<typeof initTest>,
     threadId: string,
@@ -208,7 +207,6 @@ describe("chat — stop generating", () => {
     const as = asUser(t, user);
     const threadId = await as.mutation(api.chat.startThread, {});
 
-    // Races the stream finishing on its own — losing that race is not a failure.
     expect(await as.mutation(api.chat.stopGeneration, { threadId })).toBe(
       false,
     );
@@ -224,7 +222,6 @@ describe("chat — stop generating", () => {
     await expect(
       asUser(t, other).mutation(api.chat.stopGeneration, { threadId }),
     ).rejects.toThrow("Not your conversation");
-    // And the stream is untouched.
     expect(await streamStatuses(t, threadId)).toEqual(["streaming"]);
   });
 

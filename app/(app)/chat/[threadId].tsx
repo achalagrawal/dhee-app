@@ -32,9 +32,7 @@ export default function Chat() {
   const [draft, setDraft] = useState("");
   const [failed, setFailed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // Set the instant Stop is pressed so the composer returns to Send without
-  // waiting for the abort to round-trip. Cleared when the reply settles, which
-  // also covers the abort racing the stream finishing on its own.
+  // So the button flips back without waiting for the abort to round-trip.
   const [stopping, setStopping] = useState(false);
 
   const sendMessage = useMutation(api.chat.sendMessage);
@@ -99,16 +97,13 @@ export default function Chat() {
     }
   }, [draft, threadId, sendMessage]);
 
-  // A stop is not a failure — no error card, and the partial reply keeps its
-  // normal actions row. See docs/build/specs/chat-loop.md §4.
   const stop = useCallback(async () => {
     if (!threadId) return;
     setStopping(true);
     try {
       await stopGeneration({ threadId });
     } catch {
-      // Nothing to stop, or it finished first. Either way the composer is
-      // already back — there is nothing useful to tell the person here.
+      // Nothing to stop, or it finished first — neither is worth reporting.
     }
   }, [threadId, stopGeneration]);
 
@@ -257,9 +252,10 @@ function Message({
     );
   }
 
-  // Before the assistant has produced text, the "considering…" indicator
-  // stands in — don't also render an empty bubble with a lone caret.
-  if (!message.text.trim() && !done) return null;
+  // While generating, "considering…" stands in. Once done and still empty, the
+  // turn was stopped before its first token — an actions row attached to no
+  // text is worse than no bubble. Spec §2.
+  if (!message.text.trim()) return null;
 
   const actions: { icon: IconName; label: string; onPress: () => void }[] = [
     {

@@ -7,6 +7,7 @@
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/safety", "destination": "/safety.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "git": {

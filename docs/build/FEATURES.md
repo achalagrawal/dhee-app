@@ -195,12 +195,12 @@ far richer than today's flat screen.
 
 ## Epic 16 — Safety
 
-| Feature                                       | Status | Notes                                            |
-| --------------------------------------------- | ------ | ------------------------------------------------ |
-| Crisis detection → safety banner              | ⬜     | `state.crisisFlag`                               |
-| Safety & limitations page (crisis resources)  | ⬜     | Linked from terms, FAQ, banner                   |
-| Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName` |
-| "Not a medical or crisis service" disclaimers | ⬜     | Auth, onboarding, legal                          |
+| Feature                                       | Status | Notes                                                                                              |
+| --------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| Crisis detection → safety banner              | ⬜     | `state.crisisFlag`                                                                                 |
+| Safety & limitations page (crisis resources)  | ✅     | `docs/legal/safety.md` → `/safety`; linked from terms + sign-in. Numbers need periodic re-checking |
+| Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName`                                                   |
+| "Not a medical or crisis service" disclaimers | 🟡     | Sign-in + legal done; onboarding still missing it                                                  |
 
 ## Epic 17 — Marketing & static site (web)
 
@@ -220,7 +220,7 @@ flows live in [`docs/legal/`](../legal/README.md), pending legal review.
 | Careers                          | ⬜     | `CAREERS` (values, benefits, 3 roles) |
 | Legal — Privacy                  | 🟡     | `docs/legal/privacy.md` → `/privacy`  |
 | Legal — Terms                    | 🟡     | `docs/legal/terms.md` → `/terms`      |
-| Safety & limitations             | ⬜     | see Epic 16                           |
+| Safety & limitations             | ✅     | `docs/legal/safety.md` → `/safety`    |
 | Contact                          | ⬜     | `state.contactEmail/contactMsg`       |
 | Download                         | ⬜     |                                       |
 | Not-found (404)                  | ⬜     | `showNotFound`                        |

@@ -18,4 +18,5 @@ const site = (process.env.EXPO_PUBLIC_SITE_URL ?? "https://dhee.app").replace(
 export const legalUrls = {
   privacy: `${site}/privacy`,
   terms: `${site}/terms`,
+  safety: `${site}/safety`,
 } as const;

@@ -31,6 +31,13 @@ const PAGES = [
     title: "Terms of Use",
     description: "The terms you agree to when you use Dhee.",
   },
+  {
+    slug: "safety",
+    src: "docs/legal/safety.md",
+    title: "Safety & limitations",
+    description:
+      "What Dhee cannot do, and where to get help in a crisis. Dhee is not a medical or crisis service.",
+  },
 ];
 
 // Everything between these markers is repo-facing — drafting status, links to
@@ -44,7 +51,11 @@ const INTERNAL =
 // reads fine on GitHub and 404s once published, so each one is rewritten here
 // and anything unmapped is a build failure rather than a dead link in a legal
 // document.
-const LINK_MAP = { "./privacy.md": "/privacy", "./terms.md": "/terms" };
+const LINK_MAP = {
+  "./privacy.md": "/privacy",
+  "./terms.md": "/terms",
+  "./safety.md": "/safety",
+};
 
 const slugify = (html) =>
   html
@@ -82,11 +93,11 @@ function render({ slug, src, title, description }) {
     if (!ids.has(anchor)) throw new Error(`${src}: dead anchor "#${anchor}"`);
   }
 
-  const other = PAGES.find((p) => p.slug !== slug);
-  return template({ title, description, body, other });
+  const others = PAGES.filter((p) => p.slug !== slug);
+  return template({ title, description, body, others });
 }
 
-const template = ({ title, description, body, other }) => `<!doctype html>
+const template = ({ title, description, body, others }) => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -153,7 +164,7 @@ const template = ({ title, description, body, other }) => `<!doctype html>
     <main class="page">
       <nav>
         <a href="/">Dhee</a>
-        <a href="/${other.slug}">${other.title}</a>
+        ${others.map((p) => `<a href="/${p.slug}">${p.title}</a>`).join("\n        ")}
       </nav>
       ${body.trim()}
       <footer>Dhee — <a href="mailto:privacy@dhee.app">privacy@dhee.app</a></footer>

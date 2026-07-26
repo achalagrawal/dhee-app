@@ -29,10 +29,15 @@ service".
 
 ## Decisions taken while drafting
 
-**Operated by an individual.** Both documents name **Achal Agrawal**, of
-Gandhinagar, Gujarat, in his personal capacity rather than through a company,
-with `privacy@dhee.app` as the published contact and the courts at Gandhinagar
-named for governing law. Worth saying once: an individual operator carries
+**Operated by an individual, identified as narrowly as the law allows.** Both
+documents name **Achal Agrawal**, in his personal capacity rather than through a
+company, with `privacy@dhee.app` as the published contact and the courts at
+Gandhinagar named for governing law. The name and the country stay because they
+are not optional: the DPDP Act requires an identified Data Fiduciary and a named
+Grievance Officer reachable for complaints, and GDPR Article 13(1)(a) requires
+the controller's identity. What is gone is the city and state as a residence —
+a postal address is offered on request instead of published, which is where a
+formal notice would need one. Worth saying once: an individual operator carries
 personal, unlimited liability for everything these documents promise, which is
 the usual reason people incorporate before launching a product that invites
 grief and mental distress. That is a decision for the operator, not a drafting
@@ -74,6 +79,21 @@ lives in a row the person can read, edit, and delete.
 **The corpus lookup is disclosed.** Query text leaving our backend for
 `md-mcp.achal.xyz` is a real third-party hop and is in the inventory, including
 the fact that it happens in incognito conversations too.
+
+**No promise not to train.** The drafts originally carried it three times — in
+the short version, in the model section ("there is no training pipeline here"),
+and in the terms' content-licence paragraph. All three are gone, because
+training a model for optimisation is something Dhee may want to do later, and a
+promise you intend to withdraw is worth less than no promise at all. Note what
+the removal does _not_ buy: silence is not permission. Conversations were
+collected to answer the person, and using them to train is a new purpose that
+needs its own basis under both the DPDP Act and Article 6 — consent, given the
+sensitive categories involved. So the model section now says the change would be
+announced before it starts rather than saying nothing, which keeps the option
+open honestly instead of leaving a gap someone later reads as a licence. It is
+also the claim a reader is most likely to have relied on, so it should not
+quietly vanish from a published page — see the change-notification promise in
+both documents.
 
 ## Traceability — every claim back to the repo
 
@@ -147,10 +167,10 @@ the documents that is false until someone does it:
 from this repository:
 
 - What the model providers retain. The policy no longer asserts anything about
-  their settings — it says we do not train, and that their requests are handled
-  under their own published terms. Confirm the OpenRouter account has not opted
-  into any prompt-logging or data-collection tier; if it has, the paragraph
-  needs a sentence saying so.
+  their settings — only that their requests are handled under their own
+  published terms. Confirm the OpenRouter account has not opted into any
+  prompt-logging or data-collection tier; if it has, the paragraph needs a
+  sentence saying so.
 - Whether the corpus service at `md-mcp.achal.xyz` is first-party or a third
   party, where it runs, and whether it logs the queries it receives. If it is a
   third party, it needs a processing agreement and a named mention.

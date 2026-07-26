@@ -643,12 +643,7 @@ function makeStyles(colors: Colors) {
     },
     userMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaBtn: { padding: 5, borderRadius: 7 },
-    editedLabel: {
-      color: colors.textFaint,
-      fontSize: 12,
-      marginRight: 4,
-      ...font.regular,
-    },
+    editedLabel: { color: colors.textFaint, fontSize: 12, ...font.regular },
     // Editing a message you sent — the bubble becomes the editor in place.
     editCard: {
       width: "100%",

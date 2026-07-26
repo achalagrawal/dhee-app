@@ -56,12 +56,12 @@ function uiMessageKey(doc: MessageDoc): string {
 // Everything keyed to a message's position — its rating, its "edited" mark —
 // dropped along with the message. Whatever replaces a discarded tail reuses
 // those positions, so a mark left behind would label a message that never
-// earned it.
+// earned it. Returns the marks that survived.
 async function clearMarksFor(
   ctx: MutationCtx,
   threadId: string,
   docs: MessageDoc[],
-): Promise<void> {
+): Promise<string[]> {
   const keys = new Set(docs.map(uiMessageKey));
   for (const key of keys) {
     const row = await ctx.db
@@ -71,17 +71,16 @@ async function clearMarksFor(
     if (row) await ctx.db.delete(row._id);
   }
   const meta = await threadMetaFor(ctx, threadId);
-  if (!meta?.editedMessages) return;
-  const kept = meta.editedMessages.filter((k) => !keys.has(k));
-  if (kept.length !== meta.editedMessages.length) {
+  const marks = meta?.editedMessages ?? [];
+  const kept = marks.filter((k) => !keys.has(k));
+  if (meta && kept.length !== marks.length) {
     await ctx.db.patch(meta._id, { editedMessages: kept });
   }
+  return kept;
 }
 
 // A message and everything after it — the tail an edit discards. Collected
-// rather than deleted by order range because the feedback rows go too, and
-// they are keyed by position: replies after an edit reuse those positions, so
-// a row left behind would attach a rating to a message nobody rated.
+// rather than deleted by order range because `clearMarksFor` needs the keys.
 async function messagesFrom(
   ctx: MutationCtx,
   threadId: string,
@@ -100,10 +99,9 @@ async function messagesFrom(
 }
 
 // Refuse the destructive rewrites (regenerate, edit) while a reply is in
-// flight: deleting its row pulls it out from under the running action. A reply
-// that has started shows up as an active stream, one only scheduled as a
-// pending row in `tail` — both here, so a third caller can't inherit half a
-// guard.
+// flight. A reply that has started shows up as an active stream, one only
+// scheduled as a pending row in `tail` — both here, so a third caller can't
+// inherit half a guard.
 async function assertNoActiveReply(
   ctx: MutationCtx,
   threadId: string,
@@ -395,8 +393,6 @@ export const editAndResend = mutation({
       components.agent.messages.getMessagesByIds,
       { messageIds: [messageId] },
     );
-    // Bound to the caller's own thread: a foreign id can't reach into another
-    // conversation.
     if (!target || target.threadId !== threadId) {
       throw new Error("That message is not in this conversation.");
     }
@@ -409,27 +405,18 @@ export const editAndResend = mutation({
     const discarded = await messagesFrom(ctx, threadId, target._id);
     await assertNoActiveReply(ctx, threadId, discarded);
 
-    await clearMarksFor(ctx, threadId, discarded);
+    const marks = await clearMarksFor(ctx, threadId, discarded);
     await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
 
-    const { messageId: newMessageId } = await dhee.saveMessage(ctx, {
-      threadId,
-      prompt: trimmed,
-      skipEmbeddings: true,
-    });
-
-    // Mark the rewrite so the bubble can say "edited". Read back rather than
-    // predicted: the key is the position the component gave it.
-    const [saved] = await ctx.runQuery(
-      components.agent.messages.getMessagesByIds,
-      { messageIds: [newMessageId] },
+    const { messageId: newMessageId, message: saved } = await dhee.saveMessage(
+      ctx,
+      { threadId, prompt: trimmed, skipEmbeddings: true },
     );
-    const meta = await threadMetaFor(ctx, threadId);
-    if (saved) {
-      await upsertThreadMeta(ctx, threadId, userId, {
-        editedMessages: [...(meta?.editedMessages ?? []), uiMessageKey(saved)],
-      });
-    }
+
+    // Mark the rewrite so the bubble can say "edited".
+    await upsertThreadMeta(ctx, threadId, userId, {
+      editedMessages: [...marks, uiMessageKey(saved)],
+    });
 
     // No turn bump: the edited turn replaces a turn rather than adding one, so
     // counting it would run memory extraction a turn early.

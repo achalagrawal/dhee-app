@@ -33,15 +33,35 @@ export function initTest(): TestConvex<typeof schema> {
   return t;
 }
 
-/** Insert a bare user row and return its id. */
+// Stands in for the Better Auth component's user `_id`, which is what arrives
+// as the JWT subject in production. Derived from our own row id so `asUser`
+// can build an identity without a second database read — the same trick the
+// Convex Auth harness used with its `userId|session` subject.
+const testAuthId = (userId: Id<"users">) => `auth:${userId}`;
+
+/** Insert a user row and return its id.
+ *
+ *  The tests never register the auth component. `requireUserId` resolves an
+ *  identity by reading our own `by_auth_id` index (see users.ts), so a row
+ *  plus a matching identity is the whole of what "signed in" means here. */
 export async function createUser(
   t: TestConvex<typeof schema>,
+  overrides: { email?: string; name?: string } = {},
 ): Promise<Id<"users">> {
-  return await t.run(async (ctx) => await ctx.db.insert("users", {}));
+  return await t.run(async (ctx) => {
+    const userId = await ctx.db.insert("users", {
+      // Patched immediately below; the real id isn't known until insert.
+      authId: "",
+      email: overrides.email ?? `${crypto.randomUUID()}@example.test`,
+      name: overrides.name,
+      createdAt: Date.now(),
+    });
+    await ctx.db.patch(userId, { authId: testAuthId(userId) });
+    return userId;
+  });
 }
 
-/** Scope calls to a signed-in user. Convex Auth reads `userId` from the
- *  identity subject's first `|`-delimited segment. */
+/** Scope calls to a signed-in user. */
 export function asUser(t: TestConvex<typeof schema>, userId: Id<"users">) {
-  return t.withIdentity({ subject: `${userId}|testsession` });
+  return t.withIdentity({ subject: testAuthId(userId) });
 }

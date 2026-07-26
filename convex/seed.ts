@@ -37,14 +37,20 @@ export const demo = internalMutation({
   handler: async (ctx) => {
     const existing = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), DEMO_EMAIL))
-      .first();
+      .withIndex("by_email", (q) => q.eq("email", DEMO_EMAIL))
+      .unique();
 
+    // The demo person has no Better Auth account behind them — this row exists
+    // so the understanding screen has something to show. The synthetic authId
+    // can never collide with a real component user id, so no one can sign in
+    // as the demo user.
     const userId =
       existing?._id ??
       (await ctx.db.insert("users", {
+        authId: "seed:demo",
         email: DEMO_EMAIL,
         name: "Demo",
+        createdAt: Date.now(),
       }));
 
     // Clear any prior demo data so re-seeding is idempotent.

@@ -1,4 +1,4 @@
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -6,7 +6,8 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { convex, secureStorage } from "../src/lib/convex";
+import { authClient } from "../src/lib/auth-client";
+import { convex } from "../src/lib/convex";
 import { fontMap } from "../src/lib/fonts";
 import { ThemeProvider, useTheme } from "../src/lib/ThemeContext";
 
@@ -26,13 +27,13 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <ConvexAuthProvider client={convex} storage={secureStorage}>
+    <ConvexBetterAuthProvider client={convex} authClient={authClient}>
       <ThemeProvider>
         <SafeAreaProvider>
           <Themed />
         </SafeAreaProvider>
       </ThemeProvider>
-    </ConvexAuthProvider>
+    </ConvexBetterAuthProvider>
   );
 }
 

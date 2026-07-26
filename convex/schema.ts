@@ -1,4 +1,3 @@
-import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
@@ -31,7 +30,24 @@ export const familiarity = v.union(
 );
 
 export default defineSchema({
-  ...authTables,
+  // Our own user row, one per Better Auth user. The component owns the real
+  // auth tables (user, session, account, …) inside its own namespace; this is
+  // the app-side mirror that every other table here points at, so the seven
+  // `v.id("users")` foreign keys below stay real Convex ids rather than
+  // opaque strings from a JWT.
+  //
+  // Kept in step by `triggers.user.onCreate` / `onDelete` in auth.ts. Nothing
+  // in the app queries the component to authorize — `requireUserId` resolves
+  // `identity.subject` against `by_auth_id` and stops there.
+  users: defineTable({
+    // The component's user `_id`, which arrives as the JWT subject.
+    authId: v.string(),
+    email: v.string(),
+    name: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_auth_id", ["authId"])
+    .index("by_email", ["email"]),
 
   profiles: defineTable({
     userId: v.id("users"),

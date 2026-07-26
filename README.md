@@ -34,7 +34,7 @@ the moment raw passages come back.
 - **LLM**: [OpenRouter](https://openrouter.ai) via the Vercel AI SDK. The model slug is a single constant in `convex/config.ts`, so switching providers — including to open-weight models — is a one-line change.
 - **App**: [Expo](https://expo.dev) (managed, Expo Router) — iOS, Android, and web from one TypeScript codebase.
 - **Retrieval**: Madhyasth Darshan corpus over MCP at `https://md-mcp.achal.xyz/mcp`, called from Convex actions.
-- **Auth**: [Convex Auth](https://labs.convex.dev/auth) with email OTP delivered through AWS SES.
+- **Auth**: [Better Auth](https://better-auth.com) via its [Convex component](https://labs.convex.dev/better-auth) — email OTP and Google, with user records in our own deployment. Sign-in mail goes out over the SES v2 HTTP API.
 
 ### Version constraints worth knowing
 
@@ -46,15 +46,22 @@ conflict with the `@ai-sdk/provider` / `@ai-sdk/provider-utils` pnpm overrides
 in `package.json` — those exist to stop a v5 copy being hoisted, which breaks
 the `LanguageModel` type.
 
-Sign-in mail goes out over **SMTP** (`convex/email.ts`), which is why that one
-module is `"use node"` — SMTP needs a TLS socket and Convex's default V8
-runtime only has `fetch`. Convex Auth passes `ctx` into
-`sendVerificationRequest`, so the V8 provider hops to the Node action.
+Sign-in mail goes out over the **SES v2 HTTP API** (`convex/email.ts`), signed
+with [`aws4fetch`](https://github.com/mhart/aws4fetch). This is deliberate:
+SMTP needs a raw TLS socket, which would force `"use node"` and a second
+bundle on the sign-in path. **The whole backend now runs in Convex's default V8
+runtime** — there is no `"use node"` module left.
 
-Worth knowing if you swap credentials: **SES SMTP credentials are not IAM API
-credentials.** An SES SMTP password is derived one-way from an IAM secret key,
-so it cannot sign SigV4 requests against the SES HTTP API. If you ever want the
-HTTP API instead, you need the original IAM secret, not the SMTP password.
+Worth knowing if you are moving from an SMTP setup: **SES SMTP credentials are
+not IAM API credentials.** An SES SMTP password is derived one-way from an IAM
+secret key and cannot sign SigV4, so you need to mint a fresh IAM key rather
+than reuse what SMTP was using.
+
+One type-level wart: `@better-auth/expo`'s client plugin is cast to
+`BetterAuthClientPlugin` in `src/lib/auth-client.ts`. Both packages are 1.6.25
+and the runtime shapes match, but their better-fetch generics don't line up;
+without the cast the plugin array degrades and `authClient` silently loses
+`emailOtp`.
 
 ## Repo layout
 
@@ -70,30 +77,36 @@ Requires Node ≥ 20 and pnpm.
 
 ```bash
 pnpm install
-pnpm convex:dev          # provisions a local backend, writes .env.local
+pnpm convex:dev          # provisions a deployment, writes .env.local
 ```
+
+On a fresh clone this prompts you to pick a backend: a **local** one (including
+the no-account "start without an account" option, which runs entirely on your
+machine) or a **cloud dev** deployment under your Convex team. Either works —
+the CLI writes `EXPO_PUBLIC_CONVEX_URL` to `.env.local` for whichever you chose.
 
 Then set the secrets Convex needs (these live in the deployment, not in a file):
 
 ```bash
 npx convex env set OPENROUTER_API_KEY sk-or-v1-...
+npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
 
-# Sign-in emails over SMTP. With SES, EMAIL_USERNAME/EMAIL_PASSWORD are the
-# SMTP credentials from the SES console (not an IAM key pair), and
+# Sign-in emails over the SES v2 HTTP API. These are ordinary IAM credentials
+# with ses:SendEmail — *not* SES SMTP credentials, which cannot sign SigV4.
 # AUTH_EMAIL_FROM must be an identity verified in SES. A new SES account is
-# sandboxed until you request production access — until then it can only
-# send to verified addresses.
-npx convex env set EMAIL_HOST email-smtp.ap-south-1.amazonaws.com
-npx convex env set EMAIL_PORT 465
-npx convex env set EMAIL_USERNAME ...
-npx convex env set EMAIL_PASSWORD ...
+# sandboxed until you request production access — until then it can only send
+# to verified addresses.
+npx convex env set AWS_REGION ap-south-1
+npx convex env set AWS_ACCESS_KEY_ID ...
+npx convex env set AWS_SECRET_ACCESS_KEY ...
 npx convex env set AUTH_EMAIL_FROM "Dhee <noreply@yourdomain.com>"
 ```
 
-Check the connection without mailing anyone:
+Check the credentials without mailing anyone — this calls SES's read-only
+GetAccount, and also tells you whether the account is still sandboxed:
 
 ```bash
-npx convex run devEmail:smtpCheck '{}'
+npx convex run devEmail:sesCheck '{}'
 ```
 
 And confirm the model and corpus tools work after any `CHAT_MODEL` change:
@@ -102,8 +115,35 @@ And confirm the model and corpus tools work after any `CHAT_MODEL` change:
 npx convex run dev:smokeTest '{}'
 ```
 
-Auth also needs a JWT keypair. If `npx convex env list` doesn't already show
-`JWT_PRIVATE_KEY` and `JWKS`, generate them with `npx @convex-dev/auth`.
+There is no JWT keypair to generate: the Better Auth component holds its
+signing keys in its own `jwks` table and serves the public set from this
+deployment, which `convex/auth.config.ts` points Convex at.
+
+### Sign in with Google
+
+Create a **Web application** OAuth client in the
+[Google Cloud console](https://console.cloud.google.com/apis/credentials) and add
+one authorized redirect URI per Convex deployment. Convex builds the callback
+from its own site URL, so these must match it exactly:
+
+```
+http://127.0.0.1:3211/api/auth/callback/google        # local backend
+https://<prod-deployment>.convex.site/api/auth/callback/google
+```
+
+A single Web client covers web, iOS and Android: the browser hits Convex's HTTP
+endpoint and Convex exchanges the code server-side, so the client secret never
+ships in the app bundle. Then, per deployment:
+
+```bash
+npx convex env set AUTH_GOOGLE_ID <client-id>.apps.googleusercontent.com
+npx convex env set AUTH_GOOGLE_SECRET <client-secret>
+npx convex env set SITE_URL http://localhost:8081   # where the app runs
+```
+
+`SITE_URL` is the only place a web redirect destination is allowed from — see
+`convex/lib/redirect.ts`, which also allows the app's `dhee://` deep link (and
+Expo Go's `exp://` when the backend is loopback) and refuses everything else.
 
 Finally:
 
@@ -113,16 +153,19 @@ pnpm web                 # or: pnpm ios / pnpm android
 
 ### Environment variables
 
-| Variable                           | Where             | Purpose                                                    |
-| ---------------------------------- | ----------------- | ---------------------------------------------------------- |
-| `OPENROUTER_API_KEY`               | Convex deployment | Model access for chat and extraction                       |
-| `EMAIL_HOST`, `EMAIL_PORT`         | Convex deployment | SMTP endpoint; 465 uses implicit TLS, 587 STARTTLS         |
-| `EMAIL_USERNAME`, `EMAIL_PASSWORD` | Convex deployment | SMTP credentials (leave unset for unauthenticated relay)   |
-| `AUTH_EMAIL_FROM`                  | Convex deployment | Sender address; must be verified with your provider        |
-| `JWT_PRIVATE_KEY`, `JWKS`          | Convex deployment | Convex Auth token signing                                  |
-| `SITE_URL`                         | Convex deployment | Base URL for auth links                                    |
-| `MD_MCP_URL`                       | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one) |
-| `EXPO_PUBLIC_CONVEX_URL`           | `.env.local`      | Written automatically by `convex dev`                      |
+| Variable                                     | Where             | Purpose                                                    |
+| -------------------------------------------- | ----------------- | ---------------------------------------------------------- |
+| `OPENROUTER_API_KEY`                         | Convex deployment | Model access for chat and extraction                       |
+| `AWS_REGION`                                 | Convex deployment | SES region, e.g. `ap-south-1`                              |
+| `AWS_ACCESS_KEY_ID`, `..._SECRET_ACCESS_KEY` | Convex deployment | IAM credentials with `ses:SendEmail`                       |
+| `AUTH_EMAIL_FROM`                            | Convex deployment | Sender address; must be verified in SES                    |
+| `BETTER_AUTH_SECRET`                         | Convex deployment | Better Auth signing/encryption secret                      |
+| `SITE_URL`                                   | Convex deployment | Base URL for auth links, and the OAuth redirect allowlist  |
+| `AUTH_GOOGLE_ID`                             | Convex deployment | Google OAuth client id ("Continue with Google")            |
+| `AUTH_GOOGLE_SECRET`                         | Convex deployment | Google OAuth client secret                                 |
+| `MD_MCP_URL`                                 | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one) |
+| `EXPO_PUBLIC_CONVEX_URL`                     | `.env.local`      | Written automatically by `convex dev`                      |
+| `EXPO_PUBLIC_CONVEX_SITE_URL`                | `.env.local`      | Where the auth client reaches Better Auth's handler        |
 
 ### Seed data
 
@@ -157,10 +200,10 @@ is `convex/test.setup.ts`.
   checks above. It needs no secrets (`convex/_generated` is committed and tests
   are in-memory), so it's green on forks.
 - **CD** — deployment is handled by **Vercel**, which runs `convex deploy` as
-  part of the web build (see [`vercel.json`](vercel.json)). Two environments:
-  `main` → production at [dhee.app](https://dhee.app), and the `dev` branch →
-  staging at [dev.dhee.app](https://dev.dhee.app); PRs get their own previews.
-  GitHub Actions deliberately does not deploy. Full setup:
+  part of the web build (see [`vercel.json`](vercel.json)). One hosted
+  environment: `main` → production at [dhee.app](https://dhee.app). There is no
+  staging and no per-PR preview — `vercel.json` disables deployments for every
+  branch but `main`. GitHub Actions deliberately does not deploy. Full setup:
   [`docs/deployment.md`](docs/deployment.md).
 
 ### Building toward the final design

@@ -108,6 +108,8 @@ export default defineSchema({
     turnsSinceExtraction: v.number(),
     starred: v.optional(v.boolean()),
     pinned: v.optional(v.boolean()),
+    // UIMessage keys of messages the person rewrote, for the "edited" label.
+    editedMessages: v.optional(v.array(v.string())),
   })
     .index("by_thread", ["threadId"])
     .index("by_user", ["userId"]),

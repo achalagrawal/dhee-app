@@ -42,6 +42,9 @@ const STOP_REASON = "Stopped by the person.";
 // Bounds the read; a turn is a handful of rows, so it should never be reached.
 const TURN_LOOKBACK = 100;
 
+// Bounds the read and the delete to one mutation's budget.
+const EDIT_LOOKBACK = 200;
+
 // NOT the message `_id`: the agent collapses one assistant turn's several
 // documents into a single UIMessage keyed by the first, and that key is what
 // `messageFeedback.messageId` holds.
@@ -49,16 +52,63 @@ function uiMessageKey(doc: MessageDoc): string {
   return `${doc.threadId}-${doc.order}-${doc.stepOrder}`;
 }
 
-async function clearFeedbackFor(
+// Drops everything keyed to a message's position — rating, "edited" mark —
+// and returns the marks that survived. Whatever replaces a discarded tail
+// reuses those positions, so a mark left behind lands on the wrong message.
+async function clearMarksFor(
   ctx: MutationCtx,
+  threadId: string,
   docs: MessageDoc[],
-): Promise<void> {
-  for (const key of new Set(docs.map(uiMessageKey))) {
+): Promise<string[]> {
+  const keys = new Set(docs.map(uiMessageKey));
+  for (const key of keys) {
     const row = await ctx.db
       .query("messageFeedback")
       .withIndex("by_message", (q) => q.eq("messageId", key))
       .unique();
     if (row) await ctx.db.delete(row._id);
+  }
+  const meta = await threadMetaFor(ctx, threadId);
+  const marks = meta?.editedMessages ?? [];
+  const kept = marks.filter((k) => !keys.has(k));
+  if (meta && kept.length !== marks.length) {
+    await ctx.db.patch(meta._id, { editedMessages: kept });
+  }
+  return kept;
+}
+
+// A message and everything after it. Collected rather than deleted by order
+// range because `clearMarksFor` needs the keys.
+async function messagesFrom(
+  ctx: MutationCtx,
+  threadId: string,
+  messageId: string,
+): Promise<MessageDoc[]> {
+  const { page } = await listMessages(ctx, components.agent, {
+    threadId,
+    paginationOpts: { cursor: null, numItems: EDIT_LOOKBACK },
+  });
+  // Newest first, so the tail is everything up to and including the target.
+  const index = page.findIndex((m) => m._id === messageId);
+  if (index === -1) {
+    throw new Error("That message is too far back to edit.");
+  }
+  return page.slice(0, index + 1);
+}
+
+// A started reply is an active stream; one only scheduled is a pending row in
+// `tail`. Both checked here, so a third caller can't inherit half a guard.
+async function assertNoActiveReply(
+  ctx: MutationCtx,
+  threadId: string,
+  tail: MessageDoc[],
+): Promise<void> {
+  const streaming = await listStreams(ctx, components.agent, {
+    threadId,
+    includeStatuses: ["streaming"],
+  });
+  if (streaming.length > 0 || tail.some((m) => m.status === "pending")) {
+    throw new Error("Dhee is still replying.");
   }
 }
 
@@ -94,6 +144,13 @@ async function authorizeThread(
   }
 }
 
+function threadMetaFor(ctx: QueryCtx | MutationCtx, threadId: string) {
+  return ctx.db
+    .query("threadMeta")
+    .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+    .unique();
+}
+
 // Upsert Dhee's per-thread metadata row. Threads originate in the agent
 // component, so their first `threadMeta` row is created lazily the first time
 // we need to attach something (a turn count, a star, a pin).
@@ -105,12 +162,10 @@ async function upsertThreadMeta(
     turnsSinceExtraction: number;
     starred: boolean;
     pinned: boolean;
+    editedMessages: string[];
   }>,
 ): Promise<void> {
-  const meta = await ctx.db
-    .query("threadMeta")
-    .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-    .unique();
+  const meta = await threadMetaFor(ctx, threadId);
   if (meta) {
     await ctx.db.patch(meta._id, patch);
   } else {
@@ -160,10 +215,7 @@ export const sendMessage = mutation({
     });
 
     // Count turns so the extraction workflow fires every N.
-    const meta = await ctx.db
-      .query("threadMeta")
-      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .unique();
+    const meta = await threadMetaFor(ctx, threadId);
     const turns = (meta?.turnsSinceExtraction ?? 0) + 1;
     await upsertThreadMeta(ctx, threadId, userId, {
       turnsSinceExtraction: turns,
@@ -297,22 +349,13 @@ export const regenerate = mutation({
     await authorizeThread(ctx, threadId);
     const userId = await requireUserId(ctx);
 
-    const active = await listStreams(ctx, components.agent, {
-      threadId,
-      includeStatuses: ["streaming"],
-    });
-    if (active.length > 0) throw new Error("Dhee is still replying.");
-
     const turn = await lastUserTurn(ctx, threadId);
     if (!turn || turn.after.length === 0) {
       throw new Error("There's no reply to try again yet.");
     }
-    // Scheduled but not yet streaming — regenerating now would leave two.
-    if (turn.after.some((m) => m.status === "pending")) {
-      throw new Error("Dhee is still replying.");
-    }
+    await assertNoActiveReply(ctx, threadId, turn.after);
 
-    await clearFeedbackFor(ctx, turn.after);
+    await clearMarksFor(ctx, threadId, turn.after);
     await dhee.deleteMessages(ctx, {
       messageIds: turn.after.map((m) => m._id),
     });
@@ -322,6 +365,57 @@ export const regenerate = mutation({
     await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
       threadId,
       promptMessageId: turn.prompt._id,
+      userId,
+    });
+    return null;
+  },
+});
+
+// Forks the conversation at the edited turn: the replies that followed
+// answered a question nobody is asking any more. Spec §6.
+export const editAndResend = mutation({
+  args: { threadId: v.string(), messageId: v.string(), prompt: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { threadId, messageId, prompt }) => {
+    await authorizeThread(ctx, threadId);
+    const userId = await requireUserId(ctx);
+
+    const trimmed = prompt.trim();
+    if (!trimmed) throw new Error("A message needs something in it.");
+
+    const [target] = await ctx.runQuery(
+      components.agent.messages.getMessagesByIds,
+      { messageIds: [messageId] },
+    );
+    if (!target || target.threadId !== threadId) {
+      throw new Error("That message is not in this conversation.");
+    }
+    // Refused, not just hidden in the UI: memory extraction would later read a
+    // rewritten assistant message back as something Dhee said.
+    if (target.message?.role !== "user") {
+      throw new Error("Only your own messages can be edited.");
+    }
+
+    const discarded = await messagesFrom(ctx, threadId, target._id);
+    await assertNoActiveReply(ctx, threadId, discarded);
+
+    const marks = await clearMarksFor(ctx, threadId, discarded);
+    await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
+
+    const { messageId: newMessageId, message: saved } = await dhee.saveMessage(
+      ctx,
+      { threadId, prompt: trimmed, skipEmbeddings: true },
+    );
+
+    await upsertThreadMeta(ctx, threadId, userId, {
+      editedMessages: [...marks, uiMessageKey(saved)],
+    });
+
+    // No turn bump: this replaces a turn rather than adding one, so counting it
+    // would run memory extraction a turn early.
+    await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
+      threadId,
+      promptMessageId: newMessageId,
       userId,
     });
     return null;
@@ -391,10 +485,7 @@ export const deleteThread = mutation({
     // Async deletion pages through messages and streams, so a long
     // conversation doesn't blow the mutation's time budget.
     await dhee.deleteThreadAsync(ctx, { threadId });
-    const meta = await ctx.db
-      .query("threadMeta")
-      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
-      .unique();
+    const meta = await threadMetaFor(ctx, threadId);
     if (meta) await ctx.db.delete(meta._id);
     const feedback = await ctx.db
       .query("messageFeedback")
@@ -537,6 +628,16 @@ export const threadFeedback = query({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .collect();
     return rows.map((r) => ({ messageId: r.messageId, rating: r.rating }));
+  },
+});
+
+export const threadEdits = query({
+  args: { threadId: v.string() },
+  returns: v.array(v.string()),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const meta = await threadMetaFor(ctx, threadId);
+    return meta?.editedMessages ?? [];
   },
 });
 

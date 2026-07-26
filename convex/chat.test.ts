@@ -415,6 +415,333 @@ describe("chat — regenerate", () => {
   });
 });
 
+describe("chat — edit & resend", () => {
+  async function exchange(
+    t: ReturnType<typeof initTest>,
+    userId: Id<"users">,
+    threadId: string,
+    prompt: string,
+    reply: string,
+  ): Promise<void> {
+    await asUser(t, userId).mutation(api.chat.sendMessage, {
+      threadId,
+      prompt,
+    });
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.messages.addMessages, {
+        threadId,
+        userId,
+        agentName: "Dhee",
+        messages: [
+          { message: { role: "assistant", content: reply }, status: "success" },
+        ],
+      });
+    });
+  }
+
+  async function docs(
+    t: ReturnType<typeof initTest>,
+    threadId: string,
+  ): Promise<
+    { _id: string; text?: string; order: number; stepOrder: number }[]
+  > {
+    const { page } = await t.run(
+      async (ctx) =>
+        await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+          threadId,
+          order: "asc",
+          paginationOpts: { cursor: null, numItems: 50 },
+        }),
+    );
+    return page;
+  }
+
+  test("editing the first of three turns drops everything after it", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+    await exchange(t, user, threadId, "second", "reply two");
+    await exchange(t, user, threadId, "third", "reply three");
+
+    const first = (await docs(t, threadId))[0];
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: first._id,
+      prompt: "first, rewritten",
+    });
+
+    // The fork keeps nothing after the edit point, and the new prompt is the
+    // only thing left.
+    expect((await docs(t, threadId)).map((m) => m.text)).toEqual([
+      "first, rewritten",
+    ]);
+    const streamReplies = (await scheduledNames(t)).filter((n) =>
+      n.includes("streamReply"),
+    );
+    // Three from the original sends, one from the edit.
+    expect(streamReplies).toHaveLength(4);
+  });
+
+  test("editing an assistant message is refused", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "an answer");
+
+    const reply = (await docs(t, threadId))[1];
+    await expect(
+      as.mutation(api.chat.editAndResend, {
+        threadId,
+        messageId: reply._id,
+        prompt: "words I did not say",
+      }),
+    ).rejects.toThrow("Only your own messages");
+  });
+
+  test("an empty edit is refused", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "an answer");
+
+    const first = (await docs(t, threadId))[0];
+    await expect(
+      as.mutation(api.chat.editAndResend, {
+        threadId,
+        messageId: first._id,
+        prompt: "   ",
+      }),
+    ).rejects.toThrow("needs something in it");
+  });
+
+  test("editing in someone else's thread is refused", async () => {
+    const t = initTest();
+    const owner = await createUser(t);
+    const other = await createUser(t);
+    const threadId = await asUser(t, owner).mutation(api.chat.startThread, {});
+    await exchange(t, owner, threadId, "hello", "an answer");
+
+    const first = (await docs(t, threadId))[0];
+    await expect(
+      asUser(t, other).mutation(api.chat.editAndResend, {
+        threadId,
+        messageId: first._id,
+        prompt: "not mine to edit",
+      }),
+    ).rejects.toThrow("Not your conversation");
+  });
+
+  test("a message id from another thread is refused", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const mine = await as.mutation(api.chat.startThread, {});
+    const other = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, mine, "hello", "an answer");
+    await exchange(t, user, other, "elsewhere", "another answer");
+
+    const elsewhere = (await docs(t, other))[0];
+    await expect(
+      as.mutation(api.chat.editAndResend, {
+        threadId: mine,
+        messageId: elsewhere._id,
+        prompt: "reaching across",
+      }),
+    ).rejects.toThrow("not in this conversation");
+  });
+
+  test("the turn counter does not double-count the replaced turn", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+    await exchange(t, user, threadId, "second", "reply two");
+
+    const before = await turnCount(t, threadId);
+    const first = (await docs(t, threadId))[0];
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: first._id,
+      prompt: "first, rewritten",
+    });
+    // The edited turn replaces a turn rather than adding one.
+    expect(await turnCount(t, threadId)).toBe(before);
+  });
+
+  test("feedback on the dropped replies is cleaned up", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+    await exchange(t, user, threadId, "second", "reply two");
+
+    const all = await t.run(
+      async (ctx) =>
+        (
+          await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+            threadId,
+            order: "asc",
+            paginationOpts: { cursor: null, numItems: 50 },
+          })
+        ).page,
+    );
+    for (const doc of all.filter(
+      (m: { message?: { role: string } }) => m.message?.role === "assistant",
+    )) {
+      await as.mutation(api.chat.setMessageFeedback, {
+        threadId,
+        messageId: `${threadId}-${doc.order}-${doc.stepOrder}`,
+        rating: "up",
+      });
+    }
+    expect(await as.query(api.chat.threadFeedback, { threadId })).toHaveLength(
+      2,
+    );
+
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: all[0]._id,
+      prompt: "first, rewritten",
+    });
+
+    // Nothing may survive: the replies after an edit reuse the same positions,
+    // so a stale row would rate a message nobody rated.
+    expect(await as.query(api.chat.threadFeedback, { threadId })).toEqual([]);
+  });
+
+  test("refuses while a reply is streaming", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "an answer");
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.streams.create, {
+        threadId,
+        order: 2,
+        stepOrder: 0,
+        format: "UIMessageChunk",
+      });
+    });
+
+    // Editing mid-stream would delete the pending reply out from under the
+    // running action — same guard regenerate already has.
+    const first = (await docs(t, threadId))[0];
+    await expect(
+      as.mutation(api.chat.editAndResend, {
+        threadId,
+        messageId: first._id,
+        prompt: "changed my mind",
+      }),
+    ).rejects.toThrow("still replying");
+    // And nothing was deleted.
+    expect((await docs(t, threadId)).map((m) => m.text)).toEqual([
+      "hello",
+      "an answer",
+    ]);
+  });
+
+  test("refuses while a reply is scheduled but not yet streaming", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "hello", "an answer");
+    // A pending row is what a scheduled-but-not-started reply looks like.
+    await t.run(async (ctx) => {
+      await ctx.runMutation(components.agent.messages.addMessages, {
+        threadId,
+        userId: user,
+        agentName: "Dhee",
+        messages: [
+          { message: { role: "assistant", content: "" }, status: "pending" },
+        ],
+      });
+    });
+
+    const first = (await docs(t, threadId))[0];
+    await expect(
+      as.mutation(api.chat.editAndResend, {
+        threadId,
+        messageId: first._id,
+        prompt: "changed my mind",
+      }),
+    ).rejects.toThrow("still replying");
+  });
+
+  test("the rewritten message is marked edited, at its own position", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([]);
+
+    const first = (await docs(t, threadId))[0];
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: first._id,
+      prompt: "first, rewritten",
+    });
+
+    // The key the client renders by, so the label lands on the right bubble.
+    const rewritten = (await docs(t, threadId))[0];
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([
+      `${threadId}-${rewritten.order}-${rewritten.stepOrder}`,
+    ]);
+  });
+
+  test("the mark goes when a later edit discards the message wearing it", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+    await exchange(t, user, threadId, "second", "reply two");
+
+    // Edit the second turn, then edit the first — which discards the second.
+    const before = await docs(t, threadId);
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: before[2]._id,
+      prompt: "second, rewritten",
+    });
+    expect(await as.query(api.chat.threadEdits, { threadId })).toHaveLength(1);
+
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: before[0]._id,
+      prompt: "first, rewritten",
+    });
+
+    // Only the first turn is marked now. Positions are reused, so a mark left
+    // behind would label a message nobody edited.
+    const rewritten = (await docs(t, threadId))[0];
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([
+      `${threadId}-${rewritten.order}-${rewritten.stepOrder}`,
+    ]);
+  });
+
+  test("regenerate marks nothing", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    await exchange(t, user, threadId, "first", "reply one");
+
+    await as.mutation(api.chat.regenerate, { threadId });
+
+    expect(await as.query(api.chat.threadEdits, { threadId })).toEqual([]);
+  });
+});
+
 describe("chat — message feedback", () => {
   test("feedback round-trips and clears with a null rating", async () => {
     const t = initTest();

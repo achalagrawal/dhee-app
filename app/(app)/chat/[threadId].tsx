@@ -13,11 +13,13 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { Composer } from "../../../src/components/Composer";
+import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton, type IconName } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
@@ -43,10 +45,16 @@ export default function Chat() {
   const atBottomRef = useRef(true);
   // So the button flips back without waiting for the abort to round-trip.
   const [stopping, setStopping] = useState(false);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [pendingEdit, setPendingEdit] = useState<{
+    messageId: string;
+    prompt: string;
+  } | null>(null);
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const stopGeneration = useMutation(api.chat.stopGeneration);
   const regenerateReply = useMutation(api.chat.regenerate);
+  const editAndResend = useMutation(api.chat.editAndResend);
   const setFeedback = useMutation(api.chat.setMessageFeedback);
   const { results } = useUIMessages(
     api.chat.listThreadMessages,
@@ -62,12 +70,18 @@ export default function Chat() {
     for (const f of feedback ?? []) m.set(f.messageId, f.rating);
     return m;
   }, [feedback]);
+  const edits = useQuery(
+    api.chat.threadEdits,
+    threadId ? { threadId } : "skip",
+  );
+  const editedKeys = useMemo(() => new Set(edits ?? []), [edits]);
 
-  // Read through a ref so `rate` keeps one identity for the life of the
-  // screen. Closing over `feedbackMap` directly would rebuild it on every
-  // rating change, which re-renders every memoized Message to toggle one icon.
+  // Read through refs so `rate` and `submitEdit` keep one identity. Closing
+  // over these directly rebuilds them on every delta, defeating Message's memo.
   const feedbackMapRef = useRef(feedbackMap);
   feedbackMapRef.current = feedbackMap;
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
 
   const rate = useCallback(
     (messageId: string, next: "up" | "down") => {
@@ -137,6 +151,39 @@ export default function Chat() {
     }
   }, [threadId, regenerateReply]);
 
+  const startEdit = useCallback((m: UIMessage) => setEditingKey(m.key), []);
+  const cancelEdit = useCallback(() => setEditingKey(null), []);
+
+  const runEdit = useCallback(
+    async (messageId: string, prompt: string) => {
+      if (!threadId) return;
+      cancelEdit();
+      setFailed(false);
+      try {
+        await editAndResend({ threadId, messageId, prompt });
+      } catch {
+        setFailed(true);
+      }
+    },
+    [threadId, editAndResend, cancelEdit],
+  );
+
+  // Losing just the reply to the newest turn is the ordinary case and proceeds
+  // quietly. The editor stays open behind the dialog, so Cancel keeps the draft.
+  const submitEdit = useCallback(
+    (message: UIMessage, prompt: string) => {
+      const laterUserTurns = resultsRef.current.some(
+        (m) => m.role === "user" && m.order > message.order,
+      );
+      if (laterUserTurns) {
+        setPendingEdit({ messageId: message.id, prompt });
+        return;
+      }
+      void runEdit(message.id, prompt);
+    },
+    [runEdit],
+  );
+
   const newThread = useCallback(() => router.replace("/home"), []);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -189,6 +236,11 @@ export default function Chat() {
         rating={feedbackMap.get(item.key) ?? null}
         onRate={rate}
         onRegenerate={generating ? undefined : regenerate}
+        edited={editedKeys.has(item.key)}
+        editing={item.key === editingKey}
+        onStartEdit={generating ? undefined : startEdit}
+        onCancelEdit={cancelEdit}
+        onSubmitEdit={submitEdit}
       />
     ),
     [
@@ -200,6 +252,11 @@ export default function Chat() {
       rate,
       generating,
       regenerate,
+      editedKeys,
+      editingKey,
+      startEdit,
+      cancelEdit,
+      submitEdit,
     ],
   );
 
@@ -305,7 +362,65 @@ export default function Chat() {
         onClose={() => setMenuOpen(false)}
         onDeleted={() => router.replace("/home")}
       />
+
+      <ConfirmDialog
+        visible={pendingEdit !== null}
+        lang={lang}
+        title={t(lang, "editDropsRepliesTitle")}
+        body={t(lang, "editDropsRepliesBody")}
+        confirmLabel={t(lang, "editDropsRepliesConfirm")}
+        onCancel={() => setPendingEdit(null)}
+        onConfirm={() => {
+          const edit = pendingEdit;
+          setPendingEdit(null);
+          if (edit) void runEdit(edit.messageId, edit.prompt);
+        }}
+      />
     </AppShell>
+  );
+}
+
+// Owns the draft so a keystroke re-renders this bubble alone, not the thread.
+function MessageEditor({
+  initial,
+  lang,
+  styles,
+  onCancel,
+  onSubmit,
+}: {
+  initial: string;
+  lang: ReturnType<typeof useLanguage>;
+  styles: ReturnType<typeof makeStyles>;
+  onCancel: () => void;
+  onSubmit: (prompt: string) => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const prompt = draft.trim();
+  return (
+    <View style={styles.editCard}>
+      <TextInput
+        value={draft}
+        onChangeText={setDraft}
+        multiline
+        autoFocus
+        onKeyPress={(e) => {
+          if (e.nativeEvent.key === "Escape") onCancel();
+        }}
+        style={styles.editInput}
+      />
+      <View style={styles.editActions}>
+        <Pressable onPress={onCancel} style={styles.editCancelBtn}>
+          <Text style={styles.editCancelText}>{t(lang, "cancel")}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => onSubmit(prompt)}
+          disabled={!prompt}
+          style={[styles.editSaveBtn, !prompt && styles.editSaveDisabled]}
+        >
+          <Text style={styles.editSaveText}>{t(lang, "saveAndSend")}</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -323,6 +438,11 @@ const Message = memo(function Message({
   rating,
   onRate,
   onRegenerate,
+  edited,
+  editing,
+  onStartEdit,
+  onCancelEdit,
+  onSubmitEdit,
 }: {
   message: UIMessage;
   isLast: boolean;
@@ -333,6 +453,12 @@ const Message = memo(function Message({
   onRate: (messageKey: string, rating: "up" | "down") => void;
   /** Undefined while a reply is generating — try again is unavailable then. */
   onRegenerate?: () => void;
+  edited: boolean;
+  editing: boolean;
+  /** Undefined while a reply is generating — editing is unavailable then. */
+  onStartEdit?: (message: UIMessage) => void;
+  onCancelEdit: () => void;
+  onSubmitEdit: (message: UIMessage, prompt: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
@@ -347,6 +473,19 @@ const Message = memo(function Message({
   const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
   if (isUser) {
+    if (editing) {
+      return (
+        <View style={styles.userWrap}>
+          <MessageEditor
+            initial={message.text}
+            lang={lang}
+            styles={styles}
+            onCancel={onCancelEdit}
+            onSubmit={(prompt) => onSubmitEdit(message, prompt)}
+          />
+        </View>
+      );
+    }
     if (!message.text.trim()) return null;
     return (
       <View style={styles.userWrap}>
@@ -354,6 +493,19 @@ const Message = memo(function Message({
           <Text style={styles.userText}>{message.text}</Text>
         </View>
         <View style={styles.userMeta}>
+          {edited ? (
+            <Text style={styles.editedLabel}>{t(lang, "edited")}</Text>
+          ) : null}
+          {onStartEdit ? (
+            <Pressable
+              onPress={() => onStartEdit(message)}
+              hitSlop={6}
+              accessibilityLabel={t(lang, "editMessage")}
+              style={styles.metaBtn}
+            >
+              <Icon name="edit" size={14} color={colors.textFaint} />
+            </Pressable>
+          ) : null}
           <Pressable onPress={copy} hitSlop={6} style={styles.metaBtn}>
             <Icon name="copy" size={14} color={colors.textFaint} />
           </Pressable>
@@ -483,6 +635,48 @@ function makeStyles(colors: Colors) {
     },
     userMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaBtn: { padding: 5, borderRadius: 7 },
+    editedLabel: { color: colors.textFaint, fontSize: 12, ...font.regular },
+    editCard: {
+      width: "100%",
+      maxWidth: "84%",
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.accent,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    editInput: {
+      color: colors.text,
+      fontSize: 16,
+      lineHeight: 24,
+      minHeight: 72,
+      textAlignVertical: "top",
+      ...font.regular,
+    },
+    editActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
+      marginTop: 8,
+    },
+    editCancelBtn: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 15,
+      paddingVertical: 7,
+      borderRadius: radius.pill,
+    },
+    editCancelText: { color: colors.text, fontSize: 13.5, ...font.regular },
+    editSaveBtn: {
+      backgroundColor: colors.accent,
+      paddingHorizontal: 15,
+      paddingVertical: 7,
+      borderRadius: radius.pill,
+    },
+    editSaveDisabled: { opacity: 0.5 },
+    editSaveText: { color: colors.onAccent, fontSize: 13.5, ...font.semibold },
     // Assistant
     botRow: { flexDirection: "row", gap: 12 },
     avatar: {

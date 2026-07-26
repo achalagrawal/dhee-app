@@ -119,11 +119,23 @@ have to be true in the world for the published text to stay true.
 **Things that must exist before either page goes live.** Each is a sentence in
 the documents that is false until someone does it:
 
+- **Nothing in the app links to either document.** Verified: `app/sign-in.tsx`
+  has no agreement footer, `app/(app)/settings.tsx` has no legal links, and
+  there are no `/privacy` or `/terms` routes. A policy nobody can reach is not
+  published, an app-store submission needs a reachable privacy policy URL, and
+  the consent the GDPR section relies on cannot be given against a document the
+  person has never been shown. This is the blocking item.
 - **`privacy@dhee.app` must receive mail.** It is the only route for erasure
   requests, grievances, and account closure, and it is named in both documents.
+  `dhee.app` needs MX records, which is a separate job from pointing the domain
+  at Vercel.
 - **`https://dhee.app/safety` must resolve.** The terms link to it from the
   emergency section, which is the worst page to 404. Epic 16 and Epic 17 both
   track it.
+- **`dhee.app` must point at the deployment at all.** `docs/deployment.md`
+  records that the DNS records were never added, so today production is only
+  reachable at its `*.vercel.app` URL — while both documents cite `dhee.app`
+  addresses and links.
 - **A postal address, if you submit to the app stores.** Not required by the
   documents as written, but Apple and Google both ask a developer for one.
 
@@ -187,10 +199,19 @@ document and the app do not yet agree:
 - **No consent record.** Nothing in the schema stores that a person consented,
   to what, or when — which is what an Article 7(1) demonstration needs. See the
   explicit-consent item above.
-- **Plans and limits are described ahead of the code.** The "Plans, limits, and
-  upgrades" section of the terms describes #11's design (free daily limit,
-  manual upgrade requests, no payments). If #11 does not ship before launch,
-  that section must be cut or rewritten to match what exists.
+- **Plans and limits now describe today, not #11.** The terms used to state a
+  daily message limit that incognito counted towards — #11's design, none of
+  which is built. Rewritten to say Dhee is free, there is no payment, and
+  limits may be introduced with notice. If #11 ships, that section should gain
+  the specifics back.
+- **No age gate and no consent capture.** The terms require 18+ and the policy
+  rests special-category data on explicit consent, but sign-up asks for neither
+  and records neither. Self-declaration at sign-up is the normal minimum.
+- **Avatar URLs are not access-controlled.** `users.currentProfile` and
+  `accountSummary` hand out `ctx.storage.getUrl(...)` links, which Convex serves
+  to anyone holding the URL. Unguessable, but not scoped to the account the way
+  every database read is. Neither document claims otherwise; worth knowing
+  before anyone writes that photos are private.
 - **Hindi is missing.** Both documents are English only. Epic 17's legal pages
   need English and Hindi content, sitting alongside `src/lib/i18n.ts`, and a
   translated legal document needs the same review as the original.

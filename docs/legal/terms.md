@@ -99,15 +99,14 @@ personal information, or anything you are not free to share.
 
 ## Plans, limits, and upgrades
 
-Dhee is free to use, with a daily limit on how many messages you can send. The
-limit resets each day. Incognito messages count towards it, because they cost
-the same to answer.
+Dhee is free to use. **There is no paid plan and no payment today** — nothing
+here asks you for money, and we will not charge you without saying so first and
+asking you to agree to it.
 
-If you need more, you can ask us for an upgrade from inside the app. We review
-requests by hand and reply by email. **There is no paid plan and no payment
-today** — nothing on this page asks you for money, and we will not charge you
-without saying so first and asking you to agree to it. Limits may change as we
-learn what a reasonable day looks like.
+Answering you costs us money on every message, so we may introduce usage limits
+— a cap on messages in a day, most likely — and we may change them as we learn
+what a reasonable day looks like. If we do, the app will show you where you
+stand rather than failing silently, and you will be able to ask us for more.
 
 ## Availability
 

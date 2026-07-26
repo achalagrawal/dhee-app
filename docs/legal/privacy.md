@@ -1,12 +1,12 @@
 # Privacy Policy
 
-**Status: draft, not published.** Written by engineering from what the code
-actually does. It has not been reviewed by a lawyer and must not be shipped
-until it has been. See [README.md](./README.md) for the open decisions, the
-claims that still need verifying, and the traceability map back to the repo.
+**Status: complete draft, awaiting legal review.** Written by engineering from
+what the code actually does. Every value is filled in and the text is ready to
+publish as written — but it has not been reviewed by a lawyer, and it should
+not go live until it has. See [README.md](./README.md) for the traceability map
+back to the repo and the work that still has to happen outside these documents.
 
-_Draft dated 26 July 2026. Placeholders in **[square brackets]** need real
-values before publication._
+_Draft dated 26 July 2026._
 
 ---
 
@@ -28,10 +28,9 @@ people:
 
 ## Who we are
 
-Dhee is run by **Achal Agrawal**, an individual based in India — not a company.
-"We" throughout this policy means him. For anything here, including a
-complaint, write to **[privacy@dhee.app — create this mailbox, or replace it
-with the address you want published]**.
+Dhee is run by **Achal Agrawal**, an individual based in Gandhinagar, Gujarat,
+India — not a company. "We" throughout this policy means him. For anything
+here, including a complaint, write to **privacy@dhee.app**.
 
 Under India's Digital Personal Data Protection Act, 2023, he is the **Data
 Fiduciary** for the personal data described here, and you are the **Data
@@ -81,37 +80,90 @@ requests we send to the model provider or to the corpus service. What those
 requests do contain is the text you wrote — so if you type your own name or
 someone else's into a message, it goes with it.
 
-Most of these services operate outside India, and your data crosses borders to
-reach them. Indian law permits this except to countries the government has
-restricted. If you are somewhere with its own rules about where your data may
-go, read the next section.
+Dhee is built and run from India, and most of these services operate outside
+India too, so your data crosses borders to reach them. Indian law permits this
+except to countries the government has restricted. If you are in the EEA or the
+UK, see [If you are in Europe or the UK](#if-you-are-in-europe-or-the-uk).
 
-## Where you are
+## Why we are allowed to do each of these things
 
-Anyone can use Dhee, from anywhere. It is built and run from India, its
-governing law is Indian, and this policy is written to the Indian Act.
+Everything above is done for one of three reasons, and it is worth being
+precise about which:
 
-If you are in a place with its own data-protection law — the EEA, the UK, or a
-US state with a privacy statute, among others — you may have rights this policy
-does not spell out, and we may have obligations it does not describe. We would
-rather say that plainly than imply a compliance we have not done the work for.
-Write to us and we will honour any request we are able to, wherever you are.
-**[This paragraph is the honest engineering position, not a legal one. Counsel
-must decide whether serving EEA/UK users requires a GDPR-shaped policy, a
-lawful-basis analysis, a representative in the EU or UK, and a transfer
-mechanism — see README.]**
+**To give you what you asked for.** Holding your account, storing your
+conversations, sending your words to a model so a reply comes back, looking
+things up in the corpus, and keeping the picture of you that makes Dhee more
+than a stateless chatbot. This is the service itself: without it there is no
+product to use. In European terms, performance of our contract with you.
+
+**Because you chose to tell us.** People bring Dhee grief, distress, faith,
+relationships, and doubt. In European law some of that is "special category"
+data, and the only sound basis for handling it is your explicit consent. You
+give that when you sign up, having been told plainly what Dhee does with what
+you write; you can withdraw it at any time by deleting the material, clearing
+what Dhee remembers, or closing your account. Withdrawing does not undo what
+was already done, and it means Dhee can no longer be the thing it is meant to
+be for you.
+
+**To keep the service standing up.** Rate limits, abuse prevention, security,
+and diagnosing failures. A legitimate interest, and a narrow one: it never
+extends to reading conversations for curiosity, marketing, or profiling you for
+anyone else's benefit.
+
+We do not sell your data, we do not share it for advertising, and we make no
+automated decision about you that has a legal or similarly significant effect.
+Dhee does build a picture of you — that is the point of it — and you can read
+and delete every part of that picture.
 
 ## Sending your words to a model
 
 Dhee cannot answer you without showing your message to a language model. There
 is no version of this product where that does not happen.
 
-We do not use your conversations to train any model of our own, and we have no
-training pipeline of any kind. What the providers who receive those requests do
-with them is governed by their own terms and by the settings on our account
-with them. **[We have not yet verified those settings — do it before
-publishing, and reword this paragraph to say what is actually true. See
-README.]**
+We do not train models. There is no training pipeline here, and your
+conversations are never assembled into a dataset — not for us, and not for
+anyone else. What we send to a provider we send in order to get one reply back.
+Those requests are then handled under that provider's own terms, which you can
+read for yourself: they are the same terms any developer using them gets, and
+we have no private arrangement that widens them.
+
+## If you are in Europe or the UK
+
+Anyone can use Dhee, from anywhere, which means the GDPR and the UK GDPR apply
+to people using it from those places even though we are in India. This section
+is for you.
+
+**Who is responsible.** Achal Agrawal, at the address above, is the controller.
+There is no data protection officer: this is one person, and that person is the
+one you will reach at privacy@dhee.app.
+
+**Why we process, and on what basis.** As set out just above: contract for the
+service itself, your explicit consent for the sensitive things you choose to
+write, and a narrow legitimate interest in keeping the service secure and
+standing up. Giving us your email address is necessary to hold an account —
+without it there is nowhere to send your sign-in code and no account to sign in
+to. Everything else you give us is optional.
+
+**Where your data goes.** To India, where Dhee is run, and to the providers
+listed above, which operate in several countries. India has no European
+adequacy decision, so these transfers rest on the safeguards available under
+Chapter V of the GDPR and its UK equivalent. Write to us if you want to know
+what applies to a specific provider.
+
+**How long we keep it.** Until you delete it or close your account — see
+[How long we keep things](#how-long-we-keep-things).
+
+**Your rights.** Access, rectification, erasure, restriction of processing,
+portability, objection to processing based on legitimate interests, and
+withdrawal of consent at any time. Much of this you can do yourself in the app,
+immediately and without asking us; for the rest, write to us. We will not charge
+you for it and we will not make it difficult.
+
+**Complaining.** If we get it wrong, tell us first — but you have the right to
+complain to your national data protection authority in the EEA, or to the
+Information Commissioner's Office in the UK, without going through us at all.
+
+**Children.** Dhee is 18+, which is stricter than either regime requires.
 
 ## Looking things up in the source texts
 
@@ -236,10 +288,11 @@ than quietly reposting the page.
 
 ## Contact and grievances
 
-Questions, requests, or complaints: **Achal Agrawal**, **[privacy@dhee.app —
-see above]**, **[postal address, if counsel says one must be published]**.
+Questions, requests, or complaints: **Achal Agrawal**, Gandhinagar, Gujarat,
+India — **privacy@dhee.app**.
 
 He is also the Grievance Officer for the purposes of the Act. We will
-acknowledge your grievance within **[N]** days and respond within **[N]** days.
-If you are not satisfied with our response, you may complain to the Data
-Protection Board of India.
+acknowledge your grievance within **three working days** and resolve it within
+**thirty days**. If you are not satisfied with our response, you may complain to
+the Data Protection Board of India — and if you are in the EEA or the UK, to
+your own supervisory authority instead.

@@ -29,31 +29,36 @@ service".
 
 ## Decisions taken while drafting
 
-**Operated by an individual.** Both documents name **Achal Agrawal** — the
-repository owner and the `author` in `package.json` — as the operator, in his
-personal capacity rather than through a company. Confirm that is right before
-publishing: an individual operator carries personal, unlimited liability for
-everything these documents promise, which is a reason people incorporate before
-launching a product that invites people's grief and mental distress. Contact
-addresses are written as `privacy@dhee.app`, a mailbox that does not exist yet.
+**Operated by an individual.** Both documents name **Achal Agrawal**, of
+Gandhinagar, Gujarat, in his personal capacity rather than through a company,
+with `privacy@dhee.app` as the published contact and the courts at Gandhinagar
+named for governing law. Worth saying once: an individual operator carries
+personal, unlimited liability for everything these documents promise, which is
+the usual reason people incorporate before launching a product that invites
+grief and mental distress. That is a decision for the operator, not a drafting
+problem.
 
-**Jurisdiction: Indian law, but open to everyone.** The product will be
-available worldwide, so the drafts are written to the Digital Personal Data
-Protection Act, 2023 — Data Fiduciary/Data Principal framing, the rights in
-sections 11–14, breach notification, a named Grievance Officer — and then say
-plainly that people elsewhere may have rights the policy does not enumerate,
-rather than implying a compliance nobody has done the work for.
+**Jurisdiction: Indian law, open to everyone, with a real GDPR section.** The
+product is available worldwide, so the drafts are written to the Digital
+Personal Data Protection Act, 2023 — Data Fiduciary/Data Principal framing, the
+rights in sections 11–14, breach notification, a named Grievance Officer — and
+carry a European section covering controller identity, lawful basis per
+purpose, transfers, retention, the Article 15–21 rights, and the right to
+complain to a supervisory authority.
 
-**That is the largest unresolved risk in these drafts.** Serving EEA or UK
-users from India engages the GDPR and UK GDPR on the targeting limb, which is
-not satisfied by a governing-law clause: it wants a lawful basis for each
-purpose, an Article 13 notice, a transfer mechanism, arguably a representative
-in the EU and UK, and a DPIA — plausibly required here, given profiling and the
-sensitive categories people bring to Dhee. US state privacy statutes come with
-their own thresholds. None of that is drafted. The realistic options are to do
-that work with counsel, or to geo-limit signups at launch and open up later.
-Someone has to choose; the drafts currently disclose the gap instead of hiding
-it.
+**The lawful-basis split is the part to read closely.** The policy says the
+service itself runs on contract, that keeping it standing up is a narrow
+legitimate interest, and that the sensitive things people write — grief,
+distress, faith, relationships — rest on **explicit consent** under Article
+9(2)(a). That is the only sound basis for special-category data, and it is a
+promise the app does not yet keep: consent has to be given knowingly at sign-up,
+separately from "by continuing you agree to our terms", and it has to be
+withdrawable. See the gaps section below.
+
+**Liability is capped at the greater of amounts paid or ₹10,000.** A pure
+"amounts you paid" cap is zero while Dhee is free, and a cap a court reads as
+illusory is easier to strike out entirely. Death, personal injury, fraud, and
+non-waivable consumer rights are carved out.
 
 **Minimum age 18, not 16.** The design says 16. Under the DPDP Act a "child" is
 anyone under 18, and processing their data needs verifiable parental consent,
@@ -105,31 +110,61 @@ the fact that it happens in incognito conversations too.
 
 ## Before publishing — the checklist
 
-**Values to fill in.** A working `privacy@dhee.app` mailbox (or whatever address
-replaces it); a postal address, if counsel says one must be published; the
-grievance acknowledgement and response windows; the city whose courts have
-jurisdiction; the Safety & limitations page URL. None of these exist in the repo
-today.
+**No placeholders remain.** Every value is filled in: operator, contact address,
+city for governing law, grievance windows (three working days to acknowledge,
+thirty to resolve), liability cap, and the Safety page URL. The text can be
+published as written. What follows is not drafting work — it is the things that
+have to be true in the world for the published text to stay true.
 
-**Claims that depend on configuration, not code.** These are true only if
-someone has set them that way, and none of them can be verified from this
-repository:
+**Things that must exist before either page goes live.** Each is a sentence in
+the documents that is false until someone does it:
 
-- Whether prompt logging is off for our OpenRouter account, and what the
-  upstream model provider retains or trains on. The policy currently says we
-  have not verified this — verify it, then rewrite that paragraph to state what
-  is actually true.
+- **`privacy@dhee.app` must receive mail.** It is the only route for erasure
+  requests, grievances, and account closure, and it is named in both documents.
+- **`https://dhee.app/safety` must resolve.** The terms link to it from the
+  emergency section, which is the worst page to 404. Epic 16 and Epic 17 both
+  track it.
+- **A postal address, if you submit to the app stores.** Not required by the
+  documents as written, but Apple and Google both ask a developer for one.
+
+**Claims that depend on configuration, not code.** None of these can be checked
+from this repository:
+
+- What the model providers retain. The policy no longer asserts anything about
+  their settings — it says we do not train, and that their requests are handled
+  under their own published terms. Confirm the OpenRouter account has not opted
+  into any prompt-logging or data-collection tier; if it has, the paragraph
+  needs a sentence saying so.
 - Whether the corpus service at `md-mcp.achal.xyz` is first-party or a third
   party, where it runs, and whether it logs the queries it receives. If it is a
   third party, it needs a processing agreement and a named mention.
 - The Convex, SES, Vercel, and Google regions and data-residency positions,
-  which decide how the cross-border transfer paragraph should read — and which
-  matter more now that the product is open to users everywhere.
+  which the European transfers paragraph depends on.
 - Convex's backup and snapshot retention, which is the basis for the policy's
   one-line hedge that deleted data may survive briefly in backups. Confirm it or
   drop the sentence.
-- Whether a DPDP consent notice needs to be shown at sign-up as a separate
-  artefact from this policy.
+
+**What the GDPR section commits you to, beyond the text.** Writing the section
+does not do the work it describes:
+
+- **Explicit consent at sign-up.** The policy rests special-category data on
+  Article 9(2)(a). That needs a real consent moment — a deliberate action,
+  separable from accepting the terms, recorded and withdrawable — not a footer
+  line. This is the single biggest gap between the drafts and the app.
+- **Article 27 representatives.** An EU and a UK representative are probably
+  required, since the exemption for occasional processing is unlikely to hold
+  when the processing routinely touches sensitive categories. These are paid
+  services with a named address published in the policy.
+- **A DPIA.** Profiling plus special-category data plus a vulnerable user base
+  makes one likely mandatory. It is an internal document, not a published one.
+- **A record of processing.** Article 30, same reasoning.
+- **Breach notification within 72 hours.** The policy promises notification;
+  the GDPR puts a clock on it. Decide now who is on the hook and how they would
+  find out.
+
+If any of that is more than you want to take on before launch, the alternative
+is to geo-limit signups to India, publish the DPDP-only version, and open up
+later — the European section is self-contained and can be lifted out.
 
 **Gaps between the drafts and the code.** Each of these is a place where the
 document and the app do not yet agree:
@@ -146,8 +181,12 @@ document and the app do not yet agree:
   account" control, so closing an account is a manual step for whoever handles
   the request, and both drafts describe it that way. `docs/build/FEATURES.md`
   Epic 9 tracks the missing control.
-- **There is no export.** The design promised one; the drafts do not. If the
-  DPDP right to a summary of processing is to be self-serve, it needs building.
+- **There is no export.** The design promised one; the drafts do not. The DPDP
+  right to a summary of processing and the GDPR right to portability are both
+  answerable by email today, which does not scale past a handful of requests.
+- **No consent record.** Nothing in the schema stores that a person consented,
+  to what, or when — which is what an Article 7(1) demonstration needs. See the
+  explicit-consent item above.
 - **Plans and limits are described ahead of the code.** The "Plans, limits, and
   upgrades" section of the terms describes #11's design (free daily limit,
   manual upgrade requests, no payments). If #11 does not ship before launch,

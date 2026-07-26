@@ -1,12 +1,12 @@
 # Terms of Use
 
-**Status: draft, not published.** Written by engineering from what the code
-actually does. It has not been reviewed by a lawyer and must not be shipped
-until it has been. See [README.md](./README.md) for the open decisions and the
-traceability map back to the repo.
+**Status: complete draft, awaiting legal review.** Written by engineering from
+what the code actually does. Every value is filled in and the text is ready to
+publish as written — but it has not been reviewed by a lawyer, and it should
+not go live until it has. See [README.md](./README.md) for the traceability map
+back to the repo and the work that still has to happen outside these documents.
 
-_Draft dated 26 July 2026. Placeholders in **[square brackets]** need real
-values before publication._
+_Draft dated 26 July 2026._
 
 ---
 
@@ -16,8 +16,9 @@ Dhee is a tool for reflection and thinking, offered as it is. By using it you
 agree to these terms and to our [Privacy Policy](./privacy.md). If you do not
 agree, please do not use the service.
 
-Dhee is run by **Achal Agrawal**, an individual based in India — not a company.
-"We" and "us" mean him; "you" means the person using Dhee.
+Dhee is run by **Achal Agrawal**, an individual based in Gandhinagar, Gujarat,
+India — not a company. "We" and "us" mean him; "you" means the person using
+Dhee.
 
 Anyone can use Dhee, from anywhere. It is built and run from India, and these
 terms are governed by Indian law. If using it would break the law where you
@@ -50,7 +51,7 @@ If you are in danger, or thinking about harming yourself or someone else,
 contact your local emergency number or a crisis line immediately. **Dhee cannot
 provide emergency help.** It cannot call anyone for you, it is not monitored by
 a human, and no one is watching your conversation for signs that you need help.
-See **[Safety & limitations page]** for resources.
+See [Safety & limitations](https://dhee.app/safety) for resources.
 
 ## What Dhee can and can't do
 
@@ -119,7 +120,7 @@ data.
 
 You can stop using Dhee at any time. You can delete your conversations and
 everything Dhee remembers from inside the app, and you can ask us to close your
-account entirely by writing to **[privacy@dhee.app — see the Privacy Policy]**.
+account entirely by writing to **privacy@dhee.app**.
 Closing an account deletes what it held: the profile and photo, the
 conversations, and everything Dhee had inferred about you.
 
@@ -135,22 +136,27 @@ fitness for a particular purpose, accuracy, or uninterrupted availability.
 
 To the fullest extent the law allows, we are not liable for indirect,
 incidental, or consequential loss, or for any decision you make on the strength
-of something Dhee said. **[Liability cap and carve-outs to be settled with
-counsel — some limits cannot be excluded under Indian law, including for death,
-personal injury, or fraud.]**
+of something Dhee said.
 
-Nothing here limits any right you have as a consumer that cannot be waived.
+Where we are liable, our total liability for all claims arising out of or
+relating to Dhee is limited to the greater of the amounts you paid us in the
+twelve months before the claim, or ₹10,000.
+
+That limit does not apply — and nothing anywhere in these terms applies — to
+liability for death or personal injury caused by our negligence, for fraud or
+fraudulent misrepresentation, or to anything else the law does not permit us to
+limit. Nothing here takes away a right you have as a consumer that cannot be
+waived.
 
 ## Governing law and disputes
 
-These terms are governed by the laws of India, and the courts at **[city]**
-have exclusive jurisdiction.
+These terms are governed by the laws of India, and the courts at Gandhinagar,
+Gujarat have exclusive jurisdiction.
 
-Because Dhee is open to people anywhere, that clause may not hold everywhere.
-Some countries give consumers a right to sue at home, or apply their own
-consumer law whatever a contract says. Nothing here takes away a mandatory right
-you have where you live. **[Counsel to confirm this clause, and whether serving
-users outside India needs more than a governing-law line — see README.]**
+Because Dhee is open to people anywhere, that clause does not hold everywhere.
+Many countries give consumers the right to bring a claim where they live and
+apply their own consumer law whatever a contract says. If you are one of those
+consumers, those rights are yours and this section does not take them away.
 
 ## Changes to these terms
 
@@ -160,4 +166,4 @@ you accept the updated terms.
 
 ## Contact
 
-**Achal Agrawal**, **[privacy@dhee.app — see the Privacy Policy]**.
+**Achal Agrawal**, Gandhinagar, Gujarat, India — **privacy@dhee.app**.

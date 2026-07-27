@@ -11,6 +11,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { planForProfile, traditionLimit } from "./lib/plan";
 
 /** The signed-in person's app-side user id, or null if there is no valid
  *  identity on the request.
@@ -66,6 +67,48 @@ export async function getProfile(
     .unique();
 }
 
+// Patch the profile, creating it if this is the first thing ever set on it.
+// A row can be missing here because profiles are written lazily — someone can
+// change a setting before finishing onboarding.
+async function patchProfile(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  patch: Partial<Omit<Doc<"profiles">, "_id" | "_creationTime" | "userId">>,
+): Promise<void> {
+  const profile = await getProfile(ctx, userId);
+  if (profile) {
+    await ctx.db.patch(profile._id, patch);
+  } else {
+    await ctx.db.insert("profiles", {
+      userId,
+      preferredLanguage: "en",
+      onboarded: false,
+      createdAt: Date.now(),
+      ...patch,
+    });
+  }
+}
+
+// ---- Personalization ------------------------------------------------------
+//
+// These three fields go verbatim into the system prompt. They are the most
+// direct control a person has over how Dhee sees them, so the rules are the
+// same ones `setName` already follows: trim, cap, and treat empty as "unset"
+// rather than as an empty string. Clearing a field has to actually stop the
+// model being told it. See docs/build/specs/personalization.md.
+
+const NICKNAME_MAX = 60;
+const OCCUPATION_MAX = 120;
+const ABOUT_YOU_MAX = 600;
+const TRADITION_MAX = 60;
+
+/** Trimmed and capped, or undefined when there's nothing left. */
+function normalize(value: string | undefined, max: number): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim().slice(0, max);
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export const currentProfile = query({
   args: {},
   handler: async (ctx) => {
@@ -73,7 +116,12 @@ export const currentProfile = query({
     if (userId === null) return null;
     const profile = await getProfile(ctx, userId);
     if (!profile) {
-      return { userId, onboarded: false, preferredLanguage: "en" as const };
+      return {
+        userId,
+        onboarded: false,
+        preferredLanguage: "en" as const,
+        traditions: [],
+      };
     }
     return {
       userId,
@@ -83,6 +131,10 @@ export const currentProfile = query({
       avatarUrl: profile.avatarId
         ? await ctx.storage.getUrl(profile.avatarId)
         : null,
+      nickname: profile.nickname,
+      occupation: profile.occupation,
+      aboutYou: profile.aboutYou,
+      traditions: profile.traditions ?? [],
     };
   },
 });
@@ -170,26 +222,21 @@ export const completeOnboarding = mutation({
   args: {
     name: v.optional(v.string()),
     preferredLanguage: v.union(v.literal("en"), v.literal("hi")),
+    // Optional. Writes the same field the settings picker edits — two sources
+    // of truth for one setting is how they drift apart.
+    tradition: v.optional(v.string()),
   },
   returns: v.null(),
-  handler: async (ctx, { name, preferredLanguage }) => {
+  handler: async (ctx, { name, preferredLanguage, tradition }) => {
     const userId = await requireUserId(ctx);
-    const existing = await getProfile(ctx, userId);
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        name,
-        preferredLanguage,
-        onboarded: true,
-      });
-    } else {
-      await ctx.db.insert("profiles", {
-        userId,
-        name,
-        preferredLanguage,
-        onboarded: true,
-        createdAt: Date.now(),
-      });
-    }
+    const lens = normalize(tradition, TRADITION_MAX);
+    await patchProfile(ctx, userId, {
+      name: normalize(name, NICKNAME_MAX),
+      preferredLanguage,
+      onboarded: true,
+      // One lens, which every plan allows — no cap check needed here.
+      ...(lens ? { traditions: [lens] } : {}),
+    });
     return null;
   },
 });
@@ -199,22 +246,94 @@ export const setName = mutation({
   returns: v.null(),
   handler: async (ctx, { name }) => {
     const userId = await requireUserId(ctx);
-    const profile = await getProfile(ctx, userId);
     // An empty name is meaningful: it means "don't call me anything".
-    const trimmed = name.trim().slice(0, 60);
-    const next = trimmed.length > 0 ? trimmed : undefined;
-    if (profile) {
-      await ctx.db.patch(profile._id, { name: next });
-    } else {
-      await ctx.db.insert("profiles", {
-        userId,
-        name: next,
-        preferredLanguage: "en",
-        onboarded: false,
-        createdAt: Date.now(),
-      });
-    }
+    await patchProfile(ctx, userId, { name: normalize(name, NICKNAME_MAX) });
     return null;
+  },
+});
+
+export const setPersonalization = mutation({
+  // Any subset. A field left out is untouched; a field sent empty is cleared.
+  args: {
+    nickname: v.optional(v.string()),
+    occupation: v.optional(v.string()),
+    aboutYou: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, { nickname, occupation, aboutYou }) => {
+    const userId = await requireUserId(ctx);
+    const patch = {
+      ...(nickname !== undefined
+        ? { nickname: normalize(nickname, NICKNAME_MAX) }
+        : {}),
+      ...(occupation !== undefined
+        ? { occupation: normalize(occupation, OCCUPATION_MAX) }
+        : {}),
+      ...(aboutYou !== undefined
+        ? { aboutYou: normalize(aboutYou, ABOUT_YOU_MAX) }
+        : {}),
+    };
+    await patchProfile(ctx, userId, patch);
+    return null;
+  },
+});
+
+export const setTraditions = mutation({
+  // Replaces the list rather than adding to it — the client owns the set and
+  // sends what it should now be.
+  args: { traditions: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { traditions }) => {
+    const userId = await requireUserId(ctx);
+    const profile = await getProfile(ctx, userId);
+
+    const cleaned: string[] = [];
+    for (const raw of traditions) {
+      const name = normalize(raw, TRADITION_MAX);
+      // Case-insensitive, because "stoicism" and "Stoicism" are one lens.
+      if (
+        name &&
+        !cleaned.some((t) => t.toLowerCase() === name.toLowerCase())
+      ) {
+        cleaned.push(name);
+      }
+    }
+
+    // Enforced here, not only in the UI: a client that sends three lenses on a
+    // free plan gets an error rather than three lenses.
+    const limit = traditionLimit(planForProfile(profile));
+    if (cleaned.length > limit) {
+      throw new Error(
+        limit === 1
+          ? "The free plan includes one tradition lens."
+          : `You can keep up to ${limit} tradition lenses.`,
+      );
+    }
+
+    await patchProfile(ctx, userId, { traditions: cleaned });
+    return null;
+  },
+});
+
+// What the prompt builder needs, for the actions that generate a reply.
+// Internal because it is read on someone's behalf during generation rather
+// than by them.
+export const personalizationForUser = internalQuery({
+  args: { userId: v.id("users") },
+  returns: v.object({
+    nickname: v.optional(v.string()),
+    occupation: v.optional(v.string()),
+    aboutYou: v.optional(v.string()),
+    traditions: v.array(v.string()),
+  }),
+  handler: async (ctx, { userId }) => {
+    const profile = await getProfile(ctx, userId);
+    return {
+      nickname: profile?.nickname,
+      occupation: profile?.occupation,
+      aboutYou: profile?.aboutYou,
+      traditions: profile?.traditions ?? [],
+    };
   },
 });
 
@@ -272,17 +391,7 @@ export const setLanguage = mutation({
   returns: v.null(),
   handler: async (ctx, { preferredLanguage }) => {
     const userId = await requireUserId(ctx);
-    const profile = await getProfile(ctx, userId);
-    if (profile) {
-      await ctx.db.patch(profile._id, { preferredLanguage });
-    } else {
-      await ctx.db.insert("profiles", {
-        userId,
-        preferredLanguage,
-        onboarded: false,
-        createdAt: Date.now(),
-      });
-    }
+    await patchProfile(ctx, userId, { preferredLanguage });
     return null;
   },
 });

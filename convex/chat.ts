@@ -6,6 +6,7 @@ import {
   listMessages,
   listStreams,
   listUIMessages,
+  stepCountIs,
   syncStreams,
   updateThreadMetadata,
   vStreamArgs,
@@ -24,8 +25,14 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { buildSystemPrompt, dhee } from "./agents/dhee";
+import {
+  STUDY_STEPS,
+  buildSystemPrompt,
+  dhee,
+  isCorpusLens,
+} from "./agents/dhee";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
+import { detectsCrisis } from "./lib/crisis";
 import { requireUserId } from "./users";
 
 // Chat surface. Every entry point is user-scoped: a thread belongs to the
@@ -36,6 +43,15 @@ import { requireUserId } from "./users";
 // over websockets.
 //
 // Loop conventions are written down once in docs/build/specs/chat-loop.md.
+
+// What the prompt builder needs about a person, as `users.personalizationForUser`
+// returns it. Deliberately narrower than `PromptInputs`: no `contextBlock`.
+type Personalization = {
+  nickname?: string;
+  occupation?: string;
+  aboutYou?: string;
+  traditions: string[];
+};
 
 const STOP_REASON = "Stopped by the person.";
 
@@ -177,6 +193,7 @@ async function upsertThreadMeta(
     pinned: boolean;
     editedMessages: string[];
     stoppedMessages: string[];
+    crisisFlagged: boolean;
   }>,
 ): Promise<void> {
   const meta = await threadMetaFor(ctx, threadId);
@@ -233,6 +250,12 @@ export const sendMessage = mutation({
     const turns = (meta?.turnsSinceExtraction ?? 0) + 1;
     await upsertThreadMeta(ctx, threadId, userId, {
       turnsSinceExtraction: turns,
+      // Sticky once raised: the banner stays for the rest of the conversation
+      // rather than blinking away on the next ordinary message. Never cleared
+      // here — a new conversation is how someone leaves it behind.
+      ...(meta?.crisisFlagged || detectsCrisis(prompt)
+        ? { crisisFlagged: true }
+        : {}),
     });
 
     await ctx.scheduler.runAfter(0, internal.chat.streamReply, {
@@ -265,15 +288,40 @@ export const incognitoReply = action({
       }),
     ),
   },
-  returns: v.string(),
+  // Incognito persists nothing, so the crisis flag cannot live on threadMeta
+  // the way it does for a saved thread. It comes back with the reply instead
+  // and the client holds it for the session — the safety net has to reach the
+  // people who chose not to be recorded too.
+  returns: v.object({ text: v.string(), crisisFlagged: v.boolean() }),
   handler: async (ctx, { messages }) => {
     const userId = await requireUserId(ctx);
+    const crisisFlagged = messages.some(
+      (m) => m.role === "user" && detectsCrisis(m.text),
+    );
+    // Personalization applies, memory does not. Incognito means "don't save
+    // this", not "pretend you don't know me" — a nickname is a setting the
+    // person maintains, while the memory block is derived from exactly the
+    // saved conversations they opted out of. See the spec's incognito section.
+    // Annotated rather than inferred: this action reads through `internal`,
+    // which includes this module, and TypeScript can't unwind that on its own.
+    //
+    // Typed to what the query actually returns rather than to `PromptInputs`.
+    // The wider type would let a `contextBlock` field flow straight into the
+    // one place the spec says memory must never reach.
+    const personalization: Personalization = await ctx.runQuery(
+      internal.users.personalizationForUser,
+      { userId },
+    );
     const { text } = await dhee.generateText(
       ctx,
       { userId },
       {
-        system: buildSystemPrompt(""),
+        system: buildSystemPrompt(personalization),
         messages: messages.map((m) => ({ role: m.role, content: m.text })),
+        // Study mode is a setting, and settings apply in incognito.
+        ...(isCorpusLens(personalization.traditions)
+          ? { stopWhen: stepCountIs(STUDY_STEPS) }
+          : {}),
       },
       {
         // Persist nothing, and pull in no prior context — a userId is required
@@ -283,7 +331,7 @@ export const incognitoReply = action({
         contextOptions: { recentMessages: 0, searchOptions: { limit: 0 } },
       },
     );
-    return text;
+    return { text, crisisFlagged };
   },
 });
 
@@ -295,15 +343,25 @@ export const streamReply = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, { threadId, promptMessageId, userId }) => {
-    const contextBlock = await ctx.runQuery(
-      internal.memory.contextBlockForUser,
-      { userId },
-    );
+    const [contextBlock, personalization] = await Promise.all([
+      ctx.runQuery(internal.memory.contextBlockForUser, { userId }),
+      ctx.runQuery(internal.users.personalizationForUser, { userId }),
+    ]);
     try {
       const result = await dhee.streamText(
         ctx,
         { threadId, userId },
-        { promptMessageId, system: buildSystemPrompt(contextBlock) },
+        {
+          promptMessageId,
+          system: buildSystemPrompt({ contextBlock, ...personalization }),
+          // A study question spends steps before it can answer: find the book,
+          // read the page, look up the terms it turns on. Five is the budget
+          // for "search, maybe read a page, reply", and it runs out. Everyone
+          // else keeps the Agent's default.
+          ...(isCorpusLens(personalization.traditions)
+            ? { stopWhen: stepCountIs(STUDY_STEPS) }
+            : {}),
+        },
         { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
       );
       await result.consumeStream();
@@ -438,6 +496,13 @@ export const editAndResend = mutation({
     await upsertThreadMeta(ctx, threadId, userId, {
       editedMessages: [...marks.edited, uiMessageKey(saved)],
     });
+
+    // An edit is a way of writing a message like any other, so the safety net
+    // covers it — otherwise rewording through edit slips past the banner.
+    // Sticky like sendMessage's: set, never cleared here.
+    if (detectsCrisis(trimmed)) {
+      await upsertThreadMeta(ctx, threadId, userId, { crisisFlagged: true });
+    }
 
     // No turn bump: this replaces a turn rather than adding one, so counting it
     // would run memory extraction a turn early.
@@ -602,6 +667,21 @@ export const threadFlags = query({
         starred: !!m.starred,
         pinned: !!m.pinned,
       }));
+  },
+});
+
+// Whether this conversation has raised the support banner. Authorized like
+// every other thread read, so one person's flag is never visible to another.
+export const threadCrisisFlag = query({
+  args: { threadId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const meta = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .unique();
+    return !!meta?.crisisFlagged;
   },
 });
 

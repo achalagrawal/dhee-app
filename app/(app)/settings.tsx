@@ -27,16 +27,40 @@ import {
   radius,
 } from "../../src/lib/theme";
 import { authClient } from "../../src/lib/auth-client";
+import { TRADITIONS } from "../../src/lib/traditions";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 type Pending = "forget" | "deleteChats" | null;
+
+// Match the server caps in users.setPersonalization / setTraditions. Kept here
+// only so an input stops typing where the server would truncate — the server is
+// still the one that enforces them, so these are a courtesy, not a check.
+const NAME_MAX = 60;
+const NICKNAME_MAX = 60;
+const OCCUPATION_MAX = 120;
+const ABOUT_YOU_MAX = 600;
+const TRADITION_MAX = 60;
+
+// Free plan gets one lens (design `PRICING`). Mirrored from the server, which
+// is where it is actually enforced — this copy only decides when to explain
+// the limit instead of letting the mutation reject.
+const FREE_LENS_LIMIT = 1;
+
+type PersonalFields = {
+  nickname: string;
+  occupation: string;
+  aboutYou: string;
+};
 
 export default function Settings() {
   const { colors, mode, pref, accent, setPref, setAccent } = useTheme();
   const lang = useLanguage();
   const account = useQuery(api.users.accountSummary);
+  const profile = useQuery(api.users.currentProfile);
 
   const setName = useMutation(api.users.setName);
+  const setPersonalization = useMutation(api.users.setPersonalization);
+  const setTraditions = useMutation(api.users.setTraditions);
   const setLanguage = useMutation(api.users.setLanguage);
   const forgetEverything = useMutation(api.understanding.forgetEverything);
   const deleteAllThreads = useMutation(api.chat.deleteAllThreads);
@@ -47,6 +71,14 @@ export default function Settings() {
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending>(null);
+  // Held locally while typing, then committed on blur — the same quiet feel as
+  // the name field above, with no per-field Save button. Null means "nothing
+  // edited yet", so the server's value shows through.
+  const [personalDraft, setPersonalDraft_] = useState<Partial<PersonalFields>>(
+    {},
+  );
+  const [lensDraft, setLensDraft] = useState("");
+  const [lensError, setLensError] = useState(false);
 
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -66,6 +98,65 @@ export default function Settings() {
     void setName({ name: draftName });
     setDraftName(null);
   };
+
+  // What's on screen: the draft where one exists, otherwise the stored value.
+  const personal: PersonalFields = {
+    nickname: personalDraft.nickname ?? profile?.nickname ?? "",
+    occupation: personalDraft.occupation ?? profile?.occupation ?? "",
+    aboutYou: personalDraft.aboutYou ?? profile?.aboutYou ?? "",
+  };
+  const setPersonalDraft = (patch: Partial<PersonalFields>) =>
+    setPersonalDraft_((prev) => ({ ...prev, ...patch }));
+  const commitPersonal = () => {
+    // Sends only what was actually edited, so an untouched field is left alone
+    // rather than rewritten with its own value. An edited-to-empty field is
+    // still sent — clearing has to reach the prompt.
+    if (Object.keys(personalDraft).length === 0) return;
+    void setPersonalization(personalDraft);
+    setPersonalDraft_({});
+  };
+  // ---- Tradition lens ----
+  const lenses = profile?.traditions ?? [];
+  const has = (name: string) =>
+    lenses.some((l) => l.toLowerCase() === name.trim().toLowerCase());
+  // Free plan gets one. The server enforces this regardless of what the client
+  // sends (users.setTraditions) — this is only so the limit is explained here
+  // rather than surfacing as a failed mutation.
+  const lensLimitHit = lenses.length >= FREE_LENS_LIMIT;
+
+  const saveLenses = (next: string[]) => {
+    setLensError(false);
+    void setTraditions({ traditions: next });
+  };
+  const addLens = (raw: string) => {
+    const name = raw.trim();
+    if (!name || has(name)) return;
+    if (lensLimitHit) {
+      // The upgrade popup is #10; until it exists, say plainly why rather than
+      // failing silently or letting the mutation reject.
+      setLensError(true);
+      return;
+    }
+    saveLenses([...lenses, name]);
+    setLensDraft("");
+  };
+  const removeLens = (name: string) => {
+    setLensError(false);
+    saveLenses(lenses.filter((l) => l !== name));
+  };
+
+  const typed = lensDraft.trim();
+  const canAddTyped =
+    typed.length > 0 &&
+    !has(typed) &&
+    !TRADITIONS.some((tr) => tr.toLowerCase() === typed.toLowerCase());
+  // Filtered by what's been typed, capped so the section doesn't become a wall
+  // of 25 chips.
+  const suggestions = TRADITIONS.filter(
+    (tr) =>
+      !has(tr) && (!typed || tr.toLowerCase().includes(typed.toLowerCase())),
+  ).slice(0, 8);
+
   const runPending = () => {
     if (pending === "forget") void forgetEverything();
     if (pending === "deleteChats") void deleteAllThreads();
@@ -187,7 +278,7 @@ export default function Settings() {
               placeholder={t(lang, "namePlaceholderSettings")}
               placeholderTextColor={colors.textFaint}
               returnKeyType="done"
-              maxLength={60}
+              maxLength={NAME_MAX}
             />
           </View>
           <View
@@ -207,6 +298,148 @@ export default function Settings() {
               value={account.preferredLanguage}
               onChange={(v) => void setLanguage({ preferredLanguage: v })}
             />
+          </View>
+        </Group>
+
+        {/* More about you — this is what Dhee is told, verbatim. */}
+        <Group
+          label={t(lang, "moreAboutYou")}
+          hint={t(lang, "moreAboutYouHint")}
+          colors={colors}
+        >
+          <View style={styles.block}>
+            <Text style={styles.blockLabel}>{t(lang, "nickname")}</Text>
+            <TextInput
+              style={styles.input}
+              value={personal.nickname}
+              onChangeText={(v) => setPersonalDraft({ nickname: v })}
+              onBlur={commitPersonal}
+              onSubmitEditing={commitPersonal}
+              placeholder={t(lang, "nicknamePlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="done"
+              maxLength={NICKNAME_MAX}
+            />
+          </View>
+          <View
+            style={[
+              styles.block,
+              styles.blockBorder,
+              { borderTopColor: colors.border },
+            ]}
+          >
+            <Text style={styles.blockLabel}>{t(lang, "occupation")}</Text>
+            <TextInput
+              style={styles.input}
+              value={personal.occupation}
+              onChangeText={(v) => setPersonalDraft({ occupation: v })}
+              onBlur={commitPersonal}
+              onSubmitEditing={commitPersonal}
+              placeholder={t(lang, "occupationPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="done"
+              maxLength={OCCUPATION_MAX}
+            />
+          </View>
+          <View
+            style={[
+              styles.block,
+              styles.blockBorder,
+              { borderTopColor: colors.border },
+            ]}
+          >
+            <Text style={styles.blockLabel}>{t(lang, "aboutYou")}</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={personal.aboutYou}
+              onChangeText={(v) => setPersonalDraft({ aboutYou: v })}
+              onBlur={commitPersonal}
+              multiline
+              placeholder={t(lang, "aboutYouPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              maxLength={ABOUT_YOU_MAX}
+            />
+            {/* Only once the cap is close — otherwise it's noise. */}
+            {personal.aboutYou.length > ABOUT_YOU_MAX - 100 ? (
+              <Text style={styles.counter}>
+                {personal.aboutYou.length} / {ABOUT_YOU_MAX}
+              </Text>
+            ) : null}
+          </View>
+        </Group>
+
+        {/* Tradition lens */}
+        <Group
+          label={t(lang, "traditionLens")}
+          hint={t(lang, "traditionLensHint")}
+          colors={colors}
+        >
+          <View style={styles.block}>
+            <TextInput
+              style={styles.input}
+              value={lensDraft}
+              onChangeText={setLensDraft}
+              onSubmitEditing={() => addLens(lensDraft)}
+              placeholder={t(lang, "traditionPlaceholder")}
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="done"
+              maxLength={TRADITION_MAX}
+            />
+            {/* A tradition not on the list is first-class, not a fallback. */}
+            {canAddTyped ? (
+              <Pressable
+                onPress={() => addLens(lensDraft)}
+                style={styles.addLensBtn}
+              >
+                <Text style={styles.addLensLabel}>
+                  {t(lang, "addTradition").replace("%s", lensDraft.trim())}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {lenses.length > 0 ? (
+              <View style={styles.chipRow}>
+                {lenses.map((name) => (
+                  <Pressable
+                    key={name}
+                    onPress={() => removeLens(name)}
+                    accessibilityLabel={t(lang, "removeTradition").replace(
+                      "%s",
+                      name,
+                    )}
+                    style={[styles.chip, styles.chipActive]}
+                  >
+                    <Text style={[styles.chipLabel, styles.chipLabelActive]}>
+                      {name}
+                    </Text>
+                    <Icon name="close" size={11} color={colors.accentStrong} />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {/* Only after they've tried — not a standing scold. */}
+            {lensError ? (
+              <Text style={styles.lensLimit}>{t(lang, "oneLensOnFree")}</Text>
+            ) : null}
+
+            <View style={styles.chipRow}>
+              {suggestions.map((name) => (
+                <Pressable
+                  key={name}
+                  onPress={() => addLens(name)}
+                  style={styles.chip}
+                >
+                  <Text style={styles.chipLabel}>{name}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {lenses.length > 0 ? (
+              <Pressable onPress={() => saveLenses([])} hitSlop={6}>
+                <Text style={styles.clearLenses}>{t(lang, "clearLenses")}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </Group>
 
@@ -296,10 +529,13 @@ function accentLabel(
 
 function Group({
   label,
+  hint,
   colors,
   children,
 }: {
   label: string;
+  /** One line under the header, for sections that need to say what they do. */
+  hint?: string;
   colors: Colors;
   children: React.ReactNode;
 }) {
@@ -311,13 +547,28 @@ function Group({
           letterSpacing: 0.5,
           textTransform: "uppercase",
           color: colors.textFaint,
-          marginBottom: 8,
+          marginBottom: hint ? 4 : 8,
           marginLeft: 4,
           ...font.semibold,
         }}
       >
         {label}
       </Text>
+      {hint ? (
+        <Text
+          style={{
+            fontSize: 13,
+            lineHeight: 19,
+            color: colors.textFaint,
+            marginBottom: 8,
+            marginLeft: 4,
+            marginRight: 4,
+            ...font.regular,
+          }}
+        >
+          {hint}
+        </Text>
+      ) : null}
       <View
         style={{
           borderWidth: 1,
@@ -535,6 +786,49 @@ function makeStyles(colors: Colors) {
       fontSize: 16,
       color: colors.text,
       paddingVertical: 2,
+      ...font.regular,
+    },
+    textArea: { minHeight: 56, textAlignVertical: "top", lineHeight: 23 },
+    // Tradition lens
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface2,
+      borderRadius: radius.pill,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    chipActive: {
+      borderColor: "transparent",
+      backgroundColor: colors.accentSoft,
+    },
+    chipLabel: { fontSize: 13.5, color: colors.textSoft, ...font.regular },
+    chipLabelActive: { color: colors.accentStrong, ...font.medium },
+    addLensBtn: { alignSelf: "flex-start" },
+    addLensLabel: {
+      fontSize: 13.5,
+      color: colors.accentStrong,
+      ...font.medium,
+    },
+    lensLimit: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: colors.textFaint,
+      ...font.regular,
+    },
+    clearLenses: {
+      fontSize: 13.5,
+      color: colors.textFaint,
+      ...font.regular,
+    },
+    counter: {
+      alignSelf: "flex-end",
+      fontSize: 12,
+      color: colors.textFaint,
       ...font.regular,
     },
     swatchRow: { flexDirection: "row", gap: 12 },

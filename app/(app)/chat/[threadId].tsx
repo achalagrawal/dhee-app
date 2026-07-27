@@ -4,7 +4,6 @@ import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   type NativeScrollEvent,
@@ -18,10 +17,12 @@ import {
 } from "react-native";
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
+import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
+import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
-import { Icon, IconButton, type IconName } from "../../../src/components/ui";
+import { Icon, IconButton } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
@@ -80,6 +81,11 @@ export default function Chat() {
   );
   const feedback = useQuery(
     api.chat.threadFeedback,
+    threadId ? { threadId } : "skip",
+  );
+  // Raised server-side, so it survives a reload and applies to every client.
+  const crisisFlagged = useQuery(
+    api.chat.threadCrisisFlag,
     threadId ? { threadId } : "skip",
   );
   const feedbackMap = useMemo(() => {
@@ -350,6 +356,12 @@ export default function Chat() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        {crisisFlagged ? (
+          <View style={styles.bannerWrap}>
+            <CrisisBanner lang={lang} />
+          </View>
+        ) : null}
+
         <View style={styles.flex}>
           <FlatList
             ref={listRef}
@@ -366,9 +378,7 @@ export default function Chat() {
               <>
                 {thinking ? (
                   <View style={styles.thinkingRow}>
-                    <View style={styles.avatar}>
-                      <Icon name="logo" size={16} color={colors.accent} />
-                    </View>
+                    <DheeAvatar />
                     <Text style={styles.thinkingText}>
                       {t(lang, "thinking")}
                     </Text>
@@ -556,7 +566,6 @@ const Message = memo(function Message({
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
-  const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
   if (isUser) {
     if (editing) {
@@ -614,36 +623,14 @@ const Message = memo(function Message({
   // text is worse than no bubble. The card below reports the failure. §2.
   if (!message.text.trim()) return null;
 
-  const actions: { icon: IconName; label: string; onPress: () => void }[] = [
-    {
-      icon: "bookmark",
-      label: t(lang, "saveHighlight"),
-      onPress: () => soon(t(lang, "saveHighlight")),
-    },
-    {
-      icon: "share",
-      label: t(lang, "shareLabel"),
-      onPress: () => soon(t(lang, "shareLabel")),
-    },
-    {
-      icon: "speaker",
-      label: t(lang, "speak"),
-      onPress: () => soon(t(lang, "speak")),
-    },
-  ];
-  if (isLast && onRegenerate) {
-    actions.push({
-      icon: "refresh",
-      label: t(lang, "tryAgain"),
-      onPress: onRegenerate,
-    });
-  }
-
+  // The toolbar carries only what works. Save highlight (Journal, Epic 6),
+  // Share (Epic 15) and Read aloud (Voice, Epic 12) used to render here and
+  // pop "coming soon" — three of four buttons doing nothing, in the place
+  // people touch most. Each comes back as a one-line change the day its epic
+  // lands; their labels are still in i18n.ts waiting.
   return (
     <View style={styles.botRow}>
-      <View style={styles.avatar}>
-        <Icon name="logo" size={16} color={colors.accent} />
-      </View>
+      <DheeAvatar />
       <View style={styles.botBody}>
         <Text style={styles.botText}>
           {message.text}
@@ -681,17 +668,16 @@ const Message = memo(function Message({
                 color={rating === "down" ? colors.danger : colors.textFaint}
               />
             </Pressable>
-            {actions.map((a) => (
+            {isLast && onRegenerate ? (
               <Pressable
-                key={a.label}
-                onPress={a.onPress}
+                onPress={onRegenerate}
                 hitSlop={4}
-                accessibilityLabel={a.label}
+                accessibilityLabel={t(lang, "tryAgain")}
                 style={styles.actionBtn}
               >
-                <Icon name={a.icon} size={15} color={colors.textFaint} />
+                <Icon name="refresh" size={15} color={colors.textFaint} />
               </Pressable>
-            ))}
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -702,6 +688,7 @@ const Message = memo(function Message({
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
     flex: { flex: 1 },
+    bannerWrap: { paddingHorizontal: 16, paddingTop: 12 },
     list: {
       paddingHorizontal: 16,
       paddingTop: 14,
@@ -774,16 +761,6 @@ function makeStyles(colors: Colors) {
     editSaveText: { color: colors.onAccent, fontSize: 13.5, ...font.semibold },
     // Assistant
     botRow: { flexDirection: "row", gap: 12 },
-    avatar: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 2,
-    },
     botBody: { flex: 1, minWidth: 0 },
     botText: {
       color: colors.text,

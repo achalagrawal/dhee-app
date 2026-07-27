@@ -129,6 +129,38 @@ const strings = {
       "Something interrupted the connection. Your message is safe — try again.",
     rateErrorTitle: "A moment, please",
     rateErrorBody: "Too many questions in a short time. Give it a few seconds.",
+    // Crisis banner + support resources
+    crisisTitle: "If you're in real distress, please reach out to a person.",
+    crisisBody:
+      "Dhee can think alongside you, but it isn't a crisis service. Talking to someone trained can help right now.",
+    crisisCta: "See support resources",
+    supportTitle: "Support resources",
+    supportIntro:
+      "If you're thinking about harming yourself, or you're frightened by what you're feeling, these lines are answered by people trained for exactly this. Tap any number to call.",
+    supportFooter:
+      "Dhee is not a crisis service and can't contact anyone on your behalf. If you're in immediate danger, please call your local emergency number.",
+    // More about you
+    moreAboutYou: "More about you",
+    moreAboutYouHint:
+      "This is what Dhee is told about you. Change or clear any of it whenever you like.",
+    nickname: "Nickname",
+    nicknamePlaceholder: "What should Dhee call you?",
+    occupation: "What you do",
+    occupationPlaceholder: "e.g. Teacher, new parent, founder…",
+    aboutYou: "About you",
+    aboutYouPlaceholder: "Anything that helps Dhee understand your situation",
+    // Tradition lens
+    traditionLens: "Tradition lens",
+    traditionLensHint:
+      "If you think within a particular framework, Dhee can draw on its framing and vocabulary. A lens, not doctrine — it won't turn Dhee into a preacher for it.",
+    traditionPlaceholder: "Add your own, e.g. Madhyasth Darshan…",
+    addTradition: '+ Add "%s"',
+    removeTradition: "Remove %s",
+    clearLenses: "Clear lenses",
+    oneLensOnFree:
+      "The free plan includes one lens. Remove the current one to choose a different framework.",
+    traditionPrompt: "Do you think within a particular tradition?",
+    traditionOptional: "Optional — you can add this later in settings.",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -284,6 +316,38 @@ const strings = {
       "कनेक्शन में कुछ रुकावट आई। आपका संदेश सुरक्षित है — फिर कोशिश करें।",
     rateErrorTitle: "एक पल रुकिए",
     rateErrorBody: "थोड़े समय में बहुत सवाल हो गए। कुछ क्षण दीजिए।",
+    // Crisis banner + support resources
+    crisisTitle: "अगर आप सचमुच तकलीफ़ में हैं, तो किसी इंसान से बात कीजिए।",
+    crisisBody:
+      "धी आपके साथ सोच सकता है, पर यह संकट सेवा नहीं है। किसी प्रशिक्षित व्यक्ति से बात करना अभी मदद कर सकता है।",
+    crisisCta: "सहायता के नंबर देखें",
+    supportTitle: "सहायता के नंबर",
+    supportIntro:
+      "अगर आपके मन में खुद को नुकसान पहुँचाने का ख़याल आ रहा है, या जो आप महसूस कर रहे हैं उससे डर लग रहा है — ये लाइनें ठीक इसी के लिए प्रशिक्षित लोग उठाते हैं। कॉल करने के लिए किसी भी नंबर पर टैप करें।",
+    supportFooter:
+      "धी संकट सेवा नहीं है और आपकी ओर से किसी से संपर्क नहीं कर सकता। अगर आप तुरंत ख़तरे में हैं, तो अपने स्थानीय आपातकालीन नंबर पर कॉल करें।",
+    // More about you
+    moreAboutYou: "आपके बारे में",
+    moreAboutYouHint:
+      "धी को आपके बारे में यही बताया जाता है। इसे जब चाहें बदल सकते हैं या हटा सकते हैं।",
+    nickname: "पुकारने का नाम",
+    nicknamePlaceholder: "धी आपको क्या कहकर बुलाए?",
+    occupation: "आप क्या करते हैं",
+    occupationPlaceholder: "जैसे शिक्षक, नए माता-पिता, संस्थापक…",
+    aboutYou: "आपके बारे में कुछ और",
+    aboutYouPlaceholder: "कुछ भी जो धी को आपकी स्थिति समझने में मदद करे",
+    // Tradition lens
+    traditionLens: "विचार-परंपरा",
+    traditionLensHint:
+      "अगर आप किसी विचारधारा के भीतर सोचते हैं, तो धी उसकी दृष्टि और शब्दावली का सहारा ले सकता है। यह एक नज़रिया है, सिद्धांत नहीं — धी उसका प्रचारक नहीं बनेगा।",
+    traditionPlaceholder: "अपनी परंपरा जोड़ें, जैसे मध्यस्थ दर्शन…",
+    addTradition: '+ "%s" जोड़ें',
+    removeTradition: "%s हटाएँ",
+    clearLenses: "सब हटाएँ",
+    oneLensOnFree:
+      "मुफ़्त योजना में एक ही परंपरा चुनी जा सकती है। दूसरी चुनने के लिए पहले मौजूदा हटाएँ।",
+    traditionPrompt: "क्या आप किसी विचार-परंपरा के भीतर सोचते हैं?",
+    traditionOptional: "वैकल्पिक — इसे बाद में सेटिंग्स में भी जोड़ सकते हैं।",
     // History groups
     starred: "तारांकित",
     today: "आज",

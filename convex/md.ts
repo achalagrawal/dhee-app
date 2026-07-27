@@ -43,6 +43,22 @@ export const lookupParibhasha = internalAction({
   },
 });
 
+export const listBooks = internalAction({
+  args: {},
+  returns: v.string(),
+  handler: async () => {
+    return await callMcpTool("list_books", {});
+  },
+});
+
+export const getBookToc = internalAction({
+  args: { bookId: v.number() },
+  returns: v.string(),
+  handler: async (_ctx, { bookId }) => {
+    return await callMcpTool("get_book_toc", { book_id: bookId });
+  },
+});
+
 export const getBookPage = internalAction({
   args: {
     bookId: v.number(),

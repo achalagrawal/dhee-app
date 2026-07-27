@@ -66,7 +66,8 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 | Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept                                     |
 | Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost; marks the bubble edited |
 | Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared                                 |
-| Copy message                              | ✅     | clipboard                                |                                                                           |
+| Markdown formatting in replies            | ✅     | `lib/markdown.ts`, `chat/Markdown.tsx`   | In-app parser + renderer; prompt allows it (#63); user bubbles stay plain |
+| Copy message                              | ✅     | clipboard                                | Copies the raw markdown, not the rendered text                            |
 | Message feedback (👍/👎)                  | ✅     | `chat.setMessageFeedback/threadFeedback` | UI wired too; active rating shown in `accentStrong`                       |
 | Message action sheet (mobile)             | ✅     | inline actions row                       | Not building one — the inline row covers it (#18)                         |
 | Crisis / safety flag banner               | ✅     | `lib/crisis.ts`, `CrisisBanner`          | Server-side, EN + HI; → `/support`                                        |

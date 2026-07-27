@@ -14,6 +14,7 @@ import {
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
+import { Markdown } from "../../../src/components/chat/Markdown";
 import { Composer } from "../../../src/components/Composer";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { Icon } from "../../../src/components/ui";
@@ -149,7 +150,7 @@ export default function IncognitoChat() {
               <View style={styles.botRow}>
                 <DheeAvatar />
                 <View style={styles.botBody}>
-                  <Text style={styles.botText}>{item.text}</Text>
+                  <Markdown text={item.text} colors={colors} />
                   <Pressable
                     onPress={() => void Clipboard.setStringAsync(item.text)}
                     hitSlop={4}
@@ -228,12 +229,6 @@ function makeStyles(colors: Colors) {
     },
     botRow: { flexDirection: "row", gap: 12 },
     botBody: { flex: 1, minWidth: 0 },
-    botText: {
-      color: colors.text,
-      fontSize: 16.5,
-      lineHeight: 27,
-      ...font.regular,
-    },
     copyBtn: {
       alignSelf: "flex-start",
       paddingVertical: 6,

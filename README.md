@@ -161,19 +161,20 @@ pnpm web                 # or: pnpm ios / pnpm android
 
 ### Environment variables
 
-| Variable                                     | Where             | Purpose                                                    |
-| -------------------------------------------- | ----------------- | ---------------------------------------------------------- |
-| `OPENROUTER_API_KEY`                         | Convex deployment | Model access for chat and extraction                       |
-| `AWS_REGION`                                 | Convex deployment | SES region, e.g. `ap-south-1`                              |
-| `AWS_ACCESS_KEY_ID`, `..._SECRET_ACCESS_KEY` | Convex deployment | IAM credentials with `ses:SendEmail`                       |
-| `AUTH_EMAIL_FROM`                            | Convex deployment | Sender address; must be verified in SES                    |
-| `BETTER_AUTH_SECRET`                         | Convex deployment | Better Auth signing/encryption secret                      |
-| `SITE_URL`                                   | Convex deployment | Base URL for auth links, and the OAuth redirect allowlist  |
-| `AUTH_GOOGLE_ID`                             | Convex deployment | Google OAuth client id ("Continue with Google")            |
-| `AUTH_GOOGLE_SECRET`                         | Convex deployment | Google OAuth client secret                                 |
-| `MD_MCP_URL`                                 | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one) |
-| `EXPO_PUBLIC_CONVEX_URL`                     | `.env.local`      | Written automatically by `convex dev`                      |
-| `EXPO_PUBLIC_CONVEX_SITE_URL`                | `.env.local`      | Where the auth client reaches Better Auth's handler        |
+| Variable                                     | Where             | Purpose                                                                                    |
+| -------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| `OPENROUTER_API_KEY`                         | Convex deployment | Model access for chat and extraction                                                       |
+| `AWS_REGION`                                 | Convex deployment | SES region, e.g. `ap-south-1`                                                              |
+| `AWS_ACCESS_KEY_ID`, `..._SECRET_ACCESS_KEY` | Convex deployment | IAM credentials with `ses:SendEmail`                                                       |
+| `AUTH_EMAIL_FROM`                            | Convex deployment | Sender address; must be verified in SES                                                    |
+| `BETTER_AUTH_SECRET`                         | Convex deployment | Better Auth signing/encryption secret                                                      |
+| `SITE_URL`                                   | Convex deployment | Base URL for auth links, and the OAuth redirect allowlist                                  |
+| `EXTRA_TRUSTED_ORIGINS`                      | Convex deployment | Preview only; set by the Vercel build (see deployment doc)                                 |
+| `AUTH_GOOGLE_ID`                             | Convex deployment | Google OAuth client id ("Continue with Google")                                            |
+| `AUTH_GOOGLE_SECRET`                         | Convex deployment | Google OAuth client secret                                                                 |
+| `MD_MCP_URL`                                 | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one)                                 |
+| `EXPO_PUBLIC_CONVEX_URL`                     | `.env.local`      | Written automatically by `convex dev`                                                      |
+| `EXPO_PUBLIC_CONVEX_SITE_URL`                | `.env.local`      | Where the auth client reaches Better Auth's handler; derived from the URL above when unset |
 
 ### Seed data
 
@@ -208,11 +209,10 @@ is `convex/test.setup.ts`.
   checks above. It needs no secrets (`convex/_generated` is committed and tests
   are in-memory), so it's green on forks.
 - **CD** — deployment is handled by **Vercel**, which runs `convex deploy` as
-  part of the web build (see [`vercel.json`](vercel.json)). One hosted
-  environment: `main` → production at [dhee.app](https://dhee.app). There is no
-  staging and no per-PR preview — `vercel.json` disables deployments for every
-  branch but `main`. GitHub Actions deliberately does not deploy. Full setup:
-  [`docs/deployment.md`](docs/deployment.md).
+  part of the web build (see [`vercel.json`](vercel.json)). `main` → production
+  at [dhee.app](https://dhee.app), and every PR gets a preview URL backed by a
+  throwaway Convex deployment of its own. GitHub Actions deliberately does not
+  deploy. Full setup: [`docs/deployment.md`](docs/deployment.md).
 
 ### Building toward the final design
 

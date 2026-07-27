@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  type TextInput as TextInputType,
   TextInput,
+  type TextInputContentSizeChangeEvent,
   View,
 } from "react-native";
 import { t } from "../lib/i18n";
 import { useTheme } from "../lib/ThemeContext";
-import { font, radius, shadow } from "../lib/theme";
+import { font, noFocusRing, radius, shadow } from "../lib/theme";
 import { useLanguage } from "../lib/useLanguage";
 import { Icon, IconButton } from "./ui";
 
@@ -24,6 +27,9 @@ type Props = {
   generating?: boolean;
   onStop?: () => void;
 };
+
+// Past this the input scrolls instead of growing.
+const MAX_HEIGHT = 160;
 
 // The rounded composer card shared by Home and Chat. Text entry + Send are
 // wired; the attach (+), model pill, web-search, voice and dictation controls
@@ -41,10 +47,46 @@ export function Composer({
 }: Props) {
   const { colors, mode } = useTheme();
   const lang = useLanguage();
+  const inputRef = useRef<TextInputType>(null);
   const [height, setHeight] = useState(minHeight);
   const canSend = value.trim().length > 0;
 
   const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
+
+  const clamp = useCallback(
+    (h: number) => Math.min(MAX_HEIGHT, Math.max(minHeight, h)),
+    [minHeight],
+  );
+
+  // Native reports the real content height, so its measurement is trustworthy.
+  // On web there is nothing to subscribe to — react-native-web derives this
+  // from `scrollHeight`, which the effect below reads directly.
+  const onContentSizeChange = useMemo(
+    () =>
+      Platform.OS === "web"
+        ? undefined
+        : (e: TextInputContentSizeChangeEvent) => {
+            const next = clamp(e.nativeEvent.contentSize.height);
+            setHeight((prev) => (prev === next ? prev : next));
+          },
+    [clamp],
+  );
+
+  // A `<textarea>`'s `scrollHeight` is floored by its own height, so measuring
+  // while our height is applied can only ever report growth — the composer
+  // would never shrink back after a line was deleted. Collapse to zero first so
+  // the measurement is the content alone (`auto` is not enough: it falls back
+  // to the element's default two `rows`), then write the result back in the
+  // same layout pass, before anything is painted.
+  useLayoutEffect(() => {
+    if (Platform.OS !== "web") return;
+    const node = inputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!node) return;
+    node.style.height = "0px";
+    const next = clamp(node.scrollHeight);
+    node.style.height = `${next}px`;
+    setHeight((prev) => (prev === next ? prev : next));
+  }, [value, clamp]);
 
   return (
     <View
@@ -55,22 +97,23 @@ export function Composer({
       ]}
     >
       <TextInput
+        ref={inputRef}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.textFaint}
         multiline
         autoFocus={autoFocus}
-        onContentSizeChange={(e) =>
-          setHeight(
-            Math.min(
-              160,
-              Math.max(minHeight, e.nativeEvent.contentSize.height),
-            ),
-          )
-        }
+        // A free-text prompt is not a password, card or address field. Without
+        // this, react-native-web ships `autocomplete="on"` and iOS Safari treats
+        // the composer as an AutoFill target: it re-decides candidacy on every
+        // keystroke, showing and hiding the AutoFill accessory row above the
+        // keyboard, which reads as the keyboard blinking. Issue #72.
+        autoComplete="off"
+        onContentSizeChange={onContentSizeChange}
         style={[
           styles.input,
+          noFocusRing,
           { color: colors.text, height: Math.max(minHeight, height) },
         ]}
       />

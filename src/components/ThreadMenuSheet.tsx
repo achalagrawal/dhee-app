@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { t } from "../lib/i18n";
 import { useTheme } from "../lib/ThemeContext";
-import { font, radius } from "../lib/theme";
+import { font, noFocusRing, radius } from "../lib/theme";
 import { useLanguage } from "../lib/useLanguage";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Icon, type IconName } from "./ui";
@@ -268,6 +268,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     ...font.regular,
+    ...noFocusRing,
   },
   renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
   renameBtn: {

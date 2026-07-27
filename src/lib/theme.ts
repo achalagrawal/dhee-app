@@ -135,6 +135,26 @@ export function shadow(mode: ThemeMode): ViewStyle {
       };
 }
 
+// Safari draws a blue system focus ring around a focused text field, which is
+// off-palette everywhere and lands as a hard rectangle inside the composer's
+// rounded card. These two replace it. `noFocusRing` suppresses it outright, for
+// surfaces holding a single already-framed input; `focusRing` redraws it in the
+// accent, for forms where someone moves between fields and needs to see which
+// one they are in. Both are web concerns — native draws no such ring — and an
+// outline paints whether or not the element is active, so `focusRing` belongs
+// only on a field that is currently focused. `outline-style: none` is not one
+// of the three values React Native's own outline support types, hence the cast.
+export const noFocusRing = { outlineStyle: "none" } as unknown as TextStyle;
+
+export function focusRing(colors: Colors): TextStyle {
+  return {
+    outlineColor: colors.accent,
+    outlineStyle: "solid",
+    outlineWidth: 2,
+    outlineOffset: 2,
+  };
+}
+
 // The centred reading column. The prototype pins the transcript, the composer
 // dock and the standalone pages to `max-width: 740px; margin: 0 auto`, so a
 // desktop window never stretches a reply into one very long line or the input

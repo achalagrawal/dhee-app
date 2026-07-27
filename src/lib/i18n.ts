@@ -129,6 +129,8 @@ const strings = {
       "Something interrupted the connection. Your message is safe — try again.",
     rateErrorTitle: "A moment, please",
     rateErrorBody: "Too many questions in a short time. Give it a few seconds.",
+    limitErrorTitle: "Today's free messages are used up",
+    limitErrorBody: "Your messages come back tomorrow.",
     // Crisis banner + support resources
     crisisTitle: "If you're in real distress, please reach out to a person.",
     crisisBody:
@@ -320,6 +322,8 @@ const strings = {
       "कनेक्शन में कुछ रुकावट आई। आपका संदेश सुरक्षित है — फिर कोशिश करें।",
     rateErrorTitle: "एक पल रुकिए",
     rateErrorBody: "थोड़े समय में बहुत सवाल हो गए। कुछ क्षण दीजिए।",
+    limitErrorTitle: "आज के मुफ़्त संदेश पूरे हो गए",
+    limitErrorBody: "आपके संदेश कल फिर मिलेंगे।",
     // Crisis banner + support resources
     crisisTitle: "अगर आप सचमुच तकलीफ़ में हैं, तो किसी इंसान से बात कीजिए।",
     crisisBody:

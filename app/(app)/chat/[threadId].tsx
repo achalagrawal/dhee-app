@@ -1,5 +1,6 @@
 import { useUIMessages, type UIMessage } from "@convex-dev/agent/react";
 import { useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +36,13 @@ const FOLLOW_THRESHOLD = 240;
 
 const keyExtractor = (m: UIMessage) => m.key;
 
-type FailureReason = "error" | "rate";
+type FailureReason = "error" | "rate" | "limit";
+
+const FAILURE_COPY = {
+  error: ["modelErrorTitle", "modelErrorBody"],
+  rate: ["rateErrorTitle", "rateErrorBody"],
+  limit: ["limitErrorTitle", "limitErrorBody"],
+} as const;
 
 // A failure carries what to retry: the composer draft is empty after a failed
 // regenerate or edit, so re-running `send` would silently do nothing.
@@ -44,9 +51,16 @@ type RetryTarget =
 
 type Failure = { reason: FailureReason; retry: RetryTarget } | null;
 
-// Rate limiting arrives as a message, not a code, so this is best-effort.
-// Misreading it costs nothing worse than the generic wording.
+// The daily limit throws a ConvexError carrying a code, so that one is exact.
+// Rate limiting arrives as a message, not a code, so it stays best-effort —
+// misreading it costs nothing worse than the generic wording.
 function failureFrom(error: unknown): FailureReason {
+  if (
+    error instanceof ConvexError &&
+    (error.data as { code?: string })?.code === "LIMIT_REACHED"
+  ) {
+    return "limit";
+  }
   const text = String(error).toLowerCase();
   return text.includes("rate") || text.includes("too many") ? "rate" : "error";
 }
@@ -389,27 +403,21 @@ export default function Chat() {
                   <View style={styles.errorCard}>
                     <View style={styles.errorBody}>
                       <Text style={styles.errorTitle}>
-                        {t(
-                          lang,
-                          activeFailure.reason === "rate"
-                            ? "rateErrorTitle"
-                            : "modelErrorTitle",
-                        )}
+                        {t(lang, FAILURE_COPY[activeFailure.reason][0])}
                       </Text>
                       <Text style={styles.errorText}>
-                        {t(
-                          lang,
-                          activeFailure.reason === "rate"
-                            ? "rateErrorBody"
-                            : "modelErrorBody",
-                        )}
+                        {t(lang, FAILURE_COPY[activeFailure.reason][1])}
                       </Text>
                     </View>
-                    <Pressable onPress={retryFailure} style={styles.retryBtn}>
-                      <Text style={styles.retryText}>
-                        {t(lang, "tryAgain")}
-                      </Text>
-                    </Pressable>
+                    {/* Retrying the limit just fails again — the way past it
+                        is the upgrade request (#10), not this button. */}
+                    {activeFailure.reason === "limit" ? null : (
+                      <Pressable onPress={retryFailure} style={styles.retryBtn}>
+                        <Text style={styles.retryText}>
+                          {t(lang, "tryAgain")}
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                 ) : null}
               </>

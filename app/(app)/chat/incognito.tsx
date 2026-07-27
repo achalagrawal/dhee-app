@@ -15,6 +15,7 @@ import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
 import { Markdown } from "../../../src/components/chat/Markdown";
+import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { Icon } from "../../../src/components/ui";
@@ -163,12 +164,9 @@ export default function IncognitoChat() {
             )
           }
           ListFooterComponent={
-            busy ? (
-              <View style={styles.thinkingRow}>
-                <DheeAvatar />
-                <Text style={styles.thinkingText}>{t(lang, "thinking")}</Text>
-              </View>
-            ) : null
+            // No trail: nothing streams here, so there is no tool traffic to
+            // report and the plain line is the whole truth. Spec §3.
+            busy ? <ThinkingTrail lang={lang} /> : null
           }
         />
 
@@ -235,13 +233,6 @@ function makeStyles(colors: Colors) {
       paddingHorizontal: 8,
       borderRadius: 8,
       marginTop: 6,
-    },
-    thinkingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    thinkingText: {
-      color: colors.textFaint,
-      fontSize: 15,
-      fontStyle: "italic",
-      ...font.regular,
     },
     dock: {
       paddingHorizontal: 16,

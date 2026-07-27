@@ -62,7 +62,7 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 | Feature                                   | Status | Where                                    | Notes                                                                     |
 | ----------------------------------------- | ------ | ---------------------------------------- | ------------------------------------------------------------------------- |
 | Streaming reply                           | 🟡     | `chat.streamReply`                       | Built; cadence + caret unverified against mockup                          |
-| Thinking indicator                        | ✅     | `chat/[threadId].tsx`                    | Suppressed once text arrives                                              |
+| Thinking indicator                        | ✅     | `lib/activity.ts`, `chat/ThinkingTrail`  | Live: names the tool step running (search, paribhasha, page) (#89)        |
 | Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept                                     |
 | Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost; marks the bubble edited |
 | Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared                                 |

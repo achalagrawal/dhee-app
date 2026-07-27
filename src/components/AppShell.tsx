@@ -5,6 +5,7 @@ import { t } from "../lib/i18n";
 import { useShell } from "../lib/shell";
 import { useTheme } from "../lib/ThemeContext";
 import { font } from "../lib/theme";
+import { useIsDesktop } from "../lib/useIsDesktop";
 import { useLanguage } from "../lib/useLanguage";
 import { OfflineBanner } from "./OfflineBanner";
 import { Icon, IconButton } from "./ui";
@@ -32,6 +33,11 @@ type Props = {
 // incognito strip. Mirrors the prototype's header (menu + title or centered
 // logo + contextual actions); on screens with no title of their own, the
 // page's own <h1> names the screen.
+//
+// The menu button and the mark are both mobile chrome. On a desktop-width
+// window the sidebar is always on screen — full column or icon rail — so it
+// carries the brand and there is nothing for a hamburger to open. A screen
+// with a title of its own still shows it there.
 export function AppShell({
   children,
   right,
@@ -44,12 +50,17 @@ export function AppShell({
   const { openDrawer, incognito, toggleIncognito } = useShell();
   const lang = useLanguage();
   const insets = useSafeAreaInsets();
+  const isDesktop = useIsDesktop();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <View
         style={[
           styles.header,
+          // With no menu button on the left, a titleless header would drift its
+          // trailing actions there under space-between; pin them to the
+          // trailing edge instead. A title takes the row's slack either way.
+          isDesktop && styles.headerDesktop,
           {
             paddingTop: insets.top + 10,
             borderBottomColor: colors.border,
@@ -57,14 +68,16 @@ export function AppShell({
           },
         ]}
       >
-        <IconButton
-          name="menu"
-          variant="surface"
-          size={40}
-          color={colors.text}
-          onPress={openDrawer}
-          accessibilityLabel={t(lang, "openMenu")}
-        />
+        {isDesktop ? null : (
+          <IconButton
+            name="menu"
+            variant="surface"
+            size={40}
+            color={colors.text}
+            onPress={openDrawer}
+            accessibilityLabel={t(lang, "openMenu")}
+          />
+        )}
 
         {title ? (
           <Pressable
@@ -88,7 +101,7 @@ export function AppShell({
               <Icon name="chevronDown" size={15} color={colors.textFaint} />
             ) : null}
           </Pressable>
-        ) : (
+        ) : isDesktop ? null : (
           <View pointerEvents="none" style={styles.logo}>
             <Icon name="logo" size={30} color={colors.accentStrong} />
           </View>
@@ -147,6 +160,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     minHeight: 58,
   },
+  headerDesktop: { justifyContent: "flex-end" },
   logo: {
     position: "absolute",
     left: 0,

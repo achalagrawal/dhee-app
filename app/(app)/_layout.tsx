@@ -2,10 +2,12 @@ import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { Redirect, Stack } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { AppDrawer } from "../../src/components/AppDrawer";
+import { AppSidebar } from "../../src/components/AppSidebar";
 import { SearchModal } from "../../src/components/SearchModal";
 import { Loading } from "../../src/components/ui";
 import { ShellProvider } from "../../src/lib/shell";
 import { useTheme } from "../../src/lib/ThemeContext";
+import { useIsDesktop } from "../../src/lib/useIsDesktop";
 
 // Auth gate for every signed-in screen. The parentheses keep this group out
 // of the URL, so routes stay at /home, /threads, /settings, and so on.
@@ -15,10 +17,11 @@ import { useTheme } from "../../src/lib/ThemeContext";
 // server error instead of sending the person to sign in.
 //
 // Signed in, the whole group is wrapped in the app shell context, and the
-// drawer + search overlays are mounted once here so they float above whichever
-// screen the Stack is showing.
+// sidebar + search overlay are mounted once here so they sit beside (desktop)
+// or above (narrower) whichever screen the Stack is showing.
 export default function AppLayout() {
   const { colors } = useTheme();
+  const isDesktop = useIsDesktop();
   return (
     <>
       <AuthLoading>
@@ -31,14 +34,17 @@ export default function AppLayout() {
       </Unauthenticated>
       <Authenticated>
         <ShellProvider>
-          <View style={styles.flex}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.bg },
-              }}
-            />
-            <AppDrawer />
+          <View style={styles.shell}>
+            {isDesktop ? <AppSidebar /> : null}
+            <View style={styles.flex}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.bg },
+                }}
+              />
+            </View>
+            {isDesktop ? null : <AppDrawer />}
             <SearchModal />
           </View>
         </ShellProvider>
@@ -48,7 +54,8 @@ export default function AppLayout() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  shell: { flex: 1, flexDirection: "row" },
   splash: {
     flex: 1,
     alignItems: "center",

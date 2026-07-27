@@ -82,6 +82,8 @@ const strings = {
     // Shell / navigation
     openMenu: "Open menu",
     closeMenu: "Close menu",
+    openSidebar: "Open sidebar",
+    collapseSidebar: "Collapse sidebar",
     incognito: "Incognito",
     incognitoBanner: "Incognito — this chat won't be saved",
     turnOff: "Turn off",
@@ -311,6 +313,8 @@ const strings = {
     // Shell / navigation
     openMenu: "मेन्यू खोलें",
     closeMenu: "मेन्यू बंद करें",
+    openSidebar: "साइडबार खोलें",
+    collapseSidebar: "साइडबार समेटें",
     incognito: "गुप्त",
     incognitoBanner: "गुप्त — यह बातचीत सहेजी नहीं जाएगी",
     turnOff: "बंद करें",

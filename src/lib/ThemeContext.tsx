@@ -1,4 +1,3 @@
-import * as SecureStore from "expo-secure-store";
 import {
   createContext,
   useCallback,
@@ -7,7 +6,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Platform, useColorScheme } from "react-native";
+import { useColorScheme } from "react-native";
+import { loadPref, savePref } from "./prefs";
 import {
   type AccentName,
   type Colors,
@@ -32,31 +32,6 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const PREF_KEY = "dhee.themePref";
 const ACCENT_KEY = "dhee.accent";
-
-// SecureStore has no web build; fall back to localStorage there. These are
-// non-secret UI preferences, so plain storage is fine.
-async function loadPref(key: string): Promise<string | null> {
-  if (Platform.OS === "web") {
-    try {
-      return globalThis.localStorage?.getItem(key) ?? null;
-    } catch {
-      return null;
-    }
-  }
-  return SecureStore.getItemAsync(key);
-}
-
-function savePref(key: string, value: string): void {
-  if (Platform.OS === "web") {
-    try {
-      globalThis.localStorage?.setItem(key, value);
-    } catch {
-      // ignore quota / privacy-mode failures
-    }
-    return;
-  }
-  void SecureStore.setItemAsync(key, value);
-}
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const system = useColorScheme();

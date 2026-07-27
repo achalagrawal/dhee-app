@@ -49,8 +49,8 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 | Attachments (files/photos) + drag-drop                           | 🟡     | Composer stub      | `state.pendingFiles/uploads/dragOver`; types: IMG/PDF/MD/TXT/DOC                           |
 | Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub      | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated) |
 | Web search toggle                                                | 🟡     | Composer stub      | `state.webSearchOn` (distinct from `md.ts`)                                                |
-| Dictation (mic)                                                  | 🟡     | Composer stub      | `state.dictating/dictationPref`                                                            |
-| Voice mode                                                       | 🟡     | Composer stub      | `state.speakingId`; see Epic 12                                                            |
+| Dictation (mic)                                                  | ⬜     | —                  | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                         |
+| Voice mode                                                       | ⬜     | —                  | `state.speakingId`; button hidden until Epic 12 (#97)                                      |
 | Typeahead suggestions                                            | ⬜     | —                  |                                                                                            |
 | Token bar / limit-reached card                                   | ⬜     | —                  | Needs billing (Epic 14)                                                                    |
 

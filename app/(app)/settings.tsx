@@ -24,6 +24,7 @@ import {
   type Colors,
   font,
   getColors,
+  noFocusRing,
   radius,
 } from "../../src/lib/theme";
 import { authClient } from "../../src/lib/auth-client";
@@ -787,6 +788,7 @@ function makeStyles(colors: Colors) {
       color: colors.text,
       paddingVertical: 2,
       ...font.regular,
+      ...noFocusRing,
     },
     textArea: { minHeight: 56, textAlignVertical: "top", lineHeight: 23 },
     // Tradition lens

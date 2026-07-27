@@ -18,7 +18,13 @@ import { t } from "../src/lib/i18n";
 import { legalUrls } from "../src/lib/legal";
 import { signInWithGoogle } from "../src/lib/oauth";
 import { useTheme } from "../src/lib/ThemeContext";
-import { type Colors, font, radius, spacing } from "../src/lib/theme";
+import {
+  type Colors,
+  font,
+  noFocusRing,
+  radius,
+  spacing,
+} from "../src/lib/theme";
 
 export default function SignIn() {
   const { colors } = useTheme();
@@ -316,6 +322,7 @@ function makeStyles(colors: Colors) {
       fontSize: 17,
       color: colors.text,
       ...font.regular,
+      ...noFocusRing,
     },
     codeInput: {
       fontSize: 24,

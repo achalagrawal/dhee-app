@@ -14,7 +14,7 @@ import type { Doc } from "../../convex/_generated/dataModel";
 import { AppShell } from "../../src/components/AppShell";
 import { type Language, t } from "../../src/lib/i18n";
 import { useTheme } from "../../src/lib/ThemeContext";
-import { type Colors, font, radius } from "../../src/lib/theme";
+import { type Colors, font, noFocusRing, radius } from "../../src/lib/theme";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 export default function Understanding() {
@@ -276,6 +276,7 @@ function makeStyles(colors: Colors) {
       minHeight: 60,
       textAlignVertical: "top",
       ...font.regular,
+      ...noFocusRing,
     },
   });
 }

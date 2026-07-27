@@ -15,7 +15,13 @@ import { api } from "../convex/_generated/api";
 import { type Language, t } from "../src/lib/i18n";
 import { DEFAULT_TRADITION, TRADITIONS } from "../src/lib/traditions";
 import { useTheme } from "../src/lib/ThemeContext";
-import { type Colors, font, radius, spacing } from "../src/lib/theme";
+import {
+  type Colors,
+  font,
+  noFocusRing,
+  radius,
+  spacing,
+} from "../src/lib/theme";
 
 export default function Onboarding() {
   const { colors } = useTheme();
@@ -229,6 +235,7 @@ function makeStyles(colors: Colors) {
       fontSize: 17,
       color: colors.text,
       ...font.regular,
+      ...noFocusRing,
     },
     button: {
       backgroundColor: colors.accent,

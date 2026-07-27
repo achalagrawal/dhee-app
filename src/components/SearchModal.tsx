@@ -15,7 +15,7 @@ import { api } from "../../convex/_generated/api";
 import { t } from "../lib/i18n";
 import { useShell } from "../lib/shell";
 import { useTheme } from "../lib/ThemeContext";
-import { font, radius } from "../lib/theme";
+import { font, noFocusRing, radius } from "../lib/theme";
 import { relativeTime } from "../lib/time";
 import { useLanguage } from "../lib/useLanguage";
 import { Icon } from "./ui";
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  input: { flex: 1, fontSize: 16, ...font.regular },
+  input: { flex: 1, fontSize: 16, ...font.regular, ...noFocusRing },
   results: { paddingHorizontal: 8, paddingVertical: 6 },
   empty: {
     textAlign: "center",

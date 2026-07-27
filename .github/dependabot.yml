@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  # App + backend dependencies. Grouped so a solo maintainer gets one or two
+  # PRs a week instead of a dozen; security fixes still arrive immediately as
+  # their own PRs via Dependabot security updates (a separate feature).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Major bumps here are never a drive-by merge. `@convex-dev/agent` 0.6
+      # requires AI SDK v6 specifically (see README.md), and Expo majors are an
+      # SDK migration. Bump these deliberately, not from a bot PR.
+      - dependency-name: ai
+        update-types: [version-update:semver-major]
+      - dependency-name: expo
+        update-types: [version-update:semver-major]
+
+  # Keep CI actions current; a stale action is a supply-chain risk.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ["*"]

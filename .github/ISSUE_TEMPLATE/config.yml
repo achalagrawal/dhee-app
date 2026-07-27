@@ -1,0 +1,10 @@
+# Keep the structured templates as the front door, but don't force people into
+# them — an unstructured report is better than a report that never gets filed.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/achalagrawal/dhee-app/security/advisories/new
+    about: >
+      Please do NOT open a public issue for security problems. This opens a
+      private advisory only the maintainer can see.

@@ -6,6 +6,7 @@ import {
   listMessages,
   listStreams,
   listUIMessages,
+  stepCountIs,
   syncStreams,
   updateThreadMetadata,
   vStreamArgs,
@@ -24,7 +25,12 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { type PromptInputs, buildSystemPrompt, dhee } from "./agents/dhee";
+import {
+  STUDY_STEPS,
+  buildSystemPrompt,
+  dhee,
+  isCorpusLens,
+} from "./agents/dhee";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import { detectsCrisis } from "./lib/crisis";
 import { requireUserId } from "./users";
@@ -37,6 +43,15 @@ import { requireUserId } from "./users";
 // over websockets.
 //
 // Loop conventions are written down once in docs/build/specs/chat-loop.md.
+
+// What the prompt builder needs about a person, as `users.personalizationForUser`
+// returns it. Deliberately narrower than `PromptInputs`: no `contextBlock`.
+type Personalization = {
+  nickname?: string;
+  occupation?: string;
+  aboutYou?: string;
+  traditions: string[];
+};
 
 const STOP_REASON = "Stopped by the person.";
 
@@ -289,7 +304,11 @@ export const incognitoReply = action({
     // saved conversations they opted out of. See the spec's incognito section.
     // Annotated rather than inferred: this action reads through `internal`,
     // which includes this module, and TypeScript can't unwind that on its own.
-    const personalization: PromptInputs = await ctx.runQuery(
+    //
+    // Typed to what the query actually returns rather than to `PromptInputs`.
+    // The wider type would let a `contextBlock` field flow straight into the
+    // one place the spec says memory must never reach.
+    const personalization: Personalization = await ctx.runQuery(
       internal.users.personalizationForUser,
       { userId },
     );
@@ -299,6 +318,10 @@ export const incognitoReply = action({
       {
         system: buildSystemPrompt(personalization),
         messages: messages.map((m) => ({ role: m.role, content: m.text })),
+        // Study mode is a setting, and settings apply in incognito.
+        ...(isCorpusLens(personalization.traditions)
+          ? { stopWhen: stepCountIs(STUDY_STEPS) }
+          : {}),
       },
       {
         // Persist nothing, and pull in no prior context — a userId is required
@@ -331,6 +354,13 @@ export const streamReply = internalAction({
         {
           promptMessageId,
           system: buildSystemPrompt({ contextBlock, ...personalization }),
+          // A study question spends steps before it can answer: find the book,
+          // read the page, look up the terms it turns on. Five is the budget
+          // for "search, maybe read a page, reply", and it runs out. Everyone
+          // else keeps the Agent's default.
+          ...(isCorpusLens(personalization.traditions)
+            ? { stopWhen: stepCountIs(STUDY_STEPS) }
+            : {}),
         },
         { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
       );

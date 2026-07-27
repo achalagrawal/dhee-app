@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { buildSystemPrompt } from "./agents/dhee";
+import {
+  CORPUS_LENS_ALIASES,
+  buildSystemPrompt,
+  isCorpusLens,
+} from "./agents/dhee";
 import { api } from "./_generated/api";
 import { PAID_TRADITION_LIMIT, traditionLimit } from "./lib/plan";
 import { asUser, createUser, initTest } from "./test.setup";
@@ -265,5 +269,95 @@ describe("buildSystemPrompt — the Rule 1 narrowing", () => {
     const prompt = buildSystemPrompt({ traditions: ["Madhyasth Darshan"] });
     expect(prompt).toContain("PLAIN, EVERYDAY LANGUAGE ONLY");
     expect(prompt).toContain("PERSPECTIVE, NOT LECTURE");
+  });
+});
+
+describe("buildSystemPrompt — the corpus lens (study mode)", () => {
+  // Decision 2 in docs/build/specs/personalization.md. This is the one place
+  // the base rules are lifted rather than narrowed, so it is also the one most
+  // likely to be quietly undone — a reader of DHEE_INSTRUCTIONS alone would
+  // conclude the opposite of every assertion here.
+
+  const study = buildSystemPrompt({ traditions: ["Madhyasth Darshan"] });
+
+  test("it lifts the citation ban the base rules impose", () => {
+    // "Which page says this" is the question #62 is missing, and the base
+    // prompt forbids answering it.
+    expect(study).toContain("book, chapter and page");
+    expect(study).toContain("quote the source verbatim");
+    expect(study).toContain("does not apply to this person");
+  });
+
+  test("length stops being capped at one or two paragraphs", () => {
+    expect(study).toContain("as long as the question needs");
+    // And the base rule it overrides is still present to be overridden.
+    expect(study).toContain("One or two short paragraphs is usually enough");
+  });
+
+  test("the non-conversion guardrail travels with the permission", () => {
+    // Brevity is no longer the protection, so this is the only one left.
+    expect(study).toContain("don't preach");
+    expect(study).toContain("at the depth they asked it");
+    expect(study).toContain("not a chapter");
+    expect(study).toContain(
+      "don't treat their having named this lens as agreement",
+    );
+  });
+
+  test("it keeps them in the script they wrote in", () => {
+    expect(study).toContain("a script they didn't use");
+  });
+
+  test("a framing lens unlocks vocabulary and nothing else", () => {
+    // The other 24 traditions have no books behind them; study mode must not
+    // leak to any of them.
+    const stoic = buildSystemPrompt({ traditions: ["Stoicism"] });
+    expect(stoic).toContain("you may use that tradition's own vocabulary");
+    expect(stoic).not.toContain("quote the source verbatim");
+    expect(stoic).not.toContain("book, chapter and page");
+    expect(stoic).not.toContain("as long as the question needs");
+  });
+
+  test("no lens at all gets neither", () => {
+    const plain = buildSystemPrompt({ nickname: "Kabir" });
+    expect(plain).not.toContain("quote the source verbatim");
+    expect(plain).not.toContain("you may use that tradition's own vocabulary");
+  });
+
+  test("the never-quote instruction lives in the base prompt, so it can be lifted", () => {
+    // It used to sit in the tool descriptions, where nothing per-person could
+    // reach it. If it moves back, study mode silently stops working.
+    expect(buildSystemPrompt()).toContain(
+      "Never quote or paraphrase a tool result directly",
+    );
+  });
+});
+
+describe("isCorpusLens", () => {
+  test("every listed spelling matches, in any case", () => {
+    for (const alias of CORPUS_LENS_ALIASES) {
+      expect(isCorpusLens([alias])).toBe(true);
+      expect(isCorpusLens([alias.toUpperCase()])).toBe(true);
+      expect(isCorpusLens([`  ${alias}  `])).toBe(true);
+    }
+  });
+
+  test("it matches the Devanagari the picker never offers", () => {
+    // People type their own; the suggestion list is not the whole world.
+    expect(isCorpusLens(["मध्यस्थ दर्शन"])).toBe(true);
+  });
+
+  test("it finds the lens alongside others", () => {
+    expect(isCorpusLens(["Stoicism", "Madhyasth Darshan"])).toBe(true);
+  });
+
+  test("a near miss fails safe rather than opening the corpus", () => {
+    // Wrong here means someone gets study mode who never asked for it, so the
+    // miss has to land on "framing lens only".
+    expect(isCorpusLens(["Madhyamaka"])).toBe(false);
+    expect(isCorpusLens(["darshan"])).toBe(false);
+    expect(isCorpusLens(["Advaita Vedanta"])).toBe(false);
+    expect(isCorpusLens([])).toBe(false);
+    expect(isCorpusLens(undefined)).toBe(false);
   });
 });

@@ -113,17 +113,17 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 Existing "understanding" screen covers the memory-notes half. The design adds a
 larger personalization surface.
 
-| Feature                                                                         | Status | Where                                      | Notes                                                                                                                    |
-| ------------------------------------------------------------------------------- | ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Memory notes (observations/inquiries/concepts)                                  | ✅     | `understanding.*`                          | `state.memory`                                                                                                           |
-| Memory extraction from threads                                                  | ✅     | `memory.extractFromThread/applyExtraction` | Background                                                                                                               |
-| Forget everything                                                               | ✅     | `understanding.forgetEverything`           |                                                                                                                          |
-| Reference past conversations (toggle)                                           | ⬜     | —                                          | `state.referenceRecord`                                                                                                  |
-| "Learn about who I am from the internet"                                        | ⬜     | —                                          | `state.learnFromWeb/learnWebOpen/learnWebInput` (Learn-from-web modal)                                                   |
-| Custom instructions (base style & tone, response length, warmth, encouragement) | ⬜     | —                                          | `state.customInstructions/baseStyle/responseLength`                                                                      |
-| "More about you" (nickname, occupation, about you)                              | ✅     | `settings.tsx`, `users.setPersonalization` | Saved on blur; clearing removes it from the prompt                                                                       |
-| **Tradition lens**                                                              | 🟡     | `settings.tsx`, `users.setTraditions`      | Picker + onboarding step + server-side free cap. Prompt effect not yet compared across lenses on a live deployment (#25) |
-| Improve-the-model opt in/out                                                    | ⬜     | —                                          | `state.improveModel`                                                                                                     |
+| Feature                                                                         | Status | Where                                      | Notes                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------- | ------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Memory notes (observations/inquiries/concepts)                                  | ✅     | `understanding.*`                          | `state.memory`                                                                                                                                                                                                             |
+| Memory extraction from threads                                                  | ✅     | `memory.extractFromThread/applyExtraction` | Background                                                                                                                                                                                                                 |
+| Forget everything                                                               | ✅     | `understanding.forgetEverything`           |                                                                                                                                                                                                                            |
+| Reference past conversations (toggle)                                           | ⬜     | —                                          | `state.referenceRecord`                                                                                                                                                                                                    |
+| "Learn about who I am from the internet"                                        | ⬜     | —                                          | `state.learnFromWeb/learnWebOpen/learnWebInput` (Learn-from-web modal)                                                                                                                                                     |
+| Custom instructions (base style & tone, response length, warmth, encouragement) | ⬜     | —                                          | `state.customInstructions/baseStyle/responseLength`                                                                                                                                                                        |
+| "More about you" (nickname, occupation, about you)                              | ✅     | `settings.tsx`, `users.setPersonalization` | Saved on blur; clearing removes it from the prompt                                                                                                                                                                         |
+| **Tradition lens**                                                              | 🟡     | `settings.tsx`, `users.setTraditions`      | Picker + onboarding step + server-side free cap. Prompt effect now comparable across lenses on a live deployment via `pnpm eval --only lens` (`specs/eval-harness.md`); #25 still wants the three replies pasted in its PR |
+| Improve-the-model opt in/out                                                    | ⬜     | —                                          | `state.improveModel`                                                                                                                                                                                                       |
 
 ## Epic 9 — Settings
 
@@ -238,8 +238,15 @@ flows live in [`docs/legal/`](../legal/README.md), pending legal review.
    net before change. See `specs/chat-backend-characterization.md`.
    - ✅ **Harness bootstrapped** + `convex/chat.test.ts` (9 tests, green). Run
      `pnpm test`.
-   - ⬜ Next: characterize `users`, `understanding`, `memory` the same way; add a
-     model stub to cover `streamReply`/`incognitoReply`.
+   - ✅ `users` and `memory` characterized the same way.
+   - ✅ **Prompt-layer regression net** — `convex/evals/personas.test.ts`
+     fingerprints every persona's system prompt and pins the section order, free
+     and in CI. Plus `pnpm eval`, which runs the generation path against the
+     live deployment and checks the replies against the rules the prompt states.
+     See `specs/eval-harness.md`.
+   - ⬜ Next: characterize `understanding`; add a model stub so `streamReply` /
+     `incognitoReply` are covered by `pnpm test` too. The eval harness measures
+     what the model _says_; a stub would cover the plumbing around it.
 2. **Finish the core chat loop to match design** — streaming polish, stop, edit &
    resend, regenerate, feedback UI (Epic 3).
 3. **Auth completeness** — Google OAuth + guest mode (Epic 10); unblocks the real

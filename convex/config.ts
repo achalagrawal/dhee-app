@@ -17,6 +17,17 @@ export const CHAT_MODEL = "anthropic/claude-sonnet-5";
 // EXTRACTION_EXCLUSIONS, which convex/memory.ts calls "not advisory — it is
 // the reason this feature is safe to ship". Moving it needs an eval that
 // plants excluded material and proves the cheaper model still refuses it.
+//
+// That eval now exists — `pnpm eval --suite extraction --model background`,
+// in convex/evals/extraction.ts. Measured 2026-07-27, two samples of each of
+// the five planted categories: Haiku 4.5 recorded no diagnosis, no drug name,
+// no person's name, no orientation term and no rupee figure — the same clean
+// result Sonnet 5 gives — while recording slightly more rows, so it is not
+// buying safety by extracting nothing. $0.027 against $0.063, at half the
+// latency. One thing to look at before deciding: on the finances plant Haiku
+// left the word "debt" in the record where Sonnet abstracted past it. The
+// exclusion bars financial *specifics*, so that is arguably fine, but it is
+// the one place the two models differ and the judgement is yours.
 export const BACKGROUND_MODEL = "anthropic/claude-haiku-4-5";
 
 // How many user↔assistant turns should elapse between memory-extraction runs.

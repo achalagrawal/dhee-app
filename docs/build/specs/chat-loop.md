@@ -68,14 +68,63 @@ write it down rather than change it:
 - A `failed` message with no text renders as a failure surface (§7), **not** as
   an empty bubble with a copy button.
 
-### 3. Thinking indicator
+### 3. Thinking indicator (#89)
 
-- "Dhee is considering…" (`i18n` key `thinking`) shows **only before any
-  assistant text exists** — i.e. the last message is a user turn, or is an
-  assistant turn that is `pending`/`streaming` with empty text.
+- The indicator shows **only before any assistant text exists** — i.e. the last
+  message is a user turn, or is an assistant turn that is `pending`/`streaming`
+  with empty text.
 - The moment the first delta arrives it is replaced by the streaming bubble.
   Never both at once.
-- Already implemented. This section exists so a refactor doesn't lose it.
+- **It says what Dhee is doing, not that it is doing something.** A turn that
+  searches the corpus and looks up a paribhasha spends most of its wall-clock
+  time before the first token, and a line that never changes over that stretch
+  reads as a hang. It also hides the grounding, which is the part worth seeing:
+  the prompt tells Dhee to search rather than recall (`convex/agents/dhee.ts`),
+  and a person who never sees that happen has no reason to believe it did.
+
+**Where the account comes from.** The agent streams `tool-*` parts into the UI
+message alongside the text deltas, so `useUIMessages` already carries every tool
+call, its input, and whether its output has landed. Reading them is free — no
+extra query, no round-trip, no backend change. `src/lib/activity.ts` maps those
+parts to an ordered trail; the client renders it.
+
+**What it says.** One line per tool, in the person's language, naming the thing
+being looked at rather than the tool:
+
+| Tool                | Line                              |
+| ------------------- | --------------------------------- |
+| `searchWisdom`      | Searching the books for “…”       |
+| `searchExactPhrase` | Looking for “…” in the books      |
+| `lookupDefinition`  | Checking how the books define “…” |
+| `readPage`          | Reading page N                    |
+| `listBooks`         | Looking over the library          |
+| `readBookToc`       | Finding the right chapter         |
+
+- **Steps already taken stay visible**, dimmed, above the active one. The trail
+  is what builds trust; a line that only ever shows the newest step reads as a
+  flicker and leaves nothing behind.
+- **The quoted detail is the model's own input** (the query, the term, the page),
+  which arrives one JSON fragment at a time. Until it parses, the line renders in
+  its generic form — never a half-word in quotes.
+- **The gap between steps has its own line.** When every tool has returned and no
+  token has been written yet, it says it is taking in what came back. Nothing
+  else is true at that moment, and leaving the last tool's line up says something
+  is happening that isn't.
+- **Falls back to "Dhee is considering…"** (`i18n` key `thinking`) before the
+  first tool call, and for turns that never call one.
+- **The active line pulses.** A single step can run for seconds; motion is what
+  separates "working" from "stuck" when the words can't change yet.
+- Never render a raw tool name or raw tool output. An unrecognized tool gets the
+  generic line — the corpus comes back as dense Hindi source material meant for
+  the model, and putting it on screen unasked is the opposite of the intent
+  (`convex/tools/md.ts`).
+- Incognito shows the same indicator without a trail: `incognitoReply` is a
+  single `generateText` call that returns only at the end, so there is nothing
+  streaming to report. The fallback line is the whole truth there.
+- **Not in scope:** keeping the trail on the finished reply. The tool parts do
+  survive on the persisted message, so a "what Dhee looked at" trace with book
+  and page is buildable later — decide it as its own feature, don't grow it out
+  of this indicator.
 
 ### 4. Stop (#13)
 

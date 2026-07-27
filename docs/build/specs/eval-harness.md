@@ -27,15 +27,138 @@ saved as JSON and rendered as HTML.
 | answers    | `pnpm eval`                                             | 15 persona × probe cases, checked against the rules the system prompt states |
 | extraction | `pnpm eval --suite extraction --model chat\|background` | whether memory extraction still refuses the excluded categories              |
 
-```bash
-pnpm eval --dry-run                       # every prompt + the case matrix, $0
-pnpm eval --label before --repeats 3      # the whole suite, three samples per case
-pnpm eval --only lens --no-judge          # one slice, fast, checks only
-pnpm eval:report .evals/runs/<new>.json .evals/runs/<old>.json
-```
-
 Runs land in `.evals/runs/`, reports in `.evals/report/`. Both are gitignored
 (and prettier-ignored — that file is separate and does not read `.gitignore`).
+
+### What a case is
+
+A **persona** is a frozen set of `PromptInputs`; a **probe** is a frozen
+question. Cross them and you get a **case** — a fixed point you can re-measure
+after any edit.
+
+The personas exist to isolate one layer at a time: `bare` has no
+personalization, lens or memory; `stoic` and `advaita` add only a framing lens;
+`personalized` only the three self-described fields; `remembered` only a memory
+block; `corpus` opens study mode; `full` turns everything on at once. So when
+`stoic/life` moves and `bare/life` does not, the lens section did it — which is
+the whole point, and the thing that was impossible before.
+
+## Using it
+
+The harness talks to whatever Convex deployment `.env.local` points at, so for a
+local backend `npx convex dev` has to be running first.
+
+```bash
+pnpm eval --dry-run                    # every prompt + the case matrix, $0
+pnpm eval --label before --repeats 3   # the whole suite, three samples per case
+pnpm eval --only lens --no-judge       # one slice, fast, checks only
+pnpm eval --only corpus/page-lookup    # a single case while iterating
+pnpm eval --suite extraction --model background
+```
+
+| flag                | default  | what it is for                                                             |
+| ------------------- | -------- | -------------------------------------------------------------------------- |
+| `--label <name>`    | ISO ts   | Names the run and its saved file. Use it — you compare runs by name.       |
+| `--only <id\|tag>`  | all      | Case id (`corpus/life`) or tag (`lens`, `study`, `memory`, `script`, …).   |
+| `--repeats <n>`     | 1        | Samples per case. See below — 3 is the threshold for believing a delta.    |
+| `--concurrency <n>` | 4        | Cases in flight. Lower it if OpenRouter starts rate-limiting.              |
+| `--no-judge`        | judge on | Drops the second model call: about half the cost, and all the extra noise. |
+| `--dry-run`         | off      | Builds every prompt and enumerates the matrix without calling a model.     |
+
+A selector matching nothing **throws** rather than running zero cases and
+reporting green — an empty green run is the worst possible failure for a tool
+whose only job is to be believed.
+
+### The loop
+
+```bash
+pnpm eval --label before --repeats 3
+#   ... edit the prompt ...
+pnpm test                              # free: which personas changed?
+pnpm eval --label after --repeats 3
+pnpm eval:report .evals/runs/<after>.json .evals/runs/<before>.json
+```
+
+`pnpm eval:report` takes the new run first and the baseline second — it reads as
+"report this, against that". The middle step costs nothing and answers half the
+question on its own: a changed fingerprint in `personas.test.ts` names exactly
+which personas your edit reached, before you spend a rupee finding out what it
+did to them.
+
+**Three repeats matters.** Temperature cannot be set — OpenRouter strips
+sampling parameters for this model and Sonnet 5 rejects non-default ones — so
+run-to-run variance is real and is handled by reporting rather than suppression.
+At `--repeats 1` the report greys out every delta and labels it "within noise",
+because it would be. The Hinglish bug is the worked example: 1/3 on the first
+run read as variance, 0/3 on the second made it a fact.
+
+## Reading a report
+
+Read the sections in this order. Each one narrows the question the next one
+answers.
+
+**1. Header.** Model, timestamp, cases × repeats, total cost, and whether the
+run was judged. If repeats is below 3 a banner says so.
+
+**2. Checks table.** One row per check, the pass rate on each side, and the
+delta. When comparing, it counts **only the cases both runs ran**, so a
+`--only study` run against a full baseline compares five cases to five rather
+than five to fifteen.
+
+**3. System prompts.** One collapsible panel per persona, badged
+`prompt identical` / `prompt changed` / `not in this run`. Changed ones open by
+default with a line-level diff.
+
+This is the panel that attributes cause, and it is the reason the report is
+worth opening at all. The prompts are deterministic, so this diff is exact — it
+is the difference between "my edit did this" and "the model was having a
+different day".
+
+**4. Case cards.** One per case, two columns when comparing with the baseline on
+the left, and a highlight plus an "N checks moved" badge on any card that
+changed. Each card carries:
+
+- **check chips** — `3/3` or `1/3` across repeats, failure detail in the tooltip
+- **the metrics line** — steps, latency, cost, tokens, `cacheReadTokens`, and
+  which upstream OpenRouter routed to. That last one matters: OpenRouter routes
+  differently run to run, and a routing change can masquerade as a prompt
+  regression.
+- **the tool table** — every call with the arguments the model chose. "It
+  searched for the wrong thing" is a different problem from "it didn't search",
+  and only this tells them apart.
+- **the judge panel**, collapsed, with per-dimension means and its written
+  rationale
+- **every reply**, rendered as markdown, side by side
+
+### A worked card
+
+`corpus/page-lookup` from the baseline — the case study mode exists for:
+
+```
+tools   listBooks {}                        → 1,615 chars
+        readPage  {"bookId":138,"pageNo":3}  → 1,425 chars
+
+checks  PASS  searched-corpus                    called listBooks, readPage
+        PASS  expected-tools
+        PASS  quotes-the-source                  shared span: "अस्तित्व में से के लिए जानने पहचानने और"
+        PASS  script-mirrored (quoting allowed)  77% latin, overall latin
+
+metrics 3 steps · 25.5s · $0.0173 · 13,752 in / 982 out (11,706 cached) · Amazon Bedrock
+```
+
+`quotes-the-source` is the same detector that elsewhere enforces "never quote a
+tool result directly" — here it is inverted. Under the corpus lens the reply is
+_supposed_ to quote the page, so a shared span with the tool output is proof the
+answer came from the book rather than from the model's memory. Same function,
+opposite polarity, decided by the case's own `expect` block.
+
+### What the report deliberately does not do
+
+It does not diff the replies. Two samples from a non-deterministic model differ
+everywhere, so a word-level diff of prose would be almost entirely noise and
+would train you to skim past the report. The checks, the metrics and the prompts
+are exact and get diffed precisely; the replies are rendered side by side to
+read. **Diff what is exact; read what is not.**
 
 ## Three layers, in order of how much they should be trusted
 

@@ -202,6 +202,27 @@ Backend tests live next to the code as `convex/**/*.test.ts` and run against
 running Convex deployment, no secrets, and never call a model. The shared harness
 is `convex/test.setup.ts`.
 
+### Evals
+
+The three checks above never call a model, by design. Measuring what a prompt
+change does to an actual reply is a separate tool, run by hand against a live
+deployment:
+
+```bash
+pnpm eval --label before --repeats 3    # 15 persona × probe cases
+pnpm eval:report .evals/runs/<after>.json .evals/runs/<before>.json
+```
+
+It fixes one variable at a time — a persona is a frozen set of prompt inputs, a
+probe a frozen question — so you can change the tradition lens or the memory
+block and see which cases moved, with the exact system prompt, every tool call
+and its arguments, step counts and cost recorded per case. The report diffs what
+is deterministic (checks, metrics, prompts) and renders the replies side by side
+to read.
+
+Costs real money and never runs in CI. Full guide, including how to read a
+report: [`docs/build/specs/eval-harness.md`](docs/build/specs/eval-harness.md).
+
 ### CI/CD
 
 - **CI** — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the three

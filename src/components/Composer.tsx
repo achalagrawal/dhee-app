@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { t } from "../lib/i18n";
 import { useTheme } from "../lib/ThemeContext";
-import { font, radius, shadow } from "../lib/theme";
+import { font, noFocusRing, radius, shadow } from "../lib/theme";
 import { useLanguage } from "../lib/useLanguage";
 import { Icon, IconButton } from "./ui";
 
@@ -113,6 +113,7 @@ export function Composer({
         onContentSizeChange={onContentSizeChange}
         style={[
           styles.input,
+          noFocusRing,
           { color: colors.text, height: Math.max(minHeight, height) },
         ]}
       />

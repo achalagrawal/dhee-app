@@ -27,7 +27,7 @@ import { Icon, IconButton } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
-import { font, radius, shadow } from "../../../src/lib/theme";
+import { font, noFocusRing, radius, shadow } from "../../../src/lib/theme";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
 // Matches the mockup's `onMainScroll`.
@@ -742,6 +742,7 @@ function makeStyles(colors: Colors) {
       minHeight: 72,
       textAlignVertical: "top",
       ...font.regular,
+      ...noFocusRing,
     },
     editActions: {
       flexDirection: "row",

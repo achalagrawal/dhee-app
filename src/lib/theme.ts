@@ -135,6 +135,13 @@ export function shadow(mode: ThemeMode): ViewStyle {
       };
 }
 
+// Safari draws a blue system focus ring around a focused text field, which
+// lands as a hard rectangle inside the composer's rounded card — the prototype
+// sets `outline: none` on every input for the same reason. Purely a web
+// concern: on native this is inert, and `outline-style: none` is not one of
+// the three values React Native's own outline support types, hence the cast.
+export const noFocusRing = { outlineStyle: "none" } as unknown as TextStyle;
+
 export const spacing = {
   xs: 4,
   sm: 8,

@@ -16,6 +16,11 @@ Full backend setup (Convex deployment, env vars, seed data) is in the
 [README](README.md#local-setup). You don't need a running backend to run the
 checks below — the tests are in-memory.
 
+`assets/favicon.png` is committed but not hand-drawn: it is the Dhee mark, cut
+for the tab strip, written by `pnpm favicon` from the same measured geometry as
+[`DheeMark`](src/components/ui/DheeMark.tsx). Re-run it if the mark or the
+accent moves; Expo turns it into `dist/favicon.ico` during the web build.
+
 ## Checks (run before every commit)
 
 CI runs exactly these three on every push and PR (`.github/workflows/ci.yml`).

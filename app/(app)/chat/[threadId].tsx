@@ -494,6 +494,9 @@ function MessageEditor({
         onChangeText={setDraft}
         multiline
         autoFocus
+        // Same reason as the composer: keep iOS Safari from offering AutoFill
+        // on a free-text field and flickering the keyboard. Issue #72.
+        autoComplete="off"
         onKeyPress={(e) => {
           if (e.nativeEvent.key === "Escape") onCancel();
         }}

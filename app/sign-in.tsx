@@ -9,22 +9,16 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Field } from "../src/components/ui";
 import { authClient } from "../src/lib/auth-client";
 import { t } from "../src/lib/i18n";
 import { legalUrls } from "../src/lib/legal";
 import { signInWithGoogle } from "../src/lib/oauth";
 import { useTheme } from "../src/lib/ThemeContext";
-import {
-  type Colors,
-  font,
-  noFocusRing,
-  radius,
-  spacing,
-} from "../src/lib/theme";
+import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
 export default function SignIn() {
   const { colors } = useTheme();
@@ -135,7 +129,7 @@ export default function SignIn() {
                 </View>
 
                 <Text style={styles.label}>{t(lang, "signInSubtitle")}</Text>
-                <TextInput
+                <Field
                   style={styles.input}
                   placeholder={t(lang, "emailPlaceholder")}
                   placeholderTextColor={colors.textFaint}
@@ -162,7 +156,7 @@ export default function SignIn() {
                 <Text style={styles.label}>
                   {t(lang, "codeSubtitle")} {email}
                 </Text>
-                <TextInput
+                <Field
                   style={[styles.input, styles.codeInput]}
                   placeholder={t(lang, "codePlaceholder")}
                   placeholderTextColor={colors.textFaint}
@@ -322,7 +316,6 @@ function makeStyles(colors: Colors) {
       fontSize: 17,
       color: colors.text,
       ...font.regular,
-      ...noFocusRing,
     },
     codeInput: {
       fontSize: 24,

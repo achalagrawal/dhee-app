@@ -11,17 +11,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Field } from "../src/components/ui";
 import { api } from "../convex/_generated/api";
 import { type Language, t } from "../src/lib/i18n";
 import { DEFAULT_TRADITION, TRADITIONS } from "../src/lib/traditions";
 import { useTheme } from "../src/lib/ThemeContext";
-import {
-  type Colors,
-  font,
-  noFocusRing,
-  radius,
-  spacing,
-} from "../src/lib/theme";
+import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
 export default function Onboarding() {
   const { colors } = useTheme();
@@ -87,7 +82,7 @@ export default function Onboarding() {
 
           <View style={styles.block}>
             <Text style={styles.label}>{t(lang, "namePrompt")}</Text>
-            <TextInput
+            <Field
               style={styles.input}
               placeholder={t(lang, "namePlaceholder")}
               placeholderTextColor={colors.textFaint}
@@ -101,7 +96,7 @@ export default function Onboarding() {
           {/* Writes the same field the settings picker edits. */}
           <View style={styles.block}>
             <Text style={styles.label}>{t(lang, "traditionPrompt")}</Text>
-            <TextInput
+            <Field
               ref={traditionInput}
               style={styles.input}
               placeholder={t(lang, "traditionPlaceholder")}
@@ -235,7 +230,6 @@ function makeStyles(colors: Colors) {
       fontSize: 17,
       color: colors.text,
       ...font.regular,
-      ...noFocusRing,
     },
     button: {
       backgroundColor: colors.accent,

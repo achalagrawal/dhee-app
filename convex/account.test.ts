@@ -135,6 +135,36 @@ describe("account — purgeUserData", () => {
     });
   });
 
+  test("cancels a queued memory extraction instead of letting it outlive the account", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const threadId = await asUser(t, user).mutation(api.chat.startThread, {});
+    // A real turn, so `sendMessage` queues the debounced idle extraction.
+    await asUser(t, user).mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "I've been restless lately.",
+    });
+
+    const livePendingExtractions = async () =>
+      await t.run(async (ctx) => {
+        const fns = await ctx.db.system.query("_scheduled_functions").collect();
+        return fns.filter(
+          (f) => f.name.includes("runExtraction") && f.state.kind === "pending",
+        );
+      });
+
+    // Asserted before as well as after, so the test can't quietly go vacuous
+    // if the idle flush ever stops being scheduled here.
+    expect(await livePendingExtractions()).toHaveLength(1);
+
+    await t.mutation(internal.account.purgeUserData, { userId: user });
+
+    // Left alone, this would wake minutes later and write fresh observation
+    // rows under a userId that no longer resolves to anyone — re-creating the
+    // very thing the purge exists to erase.
+    expect(await livePendingExtractions()).toHaveLength(0);
+  });
+
   test("deletes the stored avatar, not just the row pointing at it", async () => {
     const t = initTest();
     const user = await createUser(t);

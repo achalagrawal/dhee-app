@@ -207,12 +207,18 @@ deletion takes effect immediately rather than lingering in some accumulated
 summary.
 
 We also instruct the model that writes these notes never to record health
-conditions or diagnoses, political views, sexual orientation, the names of
-people in your life, or financial specifics — and to write nothing at all when
-in doubt. That instruction is followed reliably but it is an instruction to a
-model, not a hard filter, which is exactly why the screen that shows you every
-row exists. If you find something there that should not be, delete it, and
-please tell us.
+conditions or diagnoses, political views, sexual orientation, financial
+specifics, the names of employers or organisations you deal with, or contact
+details of any kind — and to write nothing at all when in doubt.
+
+It **may** record the first names of people in your personal life — family, a
+partner, close friends — so that Dhee can speak about them the way you do. The
+categories above stay excluded for those people too: that your brother is
+called Arun may be recorded; anything about his health is not.
+
+Those are instructions to a model, not hard filters, which is exactly why the
+screen that shows you every row exists. If you find something there that should
+not be, delete it, and please tell us.
 
 ## Sensitive topics
 

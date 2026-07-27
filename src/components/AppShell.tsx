@@ -49,7 +49,7 @@ export function AppShell({ children, right, showIncognito = false }: Props) {
         />
 
         <View pointerEvents="none" style={styles.logo}>
-          <Icon name="logo" size={30} color={colors.accent} />
+          <Icon name="logo" size={30} color={colors.accentStrong} />
         </View>
 
         <View style={styles.right}>

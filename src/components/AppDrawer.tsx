@@ -116,7 +116,7 @@ export function AppDrawer() {
         {/* Brand row */}
         <View style={styles.brandRow}>
           <Pressable style={styles.brand} onPress={() => go("/home")}>
-            <Icon name="logo" size={28} color={colors.accent} />
+            <Icon name="logo" size={28} color={colors.accentStrong} />
             <Text style={[styles.brandName, { color: colors.text }]}>Dhee</Text>
           </Pressable>
           <Pressable onPress={closeDrawer} hitSlop={10}>

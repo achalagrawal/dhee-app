@@ -70,7 +70,7 @@ export function ThinkingTrail({
     // One line sits beside the avatar, as in the mockup; a trail hangs off the
     // top of it, the way the avatar fronts a multi-line reply.
     <View style={[styles.row, done.length > 0 && styles.rowTrail]}>
-      <DheeAvatar />
+      <DheeAvatar animated />
       <View style={styles.lines}>
         {done.map((activity) => (
           <Text key={activity.id} style={styles.doneText} numberOfLines={1}>

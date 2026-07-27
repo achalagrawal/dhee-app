@@ -12,6 +12,7 @@ import {
   query,
 } from "./_generated/server";
 import { planForProfile, traditionLimit } from "./lib/plan";
+import { isCorpusLensName } from "./agents/dhee";
 
 /** The signed-in person's app-side user id, or null if there is no valid
  *  identity on the request.
@@ -301,8 +302,17 @@ export const setTraditions = mutation({
 
     // Enforced here, not only in the UI: a client that sends three lenses on a
     // free plan gets an error rather than three lenses.
+    //
+    // Madhyasth Darshan is not counted. The quota exists because each framing
+    // lens is more text in the system prompt, but the corpus lens is a
+    // capability rather than a framing — it is what opens the books Dhee
+    // actually holds. Counting it meant someone who had already named Stoicism
+    // could not reach study mode at all without giving up the lens they came
+    // with, which made the one tradition that answers "replies feel thin"
+    // the hardest one to switch on.
     const limit = traditionLimit(planForProfile(profile));
-    if (cleaned.length > limit) {
+    const counted = cleaned.filter((t) => !isCorpusLensName(t));
+    if (counted.length > limit) {
       throw new Error(
         limit === 1
           ? "The free plan includes one tradition lens."

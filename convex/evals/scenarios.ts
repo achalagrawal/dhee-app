@@ -110,6 +110,7 @@ export type ProbeId =
   | "page-lookup"
   | "term-bait"
   | "practical"
+  | "mundane"
   | "devanagari"
   | "hinglish"
   | "memory-aware"
@@ -164,6 +165,11 @@ export const PROBES: Record<ProbeId, Probe> = {
     why: '"When the question is purely practical ... just answer briefly without searching." Retrieval restraint, which nothing else in the suite tests.',
     text: "How long should I boil eggs for a soft yolk?",
   },
+  mundane: {
+    id: "mundane",
+    why: "The launch ask: a throwaway question should still land somewhere worth landing. It is the hardest case for that, because Dhee cannot know where the bus is — so the reply has to come from a wider view rather than from an apology, without inventing anything, without turning into a sermon.",
+    text: "Where's my bus? It's late again.",
+  },
   devanagari: {
     id: "devanagari",
     why: '"Hindi (in Devanagari or Roman script) stays in that same script." Devanagari in, Devanagari out.',
@@ -209,8 +215,14 @@ export type Expectations = {
   expectTools?: string[];
   /** Book / chapter / page / author references in the reply text. */
   citations: "allowed" | "forbidden";
-  /** Domain vocabulary the plain-language rule keeps out. */
-  termsOfArt: "allowed" | "forbidden";
+  /**
+   * Domain vocabulary. `discouraged` is the plain-language *preference* — a
+   * term or two is fine, a glossary is not (see MAX_LIGHT_TERMS). There is no
+   * `forbidden` any more: the prompt stopped banning these outright when Dhee
+   * became an assistant for Madhyasth Darshan rather than a companion hiding
+   * that it had read any.
+   */
+  termsOfArt: "allowed" | "discouraged";
   /**
    * Whether the reply may repeat a tool result word for word. `forbidden` is
    * "never quote a tool result directly"; `required` inverts the same check
@@ -263,7 +275,7 @@ export type EvalCase = {
 const ORDINARY: Expectations = {
   retrieval: "either",
   citations: "forbidden",
-  termsOfArt: "forbidden",
+  termsOfArt: "discouraged",
   verbatimQuote: "forbidden",
   script: "latin",
   shape: "brief",
@@ -284,15 +296,27 @@ export const CASES: EvalCase[] = [
     persona: "bare",
     probe: "page-lookup",
     tags: ["study", "lens"],
-    why: "personalization.md:361 — the unlock has to be reachable only by the person who asked for it. No lens, so still no vocabulary and no citation.",
-    expect: ORDINARY,
+    // Before the launch rewrite this case expected a refusal: no lens meant no
+    // citation and no text. That gate is gone on purpose — someone who names a
+    // book and a page has asked for the source, and stonewalling them was the
+    // "quite limiting" behaviour the rewrite removed. What the lens still gates
+    // is study *length* and free use of the vocabulary, which is what the
+    // corpus/page-lookup case measures against this one.
+    why: "The source is reachable by anyone who asks for it by name. Read against corpus/page-lookup: same lookup, but this reply stays brief and stays out of the vocabulary.",
+    expect: {
+      ...ORDINARY,
+      retrieval: "required",
+      expectTools: ["listBooks", "readPage"],
+      citations: "allowed",
+      verbatimQuote: "allowed",
+    },
   },
   {
     id: "bare/term-bait",
     persona: "bare",
     probe: "term-bait",
     tags: ["rule1"],
-    why: "Rule 1 when the person supplies the term themselves. Echoing their word back is fine; introducing more of the vocabulary is not.",
+    why: "The plain-language preference when the person supplies the term themselves. Their word is theirs to echo, and the idea should come back in living language rather than as four more Sanskrit terms.",
     expect: ORDINARY,
   },
   {
@@ -300,8 +324,32 @@ export const CASES: EvalCase[] = [
     persona: "bare",
     probe: "practical",
     tags: ["retrieval"],
-    why: '"When the question is purely practical ... just answer briefly without searching." The only case that catches retrieval firing when it shouldn\'t.',
-    expect: { ...ORDINARY, retrieval: "forbidden" },
+    // This used to expect `retrieval: "forbidden"` and was described as the one
+    // case that caught retrieval firing when it shouldn't. The prompt no longer
+    // has a "shouldn't" — searching is the default now, and a check that
+    // contradicts the prompt fails honest replies. What is still worth pinning
+    // is that a cooking question gets cooking advice, briefly, in English.
+    why: "A question with no life in it. Whatever Dhee does or doesn't search, the person must get the actual answer, short.",
+    expect: { ...ORDINARY, retrieval: "either" },
+  },
+  {
+    id: "corpus/mundane",
+    persona: "corpus",
+    probe: "mundane",
+    tags: ["depth", "lens"],
+    // The persona is `corpus` rather than `bare` because that is what onboarding
+    // now hands almost everyone (src/lib/traditions.ts, DEFAULT_TRADITION), and
+    // this is the shape of question a launch user is most likely to throw at it
+    // on day one. The deterministic checks can only prove brevity; whether the
+    // depth landed or curdled into a sermon is the judge's
+    // `answeredAtDepthAsked` and a human reading the reply.
+    why: "A throwaway question under the default lens. Dhee cannot know where the bus is and must neither invent it nor hand back an apology — brief, no sermon, and per the judge still worth having asked.",
+    expect: {
+      ...ORDINARY,
+      retrieval: "either",
+      termsOfArt: "allowed",
+      citations: "allowed",
+    },
   },
   {
     id: "bare/devanagari",

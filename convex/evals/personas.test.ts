@@ -19,14 +19,22 @@ import { PERSONAS, type PersonaId } from "./scenarios";
 // SAME COMMIT as the change and say so in the message. Never regenerate these
 // in bulk: docs/build/specs/personalization.md:334 says a silently re-recorded
 // snapshot is how this rule stops meaning anything, and that applies here.
+//
+// Re-recorded once, wholesale, for the Madhyasth Darshan launch rewrite: the
+// base prompt stopped being a companion that concealed the corpus and became an
+// assistant for the darshan, carrying its fundamentals inline. Every persona
+// moved because every persona shares that base — note the lengths roughly
+// tripling, which is the fundamentals block and nothing else. This is the one
+// case the file's own rule allows for a bulk update, and it is stated here so
+// the next bulk update has to justify itself the same way.
 const PROMPT_FINGERPRINTS: Record<PersonaId, string> = {
-  bare: "27496c03-3101",
-  stoic: "4291642e-3738",
-  advaita: "14089db4-3745",
-  corpus: "d872acd2-5122",
-  personalized: "f8489d8a-3403",
-  remembered: "3051cffe-3986",
-  full: "ad93fcc4-6309",
+  bare: "0e7585c3-12126",
+  stoic: "8d79fdfe-12795",
+  advaita: "f6e4281c-12802",
+  corpus: "26f77049-14622",
+  personalized: "ad3b694a-12428",
+  remembered: "a5c47d3e-13011",
+  full: "37b327df-15809",
 };
 
 // The section separator `buildSystemPrompt` joins with.

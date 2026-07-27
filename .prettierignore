@@ -11,3 +11,5 @@ convex/_generated/
 pnpm-lock.yaml
 mockup/
 public/
+# Saved eval runs and reports (`pnpm eval`) — machine-written, gitignored.
+.evals/

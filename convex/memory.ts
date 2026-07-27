@@ -22,7 +22,7 @@ export const workflow = new WorkflowManager(components.workflow);
 // is safe to ship, and it is repeated in the prompt because models drift
 // toward being helpfully comprehensive.
 
-const EXTRACTION_EXCLUSIONS = `\
+export const EXTRACTION_EXCLUSIONS = `\
 NEVER record any of the following, even when the person states it plainly and even if it seems central to their situation:
 - health conditions, diagnoses, symptoms, medications, or disabilities
 - political affiliation, party preference, or views on political figures
@@ -32,7 +32,7 @@ NEVER record any of the following, even when the person states it plainly and ev
 
 If something you would otherwise record depends on excluded information, either write it at a level that omits the detail, or skip it entirely. Skipping is always acceptable. A sparse, safe record is the goal — not a complete one.`;
 
-const extractionSchema = z.object({
+export const extractionSchema = z.object({
   inquiries: z
     .array(
       z.object({
@@ -141,6 +141,22 @@ export function buildTranscript(
     .join("\n\n");
 }
 
+// Exported so convex/evals/extraction.ts can run the real prompt against a
+// different model rather than a copy of it. config.ts blocks moving extraction
+// to BACKGROUND_MODEL until an eval proves the cheaper model still refuses the
+// excluded categories, and an eval that tests a hand-copied prompt would prove
+// nothing about the one that ships.
+export const EXTRACTION_SYSTEM = `You maintain a careful, minimal record of a person based on their conversations with a companion app.
+
+Record only what this person actually said about themselves. Do not infer beyond the text. Do not fill gaps with plausible detail. When in doubt, record nothing — an empty result is a correct and common answer.
+
+${EXTRACTION_EXCLUSIONS}
+
+Everything you write may be shown to this person verbatim in a screen called "Dhee's understanding of you". Write so that reading it would feel accurate and respectful, never presumptuous or clinical.`;
+
+export const extractionPrompt = (transcript: string) =>
+  `Here is the recent conversation. Extract what is durable and safe to remember.\n\n${transcript}`;
+
 export const extractFromThread = internalAction({
   args: { userId: v.id("users"), threadId: v.string() },
   returns: v.null(),
@@ -157,14 +173,8 @@ export const extractFromThread = internalAction({
     const { object } = await generateObject({
       model: languageModel,
       schema: extractionSchema,
-      system: `You maintain a careful, minimal record of a person based on their conversations with a companion app.
-
-Record only what this person actually said about themselves. Do not infer beyond the text. Do not fill gaps with plausible detail. When in doubt, record nothing — an empty result is a correct and common answer.
-
-${EXTRACTION_EXCLUSIONS}
-
-Everything you write may be shown to this person verbatim in a screen called "Dhee's understanding of you". Write so that reading it would feel accurate and respectful, never presumptuous or clinical.`,
-      prompt: `Here is the recent conversation. Extract what is durable and safe to remember.\n\n${transcript}`,
+      system: EXTRACTION_SYSTEM,
+      prompt: extractionPrompt(transcript),
     });
 
     await ctx.runMutation(internal.memory.applyExtraction, {

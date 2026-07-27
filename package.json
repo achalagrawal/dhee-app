@@ -26,7 +26,9 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "smoke": "convex run dev:smokeTest '{}' && convex run devEmail:sesCheck '{}'"
+    "smoke": "convex run dev:smokeTest '{}' && convex run devEmail:sesCheck '{}'",
+    "eval": "node scripts/eval.mjs",
+    "eval:report": "node scripts/eval-report.mjs"
   },
   "dependencies": {
     "@better-auth/expo": "^1.6.25",

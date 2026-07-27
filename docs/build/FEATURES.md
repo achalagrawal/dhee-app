@@ -44,17 +44,17 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 2 — Composer
 
-| Feature                                                          | Status | Where              | Notes                                                                                       |
-| ---------------------------------------------------------------- | ------ | ------------------ | ------------------------------------------------------------------------------------------- |
-| Text send                                                        | ✅     | `chat.sendMessage` |                                                                                             |
-| Enter sends / Shift+Enter newline                                | ✅     | `lib/keyboard.ts`  | Keyboard devices only; IME-safe; spec: [`specs/enter-to-send.md`](./specs/enter-to-send.md) |
-| Attachments (files/photos) + drag-drop                           | 🟡     | Composer stub      | `state.pendingFiles/uploads/dragOver`; types: IMG/PDF/MD/TXT/DOC                            |
-| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub      | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated)  |
-| Web search toggle                                                | 🟡     | Composer stub      | `state.webSearchOn` (distinct from `md.ts`)                                                 |
-| Dictation (mic)                                                  | ⬜     | —                  | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                          |
-| Voice mode                                                       | ⬜     | —                  | `state.speakingId`; button hidden until Epic 12 (#97)                                       |
-| Typeahead suggestions                                            | ⬜     | —                  |                                                                                             |
-| Token bar / limit-reached card                                   | ⬜     | —                  | Needs billing (Epic 14)                                                                     |
+| Feature                                                          | Status | Where                        | Notes                                                                                                                                             |
+| ---------------------------------------------------------------- | ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text send                                                        | ✅     | `chat.sendMessage`           |                                                                                                                                                   |
+| Enter sends / Shift+Enter newline                                | ✅     | `lib/keyboard.ts`            | Keyboard devices only; IME-safe; spec: [`specs/enter-to-send.md`](./specs/enter-to-send.md)                                                       |
+| Attachments (files/photos) + drag-drop                           | 🟡     | `Composer`, `useAttachments` | Photos work end to end ([spec](./specs/photo-attachments.md)). Still stubbed: documents (IMG only today), drag-drop (`state.dragOver`), incognito |
+| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub                | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated)                                                        |
+| Web search toggle                                                | 🟡     | Composer stub                | `state.webSearchOn` (distinct from `md.ts`)                                                                                                       |
+| Dictation (mic)                                                  | ⬜     | —                            | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                                                                                |
+| Voice mode                                                       | ⬜     | —                            | `state.speakingId`; button hidden until Epic 12 (#97)                                                                                             |
+| Typeahead suggestions                                            | ⬜     | —                            |                                                                                                                                                   |
+| Token bar / limit-reached card                                   | ⬜     | —                            | Needs billing (Epic 14)                                                                                                                           |
 
 ## Epic 3 — Chat & messages
 
@@ -162,11 +162,12 @@ far richer than today's flat screen.
 
 ## Epic 11 — Attachments & media backend
 
-| Feature                                  | Status | Notes                                                                      |
-| ---------------------------------------- | ------ | -------------------------------------------------------------------------- |
-| File/image storage + `expo-image-picker` | ⬜     | Convex file storage; `users.generateAvatarUploadUrl` is a starting pattern |
-| Attachments rendered in messages         | ⬜     | image thumbs + doc chips (IMG/PDF/MD/TXT/DOC)                              |
-| Multimodal in generation                 | ⬜     | Pass attachments to the model                                              |
+| Feature                                  | Status | Notes                                                                   |
+| ---------------------------------------- | ------ | ----------------------------------------------------------------------- |
+| File/image storage + `expo-image-picker` | 🟡     | `convex/attachments.ts` — photos only; documents need a wider allowlist |
+| Attachments rendered in messages         | 🟡     | Image thumbs done; doc chips (PDF/MD/TXT/DOC) wait on the above         |
+| Multimodal in generation                 | ✅     | Image parts ride the saved turn; `streamReply` needed no change         |
+| Vacuuming unreferenced files             | ⬜     | `files.getFilesToDelete` + a cron; see the photo-attachments spec       |
 
 ## Epic 12 — Voice & dictation
 

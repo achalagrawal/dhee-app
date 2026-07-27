@@ -102,6 +102,45 @@ export async function seedExchange(
   await seedReply(t, userId, threadId, reply);
 }
 
+/** Put bytes in file storage, the way a client's POST to a signed upload URL
+ *  does. `content` varies the sha256 — the component dedupes on it, so two
+ *  photos in one test have to differ. */
+export async function storeBlob(
+  t: TestConvex<typeof schema>,
+  { type = "image/jpeg", size = 8, content = "a" } = {},
+): Promise<Id<"_storage">> {
+  const blob = new Blob([content.repeat(size)], { type });
+  return await t.run(async (ctx) => await ctx.storage.store(blob));
+}
+
+/** A photo uploaded and registered, as the composer leaves it just before
+ *  send. Returns the fileId `chat.sendMessage` takes. */
+export async function attachPhoto(
+  t: TestConvex<typeof schema>,
+  userId: Id<"users">,
+  overrides: { type?: string; size?: number; content?: string } = {},
+): Promise<string> {
+  const storageId = await storeBlob(t, overrides);
+  const result = await asUser(t, userId).mutation(api.attachments.attach, {
+    storageId,
+    mediaType: overrides.type ?? "image/jpeg",
+    filename: "photo.jpg",
+  });
+  if ("error" in result) throw new Error(`attach refused: ${result.error}`);
+  return result.fileId;
+}
+
+/** A registered file's row in the agent component — refcount included, which
+ *  is what says whether a message is holding on to it. */
+export async function attachmentDoc(
+  t: TestConvex<typeof schema>,
+  fileId: string,
+) {
+  return await t.run(
+    async (ctx) => await ctx.runQuery(components.agent.files.get, { fileId }),
+  );
+}
+
 /** The thread's message docs, oldest first. */
 export async function threadMessages(
   t: TestConvex<typeof schema>,

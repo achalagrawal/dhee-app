@@ -11,6 +11,7 @@
 import type * as account from "../account.js";
 import type * as agents_config from "../agents/config.js";
 import type * as agents_dhee from "../agents/dhee.js";
+import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as config from "../config.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   account: typeof account;
   "agents/config": typeof agents_config;
   "agents/dhee": typeof agents_dhee;
+  attachments: typeof attachments;
   auth: typeof auth;
   chat: typeof chat;
   config: typeof config;

@@ -13,10 +13,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SigningIn } from "../src/components/SigningIn";
 import { authClient } from "../src/lib/auth-client";
 import { t } from "../src/lib/i18n";
 import { legalUrls } from "../src/lib/legal";
 import { signInWithGoogle } from "../src/lib/oauth";
+import { useOAuthHandoff } from "../src/lib/oauth-return";
 import { useTheme } from "../src/lib/ThemeContext";
 import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
@@ -28,7 +30,13 @@ export default function SignIn() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Google has said yes and we're waiting on the session. Distinct from `busy`,
+  // which also covers the seconds a person spends over on Google's own screens.
+  const [googleSettling, setGoogleSettling] = useState(false);
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Web can land back on this route with the handoff still in flight — a hard
+  // refresh on `/?ott=…`, or a redirect that beat the session home.
+  const handingOff = useOAuthHandoff();
 
   // Sign-in happens before we know the person's language preference, so this
   // screen is English-only by necessity. Onboarding is where they choose.
@@ -59,9 +67,13 @@ export default function SignIn() {
     try {
       const outcome = await signInWithGoogle();
       // On success the redirect below takes over once isAuthenticated flips,
-      // so `busy` deliberately stays true. Backing out of the browser sheet
-      // just returns the screen to idle — it isn't a failure.
+      // so `busy` deliberately stays true. Until then the form would sit there
+      // greyed out with nothing to say — swap it for the signing-in screen, so
+      // the wait reads as progress rather than as a sign-in that didn't take.
+      // Backing out of the browser sheet just returns the screen to idle — it
+      // isn't a failure.
       if (outcome === "cancelled") setBusy(false);
+      else setGoogleSettling(true);
     } catch {
       setError(t(lang, "somethingWentWrong"));
       setBusy(false);
@@ -91,6 +103,9 @@ export default function SignIn() {
   // route, which decides between onboarding and the thread list. Without this
   // a successful sign-in leaves the person watching a spinner forever.
   if (isAuthenticated) return <Redirect href="/" />;
+
+  // A sign-in already under way outranks the form that would start another one.
+  if (handingOff || googleSettling) return <SigningIn />;
 
   return (
     <SafeAreaView style={styles.safe}>

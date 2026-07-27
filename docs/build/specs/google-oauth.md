@@ -27,6 +27,16 @@ modal" is a separate 🟡 row in the tracker.
 - **Native:** a system browser sheet opens over the app. On success it closes
   and the app continues; on dismiss the screen returns to idle with no error —
   cancelling is not a failure.
+- **The wait after Google says yes is never shown as a signed-out screen.**
+  Coming back from Google is not the same as being signed in: the session
+  arrives through a one-time token (`${SITE_URL}/?ott=…`) that the Convex
+  provider exchanges over three round trips once the app has mounted, and for
+  those seconds Convex auth is indistinguishable from signed out. `SigningIn`
+  holds that gap on both platforms — the sign-in screen's own wordmark and
+  tagline over "Signing you in…" — so the router never bounces someone back to
+  the button they just pressed. `src/lib/oauth-return.ts` reads the token from
+  the URL at module load, before the provider strips it, and times the wait out
+  after 12s so a token that will never verify still ends at sign-in.
 - Any genuine failure shows the same `somethingWentWrong` copy the email path
   uses. The Google error is never surfaced raw.
 - A person who signed in with email OTP and later uses Google **with the same

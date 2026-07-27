@@ -7,18 +7,24 @@ import {
 import { Redirect } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { api } from "../convex/_generated/api";
+import { SigningIn } from "../src/components/SigningIn";
+import { useOAuthHandoff } from "../src/lib/oauth-return";
 import { colors } from "../src/lib/theme";
 
 // Entry gate. Auth state and onboarding state are both server-owned, so the
 // routing decision waits for the query rather than guessing from local state.
 export default function Index() {
+  // Google drops people back here with the session still in flight, and Convex
+  // reports that gap as plain "unauthenticated" (src/lib/oauth-return.ts).
+  // Redirecting on it shows the sign-in screen to someone who just signed in.
+  const handingOff = useOAuthHandoff();
   return (
     <>
       <AuthLoading>
         <Splash />
       </AuthLoading>
       <Unauthenticated>
-        <Redirect href="/sign-in" />
+        {handingOff ? <SigningIn /> : <Redirect href="/sign-in" />}
       </Unauthenticated>
       <Authenticated>
         <OnboardingGate />

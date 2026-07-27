@@ -8,11 +8,18 @@ import { emailOTPClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+import { convexSiteUrl } from "./convex-urls";
 
 // Better Auth's handler is mounted on the Convex deployment's *site* origin
 // (`.convex.site`), not the API origin the ConvexReactClient talks to — see
 // `authComponent.registerRoutes` in convex/http.ts.
-const baseURL = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
+//
+// The fallback is what makes preview deployments work: their Convex hostname is
+// generated per branch, so the Vercel build can only inject the API URL and the
+// site origin has to be derived from it (src/lib/convex-urls.ts).
+const baseURL =
+  process.env.EXPO_PUBLIC_CONVEX_SITE_URL ??
+  convexSiteUrl(process.env.EXPO_PUBLIC_CONVEX_URL);
 if (!baseURL) {
   throw new Error(
     "EXPO_PUBLIC_CONVEX_SITE_URL is not set. Run `pnpm convex:dev` once to populate .env.local.",

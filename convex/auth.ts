@@ -8,6 +8,7 @@ import type { DataModel } from "./_generated/dataModel";
 import authConfig from "./auth.config";
 import { sendEmail } from "./email";
 import { isLoopback } from "./lib/backend";
+import { parseOrigins } from "./lib/origins";
 import { normalizeProviderName } from "./users";
 
 // Auth foundation. See docs/build/specs/auth-foundation.md.
@@ -145,6 +146,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     // bare "Failed to fetch" and nothing in the response to explain it.
     trustedOrigins: [
       ...(process.env.SITE_URL ? [process.env.SITE_URL] : []),
+      // Preview deployments only: a Vercel preview answers on two hostnames
+      // and SITE_URL can only be one of them. Unset in production. See
+      // lib/origins.ts and scripts/vercel-build.mjs.
+      ...parseOrigins(process.env.EXTRA_TRUSTED_ORIGINS),
       // Native never presents an http origin; it comes back on the app's own
       // scheme. Matches APP_SCHEME in lib/redirect.ts and `expo.scheme`.
       "dhee://",

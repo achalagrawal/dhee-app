@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npx convex deploy --cmd 'pnpm build:web' --cmd-url-env-var-name EXPO_PUBLIC_CONVEX_URL",
+  "buildCommand": "node scripts/vercel-build.mjs",
   "outputDirectory": "dist",
   "installCommand": "pnpm install",
   "framework": null,
@@ -9,11 +9,5 @@
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/safety", "destination": "/safety.html" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "git": {
-    "deploymentEnabled": {
-      "**": false,
-      "main": true
-    }
-  }
+  ]
 }

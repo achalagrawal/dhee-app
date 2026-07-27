@@ -32,7 +32,10 @@ import {
   isCorpusLens,
 } from "./agents/dhee";
 import { backgroundModel } from "./agents/config";
-import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
+import {
+  MEMORY_EXTRACTION_IDLE_MS,
+  MEMORY_EXTRACTION_INTERVAL_TURNS,
+} from "./config";
 import { detectsCrisis } from "./lib/crisis";
 import { requireUserId } from "./users";
 
@@ -190,6 +193,7 @@ async function upsertThreadMeta(
   userId: Id<"users">,
   patch: Partial<{
     turnsSinceExtraction: number;
+    pendingExtraction: Id<"_scheduled_functions"> | undefined;
     starred: boolean;
     pinned: boolean;
     editedMessages: string[];
@@ -207,6 +211,26 @@ async function upsertThreadMeta(
       turnsSinceExtraction: 0,
       ...patch,
     });
+  }
+}
+
+// Drop a thread's queued idle extraction. Every deletion path must call this
+// before removing the meta row, and the reason is a race rather than tidiness:
+// `deleteThreadAsync` pages messages out in the background, so a flush left on
+// the queue can wake up while the conversation is half-deleted and write
+// memories from something the person just asked us to forget.
+//
+// Cancelling is best-effort. A job that already ran or was already cancelled
+// must not turn a delete into an error.
+async function cancelPendingExtraction(
+  ctx: MutationCtx,
+  meta: { pendingExtraction?: Id<"_scheduled_functions"> },
+): Promise<void> {
+  if (!meta.pendingExtraction) return;
+  try {
+    await ctx.scheduler.cancel(meta.pendingExtraction);
+  } catch {
+    // Already fired or gone.
   }
 }
 
@@ -247,10 +271,38 @@ export const sendMessage = mutation({
     });
 
     // Count turns so the extraction workflow fires every N.
+    //
+    // The counter resets here, when a run is *scheduled*, not when one
+    // finishes. Extraction is a workflow that takes seconds, and at a short
+    // interval a fast conversation would otherwise cross the threshold again
+    // on every turn until the first run got around to resetting it — firing a
+    // fresh workflow each time. Resetting at schedule time makes the counter a
+    // clock rather than a status flag, and one turn can only ever start one
+    // run.
     const meta = await threadMetaFor(ctx, threadId);
     const turns = (meta?.turnsSinceExtraction ?? 0) + 1;
+    const dueByTurnCount = turns >= MEMORY_EXTRACTION_INTERVAL_TURNS;
+
+    // Debounce the idle flush: this turn means the conversation is not idle,
+    // so drop the run queued by the previous turn and queue a fresh one. The
+    // cancel is best-effort — a job that already ran or was already cancelled
+    // is not an error worth failing someone's message over.
+    if (meta?.pendingExtraction) {
+      try {
+        await ctx.scheduler.cancel(meta.pendingExtraction);
+      } catch {
+        // Already fired or gone; the new job below supersedes it either way.
+      }
+    }
+    const pendingExtraction = await ctx.scheduler.runAfter(
+      MEMORY_EXTRACTION_IDLE_MS,
+      internal.memory.runExtraction,
+      { userId, threadId },
+    );
+
     await upsertThreadMeta(ctx, threadId, userId, {
-      turnsSinceExtraction: turns,
+      turnsSinceExtraction: dueByTurnCount ? 0 : turns,
+      pendingExtraction,
       // Sticky once raised: the banner stays for the rest of the conversation
       // rather than blinking away on the next ordinary message. Never cleared
       // here — a new conversation is how someone leaves it behind.
@@ -265,7 +317,11 @@ export const sendMessage = mutation({
       userId,
     });
 
-    if (turns >= MEMORY_EXTRACTION_INTERVAL_TURNS) {
+    // The counter catches a conversation while it is still running; the idle
+    // flush above catches whatever it leaves behind. Both can fire on the same
+    // thread — `extractFromThread` bails when the watermark shows nothing new,
+    // so the overlap costs a query rather than a model call.
+    if (dueByTurnCount) {
       await ctx.scheduler.runAfter(0, internal.memory.runExtraction, {
         userId,
         threadId,
@@ -614,7 +670,10 @@ export const deleteThread = mutation({
     // conversation doesn't blow the mutation's time budget.
     await dhee.deleteThreadAsync(ctx, { threadId });
     const meta = await threadMetaFor(ctx, threadId);
-    if (meta) await ctx.db.delete(meta._id);
+    if (meta) {
+      await cancelPendingExtraction(ctx, meta);
+      await ctx.db.delete(meta._id);
+    }
     const feedback = await ctx.db
       .query("messageFeedback")
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
@@ -643,7 +702,10 @@ export const deleteAllThreads = mutation({
       .query("threadMeta")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    for (const meta of metas) await ctx.db.delete(meta._id);
+    for (const meta of metas) {
+      await cancelPendingExtraction(ctx, meta);
+      await ctx.db.delete(meta._id);
+    }
     const feedback = await ctx.db
       .query("messageFeedback")
       .withIndex("by_user", (q) => q.eq("userId", userId))

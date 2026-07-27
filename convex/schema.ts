@@ -118,6 +118,14 @@ export default defineSchema({
     userId: v.id("users"),
     threadId: v.string(),
     turnsSinceExtraction: v.number(),
+    // The idle flush queued for this thread, held so the next turn can cancel
+    // it and re-queue. Without the id there is no way to debounce, and a busy
+    // thread would pile up one extraction per turn.
+    pendingExtraction: v.optional(v.id("_scheduled_functions")),
+    // Highest agent-component message `order` already extracted. Everything at
+    // or below it has been read once, so a later run doesn't pay to re-read
+    // it — which is what makes a short interval affordable.
+    extractedThroughOrder: v.optional(v.number()),
     starred: v.optional(v.boolean()),
     pinned: v.optional(v.boolean()),
     // UIMessage keys of messages the person rewrote, for the "edited" label.

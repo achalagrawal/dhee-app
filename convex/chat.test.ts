@@ -28,6 +28,24 @@ async function scheduledNames(
   });
 }
 
+// Extraction jobs on the queue, with their timing and state — the idle flush
+// is distinguished from the counter's run only by `scheduledTime`, and a
+// cancelled job by its `state`.
+async function scheduledExtractions(t: ReturnType<typeof initTest>) {
+  return await t.run(async (ctx) => {
+    const fns = await ctx.db.system.query("_scheduled_functions").collect();
+    return fns.filter((f) => f.name.includes("runExtraction"));
+  });
+}
+
+// Extraction jobs still due to run. A cancelled job stays on the queue with a
+// "canceled" state, so filtering on `pending` is what tells the two apart.
+async function livePendingExtractions(t: ReturnType<typeof initTest>) {
+  return (await scheduledExtractions(t)).filter(
+    (f) => f.state.kind === "pending",
+  );
+}
+
 async function turnCount(
   t: ReturnType<typeof initTest>,
   threadId: string,
@@ -63,7 +81,7 @@ describe("chat — auth & authorization", () => {
 });
 
 describe("chat — sendMessage bookkeeping", () => {
-  test("first turn schedules the reply but not extraction", async () => {
+  test("the first turn schedules a reply now and an extraction later", async () => {
     const t = initTest();
     const user = await createUser(t);
     const threadId = await asUser(t, user).mutation(api.chat.startThread, {});
@@ -75,10 +93,14 @@ describe("chat — sendMessage bookkeeping", () => {
 
     const names = await scheduledNames(t);
     expect(names.some((n) => n.includes("streamReply"))).toBe(true);
-    expect(names.some((n) => n.includes("runExtraction"))).toBe(false);
+    // The point of the idle flush: a conversation this short used to leave no
+    // trace at all, because the turn counter never reached the interval.
+    const extractions = await scheduledExtractions(t);
+    expect(extractions).toHaveLength(1);
+    expect(extractions[0].scheduledTime).toBeGreaterThan(Date.now());
   });
 
-  test("extraction fires only once the turn counter crosses the interval", async () => {
+  test("extraction also fires immediately once the turn counter crosses the interval", async () => {
     const t = initTest();
     const user = await createUser(t);
     const threadId = await asUser(t, user).mutation(api.chat.startThread, {});
@@ -96,8 +118,51 @@ describe("chat — sendMessage bookkeeping", () => {
       prompt: "hi",
     });
 
-    const names = await scheduledNames(t);
-    expect(names.some((n) => n.includes("runExtraction"))).toBe(true);
+    // Two: the debounced idle flush, and the counter's immediate run.
+    const extractions = await scheduledExtractions(t);
+    expect(extractions).toHaveLength(2);
+    expect(extractions.some((f) => f.scheduledTime <= Date.now())).toBe(true);
+  });
+
+  test("crossing the interval resets the counter immediately, not when the run lands", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    for (let i = 0; i < MEMORY_EXTRACTION_INTERVAL_TURNS; i++) {
+      await as.mutation(api.chat.sendMessage, { threadId, prompt: `t${i}` });
+    }
+    expect(await turnCount(t, threadId)).toBe(0);
+
+    // Extraction is a workflow that takes seconds to land. Without the reset
+    // above, every turn from here on would still be over the threshold and
+    // would start another run.
+    await as.mutation(api.chat.sendMessage, { threadId, prompt: "next" });
+    expect(await turnCount(t, threadId)).toBe(1);
+    expect(
+      (await scheduledExtractions(t)).filter(
+        (f) => f.scheduledTime <= Date.now(),
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("each turn replaces the pending idle flush instead of stacking one up", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    for (const prompt of ["one", "two", "three"]) {
+      await as.mutation(api.chat.sendMessage, { threadId, prompt });
+    }
+
+    // Three turns at an interval of 2 means one counter run (on turn 2) plus
+    // exactly one live idle flush — the first two were cancelled, not queued.
+    const pending = (await scheduledExtractions(t)).filter(
+      (f) => f.state.kind === "pending",
+    );
+    expect(pending.filter((f) => f.scheduledTime > Date.now())).toHaveLength(1);
   });
 });
 
@@ -174,6 +239,30 @@ describe("chat — delete", () => {
     expect(await asUser(t, b).query(api.chat.threadFlags, {})).toEqual([
       { threadId: threadB, starred: true, pinned: false },
     ]);
+  });
+
+  test("deleting a thread cancels its queued extraction, and leaves other threads' alone", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const doomed = await as.mutation(api.chat.startThread, {});
+    const kept = await as.mutation(api.chat.startThread, {});
+    await as.mutation(api.chat.sendMessage, {
+      threadId: doomed,
+      prompt: "something I'd rather you forgot",
+    });
+    await as.mutation(api.chat.sendMessage, {
+      threadId: kept,
+      prompt: "something I don't mind you keeping",
+    });
+    expect(await livePendingExtractions(t)).toHaveLength(2);
+
+    await as.mutation(api.chat.deleteThread, { threadId: doomed });
+
+    // `deleteThreadAsync` pages messages out in the background, so a surviving
+    // flush could wake mid-deletion and extract memories from the very
+    // conversation the person asked us to forget.
+    expect(await livePendingExtractions(t)).toHaveLength(1);
   });
 });
 

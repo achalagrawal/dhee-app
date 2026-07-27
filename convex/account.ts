@@ -72,6 +72,26 @@ export const purgeUserData = internalMutation({
       await ctx.db.delete(profile._id);
     }
 
+    // Before the generic sweep below, because deleting a `threadMeta` row
+    // discards the scheduled-job id it holds. Each thread may have a memory
+    // extraction queued minutes out; left running, one would wake after the
+    // account is gone and write fresh observation rows under a userId that no
+    // longer resolves to anyone — re-creating exactly what this function
+    // exists to erase. Cancelling is best-effort; a job already run or already
+    // cancelled must not abort an erasure.
+    const metas = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const meta of metas) {
+      if (!meta.pendingExtraction) continue;
+      try {
+        await ctx.scheduler.cancel(meta.pendingExtraction);
+      } catch {
+        // Already fired or gone.
+      }
+    }
+
     for (const table of USER_OWNED_TABLES) {
       const rows = await ctx.db
         .query(table)

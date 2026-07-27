@@ -101,36 +101,38 @@ both documents.
 
 ## Traceability — every claim back to the repo
 
-| Claim in the drafts                                                                    | Where it comes from                                                                   |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Conversations, threads, and streamed replies are stored server-side                    | `convex/chat.ts` (agent component tables via `@convex-dev/agent`)                     |
-| Message text goes to OpenRouter, then to Anthropic's Claude                            | `convex/agents/config.ts`, `CHAT_MODEL` in `convex/config.ts`                         |
-| Query text goes to the corpus service at `md-mcp.achal.xyz`                            | `DEFAULT_MD_MCP_URL` in `convex/config.ts`, `convex/lib/mcp.ts`, `convex/tools/md.ts` |
-| The corpus is searched for most life questions, and in incognito too                   | `convex/tools/md.ts` descriptions; `incognitoReply` comment in `convex/chat.ts`       |
-| Titles and summaries are model-generated from the conversation                         | `chat.titleThread`                                                                    |
-| Dhee infers values, relationships, aspirations, patterns, and context                  | `convex/memory.ts` (`extractionSchema`), `convex/schema.ts` (`observations`)          |
-| Inferences are marked "stated" vs "inferred"                                           | `observations.confidence` in `convex/schema.ts`                                       |
-| Extraction is instructed to skip health, politics, sexual orientation, names, finances | `EXTRACTION_EXCLUSIONS` in `convex/memory.ts`                                         |
-| Every inference is visible, editable, deletable, and deletion takes effect immediately | `convex/understanding.ts` (each mutation rebuilds `buildContextBlock`)                |
-| Clearing everything Dhee remembers is one action                                       | `understanding.forgetEverything`                                                      |
-| Deleting conversations is separate from clearing memory                                | `chat.deleteAllThreads` comment                                                       |
-| Incognito persists nothing but is still sent to the model                              | `chat.incognitoReply` (`saveMessages: "none"`, `recentMessages: 0`)                   |
-| Email address is stored, and sign-in codes go out over AWS SES                         | `convex/schema.ts` (`users.email`), `convex/email.ts`                                 |
-| Codes are six digits, hashed at rest, 15-minute expiry, three attempts                 | `emailOTP` options in `convex/auth.ts`                                                |
-| Google sign-in receives name, email, and profile photo                                 | `socialProviders.google` and the `onCreate` trigger in `convex/auth.ts`               |
-| The Google profile photo is copied into our own storage                                | `users.importOAuthAvatar`                                                             |
-| Avatars live in Convex file storage; replacing one deletes the old                     | `users.setAvatar`                                                                     |
-| Profile holds name, preferred language, photo                                          | `profiles` in `convex/schema.ts`, `users.completeOnboarding`                          |
-| Thumbs up/down is stored against the message                                           | `messageFeedback` in `convex/schema.ts`, `chat.setMessageFeedback`                    |
-| Starred and pinned conversations are recorded                                          | `threadMeta` in `convex/schema.ts`                                                    |
-| No account identifier is sent to the model provider                                    | `convex/agents/config.ts` sends only `HTTP-Referer` / `X-Title` headers               |
-| The context block sent to the model is rebuilt from user-editable rows                 | `memory.buildContextBlock`, `agents/dhee.ts` (`buildSystemPrompt`)                    |
-| Every request is scoped to the signed-in person                                        | `requireUserId` in `convex/users.ts`, `authorizeThread` in `convex/chat.ts`           |
-| Sessions live in device secure storage (native) or browser storage (web)               | `src/lib/auth-client.ts`                                                              |
-| No analytics, advertising, or tracking SDKs                                            | Absence of any such dependency in `package.json`; no tracking code in `src/`          |
-| The web app is hosted on Vercel                                                        | `docs/deployment.md`, `vercel.json`                                                   |
-| Closing an account deletes the profile, photo, conversations, and inferences           | `account.purgeUserData`, scheduled by `triggers.user.onDelete` in `convex/auth.ts`    |
-| Daily message limit, incognito counting towards it, manual upgrade requests            | Issue #11 and its children (#7, #8) — **not yet built**                               |
+| Claim in the drafts                                                                         | Where it comes from                                                                                   |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Conversations, threads, and streamed replies are stored server-side                         | `convex/chat.ts` (agent component tables via `@convex-dev/agent`)                                     |
+| Message text goes to OpenRouter, then to Anthropic's Claude                                 | `convex/agents/config.ts`, `CHAT_MODEL` in `convex/config.ts`                                         |
+| Query text goes to the corpus service at `md-mcp.achal.xyz`                                 | `DEFAULT_MD_MCP_URL` in `convex/config.ts`, `convex/lib/mcp.ts`, `convex/tools/md.ts`                 |
+| The corpus is searched for most life questions, and in incognito too                        | `convex/tools/md.ts` descriptions; `incognitoReply` comment in `convex/chat.ts`                       |
+| Titles and summaries are model-generated from the conversation                              | `chat.titleThread`                                                                                    |
+| Dhee infers values, relationships, aspirations, patterns, and context                       | `convex/memory.ts` (`extractionSchema`), `convex/schema.ts` (`observations`)                          |
+| Inferences are marked "stated" vs "inferred"                                                | `observations.confidence` in `convex/schema.ts`                                                       |
+| Extraction skips health, politics, sexual orientation, finances, employers, contact details | `EXTRACTION_EXCLUSIONS` in `convex/memory.ts`                                                         |
+| Extraction may record first names of family, partner, and close friends                     | `EXTRACTION_EXCLUSIONS` in `convex/memory.ts`; `employer-names` plant in `convex/evals/extraction.ts` |
+| Excluded categories stay excluded for named third parties                                   | `EXTRACTION_EXCLUSIONS`; `third-party-health` plant in `convex/evals/extraction.ts`                   |
+| Every inference is visible, editable, deletable, and deletion takes effect immediately      | `convex/understanding.ts` (each mutation rebuilds `buildContextBlock`)                                |
+| Clearing everything Dhee remembers is one action                                            | `understanding.forgetEverything`                                                                      |
+| Deleting conversations is separate from clearing memory                                     | `chat.deleteAllThreads` comment                                                                       |
+| Incognito persists nothing but is still sent to the model                                   | `chat.incognitoReply` (`saveMessages: "none"`, `recentMessages: 0`)                                   |
+| Email address is stored, and sign-in codes go out over AWS SES                              | `convex/schema.ts` (`users.email`), `convex/email.ts`                                                 |
+| Codes are six digits, hashed at rest, 15-minute expiry, three attempts                      | `emailOTP` options in `convex/auth.ts`                                                                |
+| Google sign-in receives name, email, and profile photo                                      | `socialProviders.google` and the `onCreate` trigger in `convex/auth.ts`                               |
+| The Google profile photo is copied into our own storage                                     | `users.importOAuthAvatar`                                                                             |
+| Avatars live in Convex file storage; replacing one deletes the old                          | `users.setAvatar`                                                                                     |
+| Profile holds name, preferred language, photo                                               | `profiles` in `convex/schema.ts`, `users.completeOnboarding`                                          |
+| Thumbs up/down is stored against the message                                                | `messageFeedback` in `convex/schema.ts`, `chat.setMessageFeedback`                                    |
+| Starred and pinned conversations are recorded                                               | `threadMeta` in `convex/schema.ts`                                                                    |
+| No account identifier is sent to the model provider                                         | `convex/agents/config.ts` sends only `HTTP-Referer` / `X-Title` headers                               |
+| The context block sent to the model is rebuilt from user-editable rows                      | `memory.buildContextBlock`, `agents/dhee.ts` (`buildSystemPrompt`)                                    |
+| Every request is scoped to the signed-in person                                             | `requireUserId` in `convex/users.ts`, `authorizeThread` in `convex/chat.ts`                           |
+| Sessions live in device secure storage (native) or browser storage (web)                    | `src/lib/auth-client.ts`                                                                              |
+| No analytics, advertising, or tracking SDKs                                                 | Absence of any such dependency in `package.json`; no tracking code in `src/`                          |
+| The web app is hosted on Vercel                                                             | `docs/deployment.md`, `vercel.json`                                                                   |
+| Closing an account deletes the profile, photo, conversations, and inferences                | `account.purgeUserData`, scheduled by `triggers.user.onDelete` in `convex/auth.ts`                    |
+| Daily message limit, incognito counting towards it, manual upgrade requests                 | Issue #11 and its children (#7, #8) — **not yet built**                                               |
 
 ## Before publishing — the checklist
 

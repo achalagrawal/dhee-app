@@ -29,7 +29,7 @@ import { activityTrail } from "../../../src/lib/activity";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
-import { font, radius, shadow } from "../../../src/lib/theme";
+import { font, radius, readableColumn, shadow } from "../../../src/lib/theme";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
 // Matches the mockup's `onMainScroll`.
@@ -442,16 +442,18 @@ export default function Chat() {
         </View>
 
         <View style={styles.dock}>
-          <Composer
-            value={draft}
-            onChangeText={setDraft}
-            onSubmit={send}
-            placeholder={t(lang, "replyPlaceholder")}
-            minHeight={24}
-            generating={generating && !stopping}
-            onStop={stop}
-          />
-          <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
+          <View style={styles.dockInner}>
+            <Composer
+              value={draft}
+              onChangeText={setDraft}
+              onSubmit={send}
+              placeholder={t(lang, "replyPlaceholder")}
+              minHeight={24}
+              generating={generating && !stopping}
+              onStop={stop}
+            />
+            <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -699,8 +701,11 @@ const Message = memo(function Message({
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
     flex: { flex: 1 },
-    bannerWrap: { paddingHorizontal: 16, paddingTop: 12 },
+    bannerWrap: { ...readableColumn, paddingHorizontal: 16, paddingTop: 12 },
+    // The transcript scrolls the full width; only its contents are penned into
+    // the column, so the scrollbar still sits at the window's edge.
     list: {
+      ...readableColumn,
       paddingHorizontal: 16,
       paddingTop: 14,
       paddingBottom: 24,
@@ -842,13 +847,15 @@ function makeStyles(colors: Colors) {
       alignItems: "center",
       justifyContent: "center",
     },
-    // Dock
+    // Dock — the band spans the window so its background meets both edges;
+    // the composer inside it stays in the column, lined up with the transcript.
     dock: {
       paddingHorizontal: 16,
       paddingTop: 8,
       paddingBottom: Platform.OS === "ios" ? 8 : 12,
       backgroundColor: colors.bg,
     },
+    dockInner: readableColumn,
     disclaimer: {
       textAlign: "center",
       color: colors.textFaint,

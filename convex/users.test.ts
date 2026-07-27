@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vitest";
+import { buildSystemPrompt } from "./agents/dhee";
+import { CORPUS_LENS_ALIASES, isCorpusLens } from "./lib/lens";
+import { api, internal } from "./_generated/api";
 import {
-  CORPUS_LENS_ALIASES,
-  buildSystemPrompt,
-  isCorpusLens,
-} from "./agents/dhee";
-import { api } from "./_generated/api";
-import { PAID_TRADITION_LIMIT, traditionLimit } from "./lib/plan";
+  PAID_TRADITION_LIMIT,
+  tooManyTraditions,
+  traditionLimit,
+} from "./lib/plan";
 import { DEFAULT_TRADITION } from "../src/lib/traditions";
 import { asUser, createUser, initTest } from "./test.setup";
 
@@ -200,6 +201,51 @@ describe("users — tradition lens", () => {
     expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual(
       [],
     );
+  });
+
+  test("one rule decides the cap, so the settings screen can ask it too", () => {
+    // The screen used to hardcode "one lens" and so contradicted the server
+    // twice: it blocked a paid person's second lens, and it blocked the corpus
+    // lens the server deliberately doesn't count.
+    const none: string[] = [];
+    expect(tooManyTraditions(["Stoicism"], none, "free")).toBe(false);
+    expect(
+      tooManyTraditions(["Stoicism", "Madhyasth Darshan"], none, "free"),
+    ).toBe(false);
+    expect(tooManyTraditions(["Stoicism", "Zen"], none, "free")).toBe(true);
+    expect(tooManyTraditions(["Stoicism", "Zen"], none, "unlimited")).toBe(
+      false,
+    );
+    expect(tooManyTraditions(["Stoicism", "Zen"], none, undefined)).toBe(true);
+  });
+
+  test("someone already over the cap can still take lenses off", async () => {
+    // A plan can be revoked, so a list can be over the cap without anyone
+    // having done anything wrong. Refusing every edit would leave them with
+    // "clear everything" as the only way back under it.
+    const t = initTest();
+    const email = "downgraded@example.test";
+    const as = asUser(t, await createUser(t, { email }));
+    await t.mutation(internal.users.setPlan, { email, plan: "unlimited" });
+    await as.mutation(api.users.setTraditions, {
+      traditions: ["Stoicism", "Zen", "Existentialism"],
+    });
+    await t.mutation(internal.users.setPlan, { email, plan: "free" });
+
+    await as.mutation(api.users.setTraditions, {
+      traditions: ["Stoicism", "Zen"],
+    });
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Stoicism",
+      "Zen",
+    ]);
+
+    // Still no adding while over the cap.
+    await expect(
+      as.mutation(api.users.setTraditions, {
+        traditions: ["Stoicism", "Zen", "Taoism"],
+      }),
+    ).rejects.toThrow("free plan includes one");
   });
 
   test("a missing plan is treated as free, not as unlimited", async () => {

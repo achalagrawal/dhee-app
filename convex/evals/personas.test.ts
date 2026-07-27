@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { buildSystemPrompt, isCorpusLens } from "../agents/dhee";
+import { buildSystemPrompt } from "../agents/dhee";
+import { isCorpusLens } from "../lib/lens";
 import { fingerprint } from "./checks";
 import { PERSONAS, type PersonaId } from "./scenarios";
 

@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { api } from "../../convex/_generated/api";
+import { tooManyTraditions, traditionLimit } from "../../convex/lib/plan";
 import { AppShell } from "../../src/components/AppShell";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { Avatar, Icon, type IconName } from "../../src/components/ui";
@@ -40,11 +41,6 @@ const NICKNAME_MAX = 60;
 const OCCUPATION_MAX = 120;
 const ABOUT_YOU_MAX = 600;
 const TRADITION_MAX = 60;
-
-// Free plan gets one lens (design `PRICING`). Mirrored from the server, which
-// is where it is actually enforced — this copy only decides when to explain
-// the limit instead of letting the mutation reject.
-const FREE_LENS_LIMIT = 1;
 
 type PersonalFields = {
   nickname: string;
@@ -120,10 +116,9 @@ export default function Settings() {
   const lenses = profile?.traditions ?? [];
   const has = (name: string) =>
     lenses.some((l) => l.toLowerCase() === name.trim().toLowerCase());
-  // Free plan gets one. The server enforces this regardless of what the client
-  // sends (users.setTraditions) — this is only so the limit is explained here
-  // rather than surfacing as a failed mutation.
-  const lensLimitHit = lenses.length >= FREE_LENS_LIMIT;
+  // The same rule the server enforces, asked the same way — a copy of it here
+  // is how the screen ends up refusing what `users.setTraditions` would allow.
+  const lensLimit = traditionLimit(usage?.plan);
 
   const saveLenses = (next: string[]) => {
     setLensError(false);
@@ -132,7 +127,7 @@ export default function Settings() {
   const addLens = (raw: string) => {
     const name = raw.trim();
     if (!name || has(name)) return;
-    if (lensLimitHit) {
+    if (tooManyTraditions([...lenses, name], lenses, usage?.plan)) {
       // The upgrade popup is #10; until it exists, say plainly why rather than
       // failing silently or letting the mutation reject.
       setLensError(true);
@@ -421,7 +416,14 @@ export default function Settings() {
 
             {/* Only after they've tried — not a standing scold. */}
             {lensError ? (
-              <Text style={styles.lensLimit}>{t(lang, "oneLensOnFree")}</Text>
+              <Text style={styles.lensLimit}>
+                {lensLimit === 1
+                  ? t(lang, "oneLensOnFree")
+                  : t(lang, "lensLimitReached").replace(
+                      "%n",
+                      String(lensLimit),
+                    )}
+              </Text>
             ) : null}
 
             <View style={styles.chipRow}>

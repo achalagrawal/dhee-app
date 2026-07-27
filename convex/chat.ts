@@ -25,12 +25,8 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import {
-  STUDY_STEPS,
-  buildSystemPrompt,
-  dhee,
-  isCorpusLens,
-} from "./agents/dhee";
+import { STUDY_STEPS, buildSystemPrompt, dhee } from "./agents/dhee";
+import { isCorpusLens } from "./lib/lens";
 import { backgroundModel } from "./agents/config";
 import {
   MEMORY_EXTRACTION_IDLE_MS,

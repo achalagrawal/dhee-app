@@ -25,6 +25,7 @@ import type * as evals_scenarios from "../evals/scenarios.js";
 import type * as http from "../http.js";
 import type * as lib_backend from "../lib/backend.js";
 import type * as lib_crisis from "../lib/crisis.js";
+import type * as lib_lens from "../lib/lens.js";
 import type * as lib_mcp from "../lib/mcp.js";
 import type * as lib_origins from "../lib/origins.js";
 import type * as lib_plan from "../lib/plan.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/backend": typeof lib_backend;
   "lib/crisis": typeof lib_crisis;
+  "lib/lens": typeof lib_lens;
   "lib/mcp": typeof lib_mcp;
   "lib/origins": typeof lib_origins;
   "lib/plan": typeof lib_plan;

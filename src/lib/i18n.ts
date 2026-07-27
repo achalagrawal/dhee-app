@@ -164,6 +164,7 @@ const strings = {
     clearLenses: "Clear lenses",
     oneLensOnFree:
       "The free plan includes one lens. Remove the current one to choose a different framework.",
+    lensLimitReached: "You can keep up to %n lenses.",
     traditionPrompt: "Which tradition do you think within?",
     // Says the default out loud, and says how to drop it in the same breath —
     // a lens switched on for you that you weren't told about is the thing
@@ -360,6 +361,7 @@ const strings = {
     clearLenses: "सब हटाएँ",
     oneLensOnFree:
       "मुफ़्त योजना में एक ही परंपरा चुनी जा सकती है। दूसरी चुनने के लिए पहले मौजूदा हटाएँ।",
+    lensLimitReached: "आप ज़्यादा से ज़्यादा %n परंपराएँ रख सकते हैं।",
     traditionPrompt: "आप किस विचार-परंपरा के भीतर सोचते हैं?",
     traditionOptional:
       "मध्यस्थ दर्शन पहले से चुना हुआ है — हटाने के लिए उसी पर फिर से टैप करें, या कोई और चुनें। इसे कभी भी सेटिंग्स में बदल सकते हैं।",

@@ -3,6 +3,23 @@ import { components } from "../_generated/api";
 import { mdTools } from "../tools/md";
 import { defaultAgentConfig } from "./config";
 
+// The vocabulary Rule 1 names. Exported and interpolated rather than written
+// inline, because convex/evals/checks.ts has to detect exactly these words in a
+// reply: a checker whose deny list is a hand-copy of a prose string drifts the
+// first time someone edits the prose and not the copy. Adding a term here adds
+// it to both the instruction and the eval in one move.
+//
+// The eval's list is wider than this one — the rule ends "or any other domain
+// term" — but these six are the floor.
+export const TERMS_OF_ART = [
+  "sah-astitva",
+  "vyavastha",
+  "madhyasth darshan",
+  "manaviya",
+  "jeevan",
+  "paribhasha",
+] as const;
+
 // Dhee's identity + the two product rules.
 //
 // This system prompt is the entire contract between the corpus and the user.
@@ -17,7 +34,7 @@ Your work is not to answer questions with information. Your work is to help the 
 
 Two absolute rules:
 
-1. PLAIN, EVERYDAY LANGUAGE ONLY. You have (or will have) tools that search a philosophical corpus. That corpus uses specialized Sanskrit-derived vocabulary. The person you're talking with does not know that vocabulary and does not need to. Translate every idea you draw from the corpus into simple, direct, ordinary language. Never use terms of art like "sah-astitva," "vyavastha," "madhyasth darshan," "manaviya," "jeevan," "paribhasha," or any other domain term from the tools — not even in parentheses, not even to define them. Do not cite books, chapters, page numbers, or authors unless the person explicitly asks where an idea comes from.
+1. PLAIN, EVERYDAY LANGUAGE ONLY. You have (or will have) tools that search a philosophical corpus. That corpus uses specialized Sanskrit-derived vocabulary. The person you're talking with does not know that vocabulary and does not need to. Translate every idea you draw from the corpus into simple, direct, ordinary language. Never use terms of art like ${TERMS_OF_ART.map((t) => `"${t},"`).join(" ")} or any other domain term from the tools — not even in parentheses, not even to define them. Do not cite books, chapters, page numbers, or authors unless the person explicitly asks where an idea comes from.
 
 2. PERSPECTIVE, NOT LECTURE. Reply the way a thoughtful older friend would — warm, patient, unhurried, curious. One or two short paragraphs is usually enough. Ask at most one gentle question back, and only if it would genuinely help the person see more clearly. Do not moralize. Do not preach. Do not stack advice.
 
@@ -62,7 +79,16 @@ export const CORPUS_LENS_ALIASES = [
   "जीवन विद्या",
 ] as const;
 
-/** Step budget for a study-mode turn. The ordinary path keeps the Agent's 5. */
+/**
+ * Step budget for a study-mode turn. The ordinary path keeps the Agent's 5.
+ *
+ * Measured, 2026-07-27: across 40 study-mode samples from `pnpm eval` (the five
+ * cases tagged `study`, including the page-lookup the budget was raised for),
+ * the most any turn spent was **3 steps**. personalization.md's checklist says
+ * that if study mode never exceeds five, the budget was not the constraint and
+ * this should come back down. Left at 12 pending that decision rather than
+ * changed in passing — but the number to beat is 3, not 12.
+ */
 export const STUDY_STEPS = 12;
 
 /** Whether one entry names the corpus, under any of its spellings. */

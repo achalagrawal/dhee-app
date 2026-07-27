@@ -353,28 +353,43 @@ For study mode (Decision 2), the same three files plus:
 - [ ] The same question asked with no lens, a Stoic lens and an Advaita lens
       gives visibly different framing while staying plain-spoken and
       non-dogmatic (#25 requires the three replies in its PR).
+      → `pnpm eval --only lens` runs all three side by side (`bare/life`,
+      `stoic/life`, `advaita/life`); the report renders them for pasting.
 - [ ] Screenshots in both themes.
 - [ ] `FEATURES.md` Epic 8 rows flipped.
 
 Study mode has its own, and these are the ones that decide whether Decision 2
-worked. All of them need a signed-in session against a live deployment, so they
-are a human step, not something a test suite reaches:
+worked. These were written as a human step, on the grounds that they need a live
+deployment rather than a test suite. Most of them are now
+`pnpm eval --only study` — see `specs/eval-harness.md`; the case that automates
+each one is named below. What still needs a person is reading the replies, and
+the comparison against old.dhee.app:
 
 - [ ] **"What does this line on page 3 of Manav Vyavhar Darshan mean?"** with
       the corpus lens on. The reply resolves the book, reads the page, quotes
       the line in Devanagari, renders it in the language the question was asked
       in, and says where it is from. This is the exact capability #62 is
       missing; if it doesn't work, nothing else in Decision 2 matters.
+      → `corpus/page-lookup`. Note the probe there is worded "read me the
+      opening lines of page 3" rather than "what does _this_ line mean": run as
+      written above, "this line" refers to nothing, so the correct reply is to
+      ask which line, and the check never gets to test the capability.
 - [ ] The same question with **no lens** still declines the vocabulary and the
       citation. The unlock has to be reachable only by the person who asked.
+      → `bare/page-lookup`.
 - [ ] Three of the questions from #62 run **side by side against
       old.dhee.app**, transcripts pasted on that issue. This is the comparison
       that separates "prompt too tight" from "retrieval too weak", and it is
       the only way to know whether depth actually came back.
-- [ ] Step counts logged for those runs. If study mode never exceeds five
+- [x] Step counts logged for those runs. If study mode never exceeds five
       steps, the budget wasn't the constraint and `STUDY_STEPS` should come back
-      down.
+      down. → Done, 2026-07-27: 40 study-mode samples, **max 3 steps** against a
+      budget of 12. Recorded next to `STUDY_STEPS` in `convex/agents/dhee.ts`.
+      By this checklist's own criterion the budget should come down; left as a
+      decision rather than changed in passing.
 - [ ] A life question — not a text question — asked **with the corpus lens on**
       still gets a companion's answer, not a lecture. This is the one that
       catches non-conversion failing, and it is the failure the design's own
-      blog post warns about.
+      blog post warns about. → `corpus/life`. The pure checks only catch the
+      crude form of this (length, citations); read the reply and the judge's
+      `lensAsLensNotDoctrine` score.

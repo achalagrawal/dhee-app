@@ -36,8 +36,17 @@ export const smokeTest = internalAction({
       .flatMap((step) => step.toolCalls ?? [])
       .map((call) => call.toolName);
 
+    // `result.text` is the last step's text alone, so a turn that searched,
+    // read a page and then answered can drop prose the app would have shown.
+    // Joining the steps is what the eval harness does, for the same reason.
+    const text =
+      result.steps
+        .map((step) => step.text)
+        .filter(Boolean)
+        .join("\n\n") || result.text;
+
     return {
-      text: result.text,
+      text,
       toolsCalled,
       finishReason: result.finishReason,
     };

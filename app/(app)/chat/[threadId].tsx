@@ -27,6 +27,7 @@ import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
 import { activityTrail } from "../../../src/lib/activity";
 import { t } from "../../../src/lib/i18n";
+import { composerKeyAction } from "../../../src/lib/keyboard";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
 import {
@@ -36,6 +37,7 @@ import {
   readableColumn,
   shadow,
 } from "../../../src/lib/theme";
+import { useEnterToSend } from "../../../src/lib/useEnterToSend";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
 // Matches the mockup's `onMainScroll`.
@@ -92,6 +94,12 @@ export default function Chat() {
     api.chat.threadFeedback,
     threadId ? { threadId } : "skip",
   );
+  // The conversation's own name, for the header and for the menu that renames,
+  // stars and deletes it — those rows are unreadable without their subject on
+  // screen (#77). Named by `titleThread` after the first reply, so it arrives a
+  // beat late on a brand-new conversation.
+  const info = useQuery(api.chat.threadInfo, threadId ? { threadId } : "skip");
+  const title = info?.title ?? t(lang, "newConversation");
   // Raised server-side, so it survives a reload and applies to every client.
   const crisisFlagged = useQuery(
     api.chat.threadCrisisFlag,
@@ -352,6 +360,9 @@ export default function Chat() {
 
   return (
     <AppShell
+      title={title}
+      onTitlePress={() => setMenuOpen(true)}
+      titleAccessibilityLabel={t(lang, "conversationOptions")}
       right={
         <>
           <IconButton
@@ -465,6 +476,9 @@ export default function Chat() {
 
       <ThreadMenuSheet
         threadId={menuOpen ? (threadId ?? null) : null}
+        currentTitle={info?.title ?? undefined}
+        starred={info?.starred}
+        pinned={info?.pinned}
         onClose={() => setMenuOpen(false)}
         onDeleted={() => router.replace("/home")}
       />
@@ -502,6 +516,7 @@ function MessageEditor({
 }) {
   const [draft, setDraft] = useState(initial);
   const prompt = draft.trim();
+  const sendOnEnter = useEnterToSend();
   return (
     <View style={styles.editCard}>
       <TextInput
@@ -513,7 +528,10 @@ function MessageEditor({
         // on a free-text field and flickering the keyboard. Issue #72.
         autoComplete="off"
         onKeyPress={(e) => {
-          if (e.nativeEvent.key === "Escape") onCancel();
+          if (e.nativeEvent.key === "Escape") return onCancel();
+          if (composerKeyAction(e, { sendOnEnter }) !== "send") return;
+          e.preventDefault();
+          if (prompt) onSubmit(prompt);
         }}
         style={styles.editInput}
       />

@@ -11,8 +11,10 @@ import {
   View,
 } from "react-native";
 import { t } from "../lib/i18n";
+import { composerKeyAction } from "../lib/keyboard";
 import { useTheme } from "../lib/ThemeContext";
 import { font, noFocusRing, radius, shadow } from "../lib/theme";
+import { useEnterToSend } from "../lib/useEnterToSend";
 import { useLanguage } from "../lib/useLanguage";
 import { Icon, IconButton } from "./ui";
 
@@ -55,6 +57,7 @@ export function Composer({
   const lang = useLanguage();
   const inputRef = useRef<TextInputType>(null);
   const [height, setHeight] = useState(minHeight);
+  const sendOnEnter = useEnterToSend();
   const canSend = value.trim().length > 0;
 
   const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
@@ -116,6 +119,13 @@ export function Composer({
         // keystroke, showing and hiding the AutoFill accessory row above the
         // keyboard, which reads as the keyboard blinking. Issue #72.
         autoComplete="off"
+        onKeyPress={(e) => {
+          if (composerKeyAction(e, { sendOnEnter }) !== "send") return;
+          // Swallow the newline even when we can't send — an Enter that both
+          // fails to send and leaves a blank line behind is the worst of both.
+          e.preventDefault();
+          if (canSend && !generating) onSubmit();
+        }}
         onContentSizeChange={onContentSizeChange}
         style={[
           styles.input,

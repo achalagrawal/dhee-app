@@ -32,6 +32,7 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 | ------------------------------------------------ | ------ | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | App shell (sidebar + main + header)              | 🟡     | `AppShell`, `AppDrawer`           | Design polish pending                                                                                                                                                         |
 | Sidebar collapse / icon rail (desktop)           | ⬜     | —                                 | `state.sidebarCollapsed`                                                                                                                                                      |
+| Header names the conversation + opens its menu   | ✅     | `AppShell`, `chat.threadInfo`     | Kept at every width, unlike the mockup's mobile logo — see [`specs/conversation-title.md`](./specs/conversation-title.md) (#77)                                               |
 | New conversation                                 | ✅     | `chat.startThread`                |                                                                                                                                                                               |
 | Search conversations                             | ✅     | `SearchModal`, `chat.listThreads` |                                                                                                                                                                               |
 | History: recent groups                           | 🟡     | `threads.tsx`                     | Grouping/labels vs design                                                                                                                                                     |
@@ -43,16 +44,17 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 2 — Composer
 
-| Feature                                                          | Status | Where              | Notes                                                                                      |
-| ---------------------------------------------------------------- | ------ | ------------------ | ------------------------------------------------------------------------------------------ |
-| Text send                                                        | ✅     | `chat.sendMessage` |                                                                                            |
-| Attachments (files/photos) + drag-drop                           | 🟡     | Composer stub      | `state.pendingFiles/uploads/dragOver`; types: IMG/PDF/MD/TXT/DOC                           |
-| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub      | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated) |
-| Web search toggle                                                | 🟡     | Composer stub      | `state.webSearchOn` (distinct from `md.ts`)                                                |
-| Dictation (mic)                                                  | ⬜     | —                  | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                         |
-| Voice mode                                                       | ⬜     | —                  | `state.speakingId`; button hidden until Epic 12 (#97)                                      |
-| Typeahead suggestions                                            | ⬜     | —                  |                                                                                            |
-| Token bar / limit-reached card                                   | ⬜     | —                  | Needs billing (Epic 14)                                                                    |
+| Feature                                                          | Status | Where              | Notes                                                                                       |
+| ---------------------------------------------------------------- | ------ | ------------------ | ------------------------------------------------------------------------------------------- |
+| Text send                                                        | ✅     | `chat.sendMessage` |                                                                                             |
+| Enter sends / Shift+Enter newline                                | ✅     | `lib/keyboard.ts`  | Keyboard devices only; IME-safe; spec: [`specs/enter-to-send.md`](./specs/enter-to-send.md) |
+| Attachments (files/photos) + drag-drop                           | 🟡     | Composer stub      | `state.pendingFiles/uploads/dragOver`; types: IMG/PDF/MD/TXT/DOC                            |
+| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub      | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated)  |
+| Web search toggle                                                | 🟡     | Composer stub      | `state.webSearchOn` (distinct from `md.ts`)                                                 |
+| Dictation (mic)                                                  | ⬜     | —                  | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                          |
+| Voice mode                                                       | ⬜     | —                  | `state.speakingId`; button hidden until Epic 12 (#97)                                       |
+| Typeahead suggestions                                            | ⬜     | —                  |                                                                                             |
+| Token bar / limit-reached card                                   | ⬜     | —                  | Needs billing (Epic 14)                                                                     |
 
 ## Epic 3 — Chat & messages
 

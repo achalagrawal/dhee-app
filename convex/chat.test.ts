@@ -197,6 +197,40 @@ describe("chat — star / pin flags", () => {
   });
 });
 
+describe("chat — threadInfo", () => {
+  test("reports the conversation's name and flags, null until it is named", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    expect(await as.query(api.chat.threadInfo, { threadId })).toEqual({
+      title: null,
+      starred: false,
+      pinned: false,
+    });
+
+    await as.mutation(api.chat.renameThread, { threadId, title: "Grief" });
+    await as.mutation(api.chat.setStarred, { threadId, starred: true });
+    expect(await as.query(api.chat.threadInfo, { threadId })).toEqual({
+      title: "Grief",
+      starred: true,
+      pinned: false,
+    });
+  });
+
+  test("another person's conversation is not readable", async () => {
+    const t = initTest();
+    const a = await createUser(t);
+    const b = await createUser(t);
+    const threadId = await asUser(t, a).mutation(api.chat.startThread, {});
+
+    await expect(
+      asUser(t, b).query(api.chat.threadInfo, { threadId }),
+    ).rejects.toThrow("Not your conversation");
+  });
+});
+
 describe("chat — rename", () => {
   test("empty title is rejected; a valid title is trimmed and stored", async () => {
     const t = initTest();

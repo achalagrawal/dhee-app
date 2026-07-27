@@ -88,7 +88,7 @@ export function AppDrawer() {
     { icon: "logo", label: t(lang, "navHome"), path: "/home" },
     { icon: "history", label: t(lang, "navHistory"), path: "/threads" },
     { icon: "book", label: t(lang, "navMemory"), path: "/understanding" },
-    { icon: "sparkle", label: t(lang, "navSettings"), path: "/settings" },
+    { icon: "gear", label: t(lang, "navSettings"), path: "/settings" },
   ];
 
   const groups = groupByTime(threads, (thr) => thr._creationTime);
@@ -116,7 +116,7 @@ export function AppDrawer() {
         {/* Brand row */}
         <View style={styles.brandRow}>
           <Pressable style={styles.brand} onPress={() => go("/home")}>
-            <Icon name="logo" size={28} color={colors.accent} />
+            <Icon name="logo" size={28} color={colors.accentStrong} />
             <Text style={[styles.brandName, { color: colors.text }]}>Dhee</Text>
           </Pressable>
           <Pressable onPress={closeDrawer} hitSlop={10}>

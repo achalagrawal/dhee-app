@@ -70,7 +70,7 @@ const strings = {
     deleteAllChatsBody:
       "Permanently removes every conversation and its messages. This can't be undone.",
     confirm: "Yes, delete",
-    renameConversation: "Rename",
+    renameConversation: "Rename conversation",
     deleteConversation: "Delete",
     deleteConversationBody: "Delete this conversation? This can't be undone.",
     justNow: "just now",
@@ -298,7 +298,7 @@ const strings = {
     deleteAllChatsBody:
       "हर बातचीत और उसके संदेश हमेशा के लिए मिट जाएँगे। यह वापस नहीं आएगा।",
     confirm: "हाँ, हटाएँ",
-    renameConversation: "नाम बदलें",
+    renameConversation: "बातचीत का नाम बदलें",
     deleteConversation: "हटाएँ",
     deleteConversationBody: "यह बातचीत हटा दें? यह वापस नहीं आएगी।",
     justNow: "अभी",

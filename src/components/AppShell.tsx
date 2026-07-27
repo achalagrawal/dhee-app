@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "../lib/i18n";
 import { useShell } from "../lib/shell";
@@ -15,13 +15,31 @@ type Props = {
   right?: ReactNode;
   /** Show the incognito toggle in the header (Home + Chat). */
   showIncognito?: boolean;
+  /**
+   * What this screen is looking at, named in the header. A screen whose
+   * content has its own name — a conversation — passes it here; the Dhee mark
+   * steps aside for it, because two things centred in one bar is one too many.
+   */
+  title?: string;
+  /** Makes the title a button (a chevron appears) — used to open its menu. */
+  onTitlePress?: () => void;
+  /** Accessibility label for the title button, e.g. "Conversation options". */
+  titleAccessibilityLabel?: string;
 };
 
 // The signed-in chrome: a menu button that opens the drawer, a centered Dhee
 // mark, screen-supplied trailing actions, the offline banner, and the
-// incognito strip. Mirrors the prototype's mobile header (menu + centered
-// logo + contextual actions); the page's own <h1> names the screen.
-export function AppShell({ children, right, showIncognito = false }: Props) {
+// incognito strip. Mirrors the prototype's header (menu + title or centered
+// logo + contextual actions); on screens with no title of their own, the
+// page's own <h1> names the screen.
+export function AppShell({
+  children,
+  right,
+  showIncognito = false,
+  title,
+  onTitlePress,
+  titleAccessibilityLabel,
+}: Props) {
   const { colors } = useTheme();
   const { openDrawer, incognito, toggleIncognito } = useShell();
   const lang = useLanguage();
@@ -48,9 +66,33 @@ export function AppShell({ children, right, showIncognito = false }: Props) {
           accessibilityLabel={t(lang, "openMenu")}
         />
 
-        <View pointerEvents="none" style={styles.logo}>
-          <Icon name="logo" size={30} color={colors.accent} />
-        </View>
+        {title ? (
+          <Pressable
+            onPress={onTitlePress}
+            disabled={!onTitlePress}
+            accessibilityRole={onTitlePress ? "button" : "header"}
+            accessibilityLabel={titleAccessibilityLabel}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.title,
+              pressed && onTitlePress ? { opacity: 0.6 } : null,
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[styles.titleText, { color: colors.text }]}
+            >
+              {title}
+            </Text>
+            {onTitlePress ? (
+              <Icon name="chevronDown" size={15} color={colors.textFaint} />
+            ) : null}
+          </Pressable>
+        ) : (
+          <View pointerEvents="none" style={styles.logo}>
+            <Icon name="logo" size={30} color={colors.accentStrong} />
+          </View>
+        )}
 
         <View style={styles.right}>
           {right}
@@ -112,6 +154,17 @@ const styles = StyleSheet.create({
     bottom: 12,
     alignItems: "center",
   },
+  // Takes the row's slack so a long name ellipsizes rather than pushing the
+  // trailing actions off the edge.
+  title: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    minWidth: 0,
+  },
+  titleText: { flexShrink: 1, fontSize: 17, ...font.medium },
   right: { flexDirection: "row", alignItems: "center", gap: 8 },
   incognitoBar: {
     flexDirection: "row",

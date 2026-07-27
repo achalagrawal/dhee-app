@@ -65,7 +65,7 @@ export default function Home() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.hero}>
-            <Icon name="logo" size={40} color={colors.accent} />
+            <Icon name="logo" size={40} color={colors.accentStrong} />
             <Text style={[styles.greeting, { color: colors.text }]}>
               {greeting(lang, account?.name)}
             </Text>

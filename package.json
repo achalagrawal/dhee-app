@@ -20,6 +20,7 @@
     "convex:deploy": "convex deploy",
     "preview:env": "node scripts/preview-env.mjs",
     "build:legal": "node scripts/build-legal.mjs",
+    "favicon": "node scripts/render-favicon.mjs",
     "build:web": "pnpm build:legal && expo export -p web",
     "typecheck": "tsc --noEmit && tsc --noEmit -p convex",
     "test": "vitest run",

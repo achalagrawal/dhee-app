@@ -88,7 +88,7 @@ export function AppDrawer() {
     { icon: "logo", label: t(lang, "navHome"), path: "/home" },
     { icon: "history", label: t(lang, "navHistory"), path: "/threads" },
     { icon: "book", label: t(lang, "navMemory"), path: "/understanding" },
-    { icon: "sparkle", label: t(lang, "navSettings"), path: "/settings" },
+    { icon: "gear", label: t(lang, "navSettings"), path: "/settings" },
   ];
 
   const groups = groupByTime(threads, (thr) => thr._creationTime);

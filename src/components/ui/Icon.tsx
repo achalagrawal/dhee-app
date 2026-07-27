@@ -33,6 +33,7 @@ export type IconName =
   | "stop"
   | "check"
   | "sparkle"
+  | "gear"
   | "book"
   | "globe"
   | "file"
@@ -331,6 +332,18 @@ export function Icon({
             strokeWidth={1.2}
             strokeLinejoin="round"
           />
+        </Svg>
+      );
+    case "gear":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 18 18">
+          <Path
+            d="M7.27 1.5A7.7 7.7 0 0 1 10.73 1.5L10.9 4.05A5.3 5.3 0 0 1 12.34 4.88L14.63 3.75A7.7 7.7 0 0 1 16.36 6.75L14.23 8.17A5.3 5.3 0 0 1 14.23 9.83L16.36 11.25A7.7 7.7 0 0 1 14.63 14.25L12.34 13.12A5.3 5.3 0 0 1 10.9 13.95L10.73 16.5A7.7 7.7 0 0 1 7.27 16.5L7.1 13.95A5.3 5.3 0 0 1 5.66 13.12L3.37 14.25A7.7 7.7 0 0 1 1.64 11.25L3.77 9.83A5.3 5.3 0 0 1 3.77 8.17L1.64 6.75A7.7 7.7 0 0 1 3.37 3.75L5.66 4.88A5.3 5.3 0 0 1 7.1 4.05Z"
+            {...s}
+            strokeWidth={1.3}
+            strokeLinejoin="round"
+          />
+          <Circle cx={9} cy={9} r={2.4} {...s} strokeWidth={1.3} />
         </Svg>
       );
     case "book":

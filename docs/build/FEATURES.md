@@ -39,7 +39,7 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 | Starred section                                  | 🟡     | `chat.setStarred/threadFlags`     | Backend done, UI pending                                                                                                                                                      |
 | Pinned rows                                      | 🟡     | `chat.setPinned`                  | Backend done, UI pending                                                                                                                                                      |
 | Home topic modes + per-mode starter questions    | ⬜     | —                                 | `state.mode`/`suggestedPrompts`; 6 modes (`MODES`: decision, relationship, purpose, grief, work, everyday), each with ~3 written starter questions (`STARTERS`) shown on home |
-| Time-of-day greeting (morning/afternoon/evening) | 🟡     | `home.tsx`                        | I18N `morning/afternoon/evening`                                                                                                                                              |
+| Time-of-day greeting (morning/afternoon/evening) | 🟡     | `home.tsx`, `lib/greeting.ts`     | I18N `morning/afternoon/evening`; the line sizes down on a narrow screen so a long name stays on one line (#105)                                                              |
 | "Get the app" / download button                  | ⬜     | —                                 | → download page                                                                                                                                                               |
 
 ## Epic 2 — Composer

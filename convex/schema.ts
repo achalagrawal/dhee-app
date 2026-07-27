@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { planValidator } from "./lib/plan";
 
 // The Convex Agent component owns thread and message tables (layer 1,
 // episodic). Everything here is Dhee's own layer 2 (user model) or
@@ -45,9 +46,21 @@ export default defineSchema({
     email: v.string(),
     name: v.optional(v.string()),
     createdAt: v.number(),
+    // Optional so rows written before plans existed stay writable. Read it
+    // through `planFor`, which treats a missing plan as free.
+    plan: v.optional(planValidator),
   })
     .index("by_auth_id", ["authId"])
     .index("by_email", ["email"]),
+
+  // One row per person per UTC day. A counter row rather than a field on
+  // `users` makes the daily reset free — a new day is just a new key — and
+  // leaves the usage history behind.
+  usage: defineTable({
+    userId: v.id("users"),
+    day: v.string(),
+    messages: v.number(),
+  }).index("by_user_day", ["userId", "day"]),
 
   profiles: defineTable({
     userId: v.id("users"),

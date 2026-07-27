@@ -26,6 +26,7 @@ import type * as http from "../http.js";
 import type * as lib_backend from "../lib/backend.js";
 import type * as lib_crisis from "../lib/crisis.js";
 import type * as lib_mcp from "../lib/mcp.js";
+import type * as lib_origins from "../lib/origins.js";
 import type * as lib_plan from "../lib/plan.js";
 import type * as lib_redirect from "../lib/redirect.js";
 import type * as md from "../md.js";
@@ -33,6 +34,7 @@ import type * as memory from "../memory.js";
 import type * as seed from "../seed.js";
 import type * as tools_md from "../tools/md.js";
 import type * as understanding from "../understanding.js";
+import type * as usage from "../usage.js";
 import type * as users from "../users.js";
 
 import type {
@@ -60,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "lib/backend": typeof lib_backend;
   "lib/crisis": typeof lib_crisis;
   "lib/mcp": typeof lib_mcp;
+  "lib/origins": typeof lib_origins;
   "lib/plan": typeof lib_plan;
   "lib/redirect": typeof lib_redirect;
   md: typeof md;
@@ -67,6 +70,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   "tools/md": typeof tools_md;
   understanding: typeof understanding;
+  usage: typeof usage;
   users: typeof users;
 }>;
 

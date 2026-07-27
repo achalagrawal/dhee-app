@@ -182,13 +182,13 @@ far richer than today's flat screen.
 
 ## Epic 14 — Billing / plans
 
-| Feature                                                   | Status | Notes                                               |
-| --------------------------------------------------------- | ------ | --------------------------------------------------- |
-| Upgrade modal                                             | ⬜     | `state.upgradeOpen`                                 |
-| Pricing tiers: **Free $0 / Reflective $8 / Patron $20**   | ⬜     | Concrete features per tier in `PRICING` array       |
-| Sync across devices (paid)                                | ⬜     | Prototype stores locally; real app is server-backed |
-| Usage limit enforcement (**free = 5/day**, `DAILY_LIMIT`) | ⬜     | Token bar, limit-reached card, "limit resets"       |
-| Cancel plan                                               | ⬜     |                                                     |
+| Feature                                                   | Status | Notes                                                                                                                                           |
+| --------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upgrade modal                                             | ⬜     | `state.upgradeOpen`                                                                                                                             |
+| Pricing tiers: **Free $0 / Reflective $8 / Patron $20**   | ⬜     | Concrete features per tier in `PRICING` array                                                                                                   |
+| Sync across devices (paid)                                | ⬜     | Prototype stores locally; real app is server-backed                                                                                             |
+| Usage limit enforcement (**free = 5/day**, `DAILY_LIMIT`) | 🟡     | Backend only (#7): `users.plan`, `usage` table, `FREE_DAILY_MESSAGE_LIMIT`, `chat.usage`, `users.setPlan`. Token bar / limit-reached card is #9 |
+| Cancel plan                                               | ⬜     |                                                                                                                                                 |
 
 ## Epic 15 — Sharing
 

@@ -37,6 +37,7 @@ import {
   MEMORY_EXTRACTION_INTERVAL_TURNS,
 } from "./config";
 import { detectsCrisis } from "./lib/crisis";
+import { spendMessage, usageFor, usageValidator } from "./usage";
 import { requireUserId } from "./users";
 
 // Chat surface. Every entry point is user-scoped: a thread belongs to the
@@ -245,6 +246,13 @@ export const listThreads = query({
   },
 });
 
+// Drives the token bar and the limit-reached card.
+export const usage = query({
+  args: {},
+  returns: usageValidator,
+  handler: async (ctx) => await usageFor(ctx, await requireUserId(ctx)),
+});
+
 export const startThread = mutation({
   args: {},
   returns: v.string(),
@@ -263,6 +271,7 @@ export const sendMessage = mutation({
   handler: async (ctx, { threadId, prompt }) => {
     await authorizeThread(ctx, threadId);
     const userId = await requireUserId(ctx);
+    await spendMessage(ctx, userId);
 
     const { messageId } = await dhee.saveMessage(ctx, {
       threadId,
@@ -352,6 +361,9 @@ export const incognitoReply = action({
   returns: v.object({ text: v.string(), crisisFlagged: v.boolean() }),
   handler: async (ctx, { messages }) => {
     const userId = await requireUserId(ctx);
+    // Before the model call, not after: an incognito turn costs exactly what a
+    // saved one does, it just can't be attributed to a thread.
+    await ctx.runMutation(internal.usage.spend, { userId });
     const crisisFlagged = messages.some(
       (m) => m.role === "user" && detectsCrisis(m.text),
     );
@@ -528,6 +540,7 @@ export const regenerate = mutation({
       throw new Error("There's no reply to try again yet.");
     }
     await assertNoActiveReply(ctx, threadId, turn.after);
+    await spendMessage(ctx, userId);
 
     await clearMarksFor(ctx, threadId, turn.after);
     await dhee.deleteMessages(ctx, {
@@ -572,6 +585,7 @@ export const editAndResend = mutation({
 
     const discarded = await messagesFrom(ctx, threadId, target._id);
     await assertNoActiveReply(ctx, threadId, discarded);
+    await spendMessage(ctx, userId);
 
     const marks = await clearMarksFor(ctx, threadId, discarded);
     await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });

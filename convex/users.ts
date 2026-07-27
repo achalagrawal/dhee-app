@@ -11,7 +11,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { planForProfile, traditionLimit } from "./lib/plan";
+import { planFor, planValidator, traditionLimit } from "./lib/plan";
 import { isCorpusLensName } from "./agents/dhee";
 
 /** The signed-in person's app-side user id, or null if there is no valid
@@ -286,7 +286,6 @@ export const setTraditions = mutation({
   returns: v.null(),
   handler: async (ctx, { traditions }) => {
     const userId = await requireUserId(ctx);
-    const profile = await getProfile(ctx, userId);
 
     const cleaned: string[] = [];
     for (const raw of traditions) {
@@ -310,7 +309,7 @@ export const setTraditions = mutation({
     // could not reach study mode at all without giving up the lens they came
     // with, which made the one tradition that answers "replies feel thin"
     // the hardest one to switch on.
-    const limit = traditionLimit(planForProfile(profile));
+    const limit = traditionLimit(planFor(await ctx.db.get(userId)));
     const counted = cleaned.filter((t) => !isCorpusLensName(t));
     if (counted.length > limit) {
       throw new Error(
@@ -393,6 +392,23 @@ export const accountSummary = query({
         ? await ctx.storage.getUrl(profile.avatarId)
         : null,
     };
+  },
+});
+
+// The manual fulfillment lever while upgrades are handled by hand:
+// `npx convex run users:setPlan '{"email":"…","plan":"unlimited"}'`.
+// Internal only — there is no client path to changing your own plan.
+export const setPlan = internalMutation({
+  args: { email: v.string(), plan: planValidator },
+  returns: v.null(),
+  handler: async (ctx, { email, plan }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+    if (!user) throw new Error(`No user with email ${email}.`);
+    await ctx.db.patch(user._id, { plan });
+    return null;
   },
 });
 

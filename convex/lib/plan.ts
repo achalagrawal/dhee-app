@@ -1,15 +1,22 @@
 // What a person's plan entitles them to.
 //
-// The plan field itself belongs to the free-tier/limits work (#7), which has
-// not landed. Until it does, `planForProfile` returns undefined and everyone
-// is on the free tier — which is the fail-closed direction, and the same rule
-// #7 applies: an unrecognized or missing plan is treated as free rather than
-// as unlimited.
-//
-// When #7 lands, it replaces the body of `planForProfile` and nothing else
-// here has to change.
+// Two values, deliberately: `unlimited` is granted by hand (`users.setPlan`)
+// while upgrades are fulfilled manually. Named pricing tiers land with
+// payments, not now.
 
-export type Plan = "free" | "reflective" | "patron";
+import { type Infer, v } from "convex/values";
+
+export const planValidator = v.union(v.literal("free"), v.literal("unlimited"));
+
+export type Plan = Infer<typeof planValidator>;
+
+/**
+ * The plan on a user row. Fail closed: a row written before plans existed, or
+ * a backfill that didn't finish, reads as free rather than as unlimited.
+ */
+export function planFor(user: { plan?: Plan } | null | undefined): Plan {
+  return user?.plan === "unlimited" ? "unlimited" : "free";
+}
 
 /** Free gets one tradition lens; paid gets several (design `PRICING`). */
 export const FREE_TRADITION_LIMIT = 1;
@@ -22,15 +29,5 @@ export const FREE_TRADITION_LIMIT = 1;
 export const PAID_TRADITION_LIMIT = 10;
 
 export function traditionLimit(plan: Plan | undefined): number {
-  return plan === "reflective" || plan === "patron"
-    ? PAID_TRADITION_LIMIT
-    : FREE_TRADITION_LIMIT;
-}
-
-/**
- * The plan on a profile. A placeholder until #7 adds the field — see the note
- * at the top of this file.
- */
-export function planForProfile(_profile: unknown): Plan | undefined {
-  return undefined;
+  return plan === "unlimited" ? PAID_TRADITION_LIMIT : FREE_TRADITION_LIMIT;
 }

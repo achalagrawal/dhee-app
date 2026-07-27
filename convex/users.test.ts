@@ -203,12 +203,11 @@ describe("users — tradition lens", () => {
   });
 
   test("a missing plan is treated as free, not as unlimited", async () => {
-    // Fail closed: the plan field arrives with #7, and until then nobody
-    // should be silently upgraded.
+    // Fail closed: a row written before plans existed must not be silently
+    // upgraded.
     expect(traditionLimit(undefined)).toBe(1);
     expect(traditionLimit("free")).toBe(1);
-    expect(traditionLimit("reflective")).toBe(PAID_TRADITION_LIMIT);
-    expect(traditionLimit("patron")).toBe(PAID_TRADITION_LIMIT);
+    expect(traditionLimit("unlimited")).toBe(PAID_TRADITION_LIMIT);
   });
 });
 

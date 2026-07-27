@@ -53,6 +53,7 @@ export const authComponent: ReturnType<typeof createClient<DataModel>> =
             email: doc.email,
             name,
             createdAt: Date.now(),
+            plan: "free",
           });
 
           // Seed the profile from whatever the provider told us, so onboarding

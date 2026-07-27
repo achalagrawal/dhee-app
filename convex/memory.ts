@@ -114,6 +114,33 @@ export const runExtraction = internalAction({
   },
 });
 
+/**
+ * The conversation as the extractor should see it: what the person said and
+ * what Dhee said back.
+ *
+ * Tool messages are excluded deliberately. They carry role `"tool"` and
+ * non-empty text, so an unfiltered join drops whole pages of the Madhyasth
+ * Darshan corpus into a prompt whose entire job is to record facts *about the
+ * person*. That is wasted tokens at best, and at worst it invites the model to
+ * write down philosophy as though the person had said it — exactly what the
+ * "record only what this person actually said about themselves" rule below is
+ * there to prevent.
+ */
+export function buildTranscript(
+  page: Array<{ text?: string; message?: { role?: string } | null }>,
+): string {
+  return page
+    .filter(
+      (m) => m.message?.role === "user" || m.message?.role === "assistant",
+    )
+    .map((m) => {
+      const text = (m.text ?? "").trim();
+      return text ? `${m.message?.role}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export const extractFromThread = internalAction({
   args: { userId: v.id("users"), threadId: v.string() },
   returns: v.null(),
@@ -123,13 +150,7 @@ export const extractFromThread = internalAction({
       paginationOpts: { numItems: 20, cursor: null },
     });
 
-    const transcript = page
-      .map((message) => {
-        const text = message.text ?? "";
-        return text ? `${message.message?.role ?? "unknown"}: ${text}` : "";
-      })
-      .filter(Boolean)
-      .join("\n\n");
+    const transcript = buildTranscript(page);
 
     if (!transcript.trim()) return null;
 

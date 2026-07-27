@@ -18,6 +18,7 @@ import {
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
+import { Markdown } from "../../../src/components/chat/Markdown";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
@@ -561,6 +562,8 @@ const Message = memo(function Message({
   const streaming = message.status === "streaming";
   const done = message.status === "success" || message.status === "failed";
 
+  // The raw text, markdown and all — that is what pastes correctly into
+  // anywhere else, and what the person would get from any other chat app.
   const copy = async () => {
     await Clipboard.setStringAsync(message.text);
     setCopied(true);
@@ -632,10 +635,11 @@ const Message = memo(function Message({
     <View style={styles.botRow}>
       <DheeAvatar />
       <View style={styles.botBody}>
-        <Text style={styles.botText}>
-          {message.text}
-          {streaming ? <Text style={styles.caret}>▋</Text> : null}
-        </Text>
+        <Markdown
+          text={message.text}
+          colors={colors}
+          trailing={streaming ? <Text style={styles.caret}>▋</Text> : null}
+        />
         {done ? (
           <View style={styles.actionsRow}>
             <Pressable onPress={copy} hitSlop={4} style={styles.copyBtn}>
@@ -762,12 +766,6 @@ function makeStyles(colors: Colors) {
     // Assistant
     botRow: { flexDirection: "row", gap: 12 },
     botBody: { flex: 1, minWidth: 0 },
-    botText: {
-      color: colors.text,
-      fontSize: 16.5,
-      lineHeight: 27,
-      ...font.regular,
-    },
     caret: { color: colors.accent, fontSize: 16 },
     actionsRow: {
       flexDirection: "row",

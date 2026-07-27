@@ -27,6 +27,7 @@ import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
 import { activityTrail } from "../../../src/lib/activity";
 import { t } from "../../../src/lib/i18n";
+import { composerKeyAction } from "../../../src/lib/keyboard";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
 import {
@@ -36,6 +37,7 @@ import {
   readableColumn,
   shadow,
 } from "../../../src/lib/theme";
+import { useEnterToSend } from "../../../src/lib/useEnterToSend";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
 // Matches the mockup's `onMainScroll`.
@@ -514,6 +516,7 @@ function MessageEditor({
 }) {
   const [draft, setDraft] = useState(initial);
   const prompt = draft.trim();
+  const sendOnEnter = useEnterToSend();
   return (
     <View style={styles.editCard}>
       <TextInput
@@ -525,7 +528,10 @@ function MessageEditor({
         // on a free-text field and flickering the keyboard. Issue #72.
         autoComplete="off"
         onKeyPress={(e) => {
-          if (e.nativeEvent.key === "Escape") onCancel();
+          if (e.nativeEvent.key === "Escape") return onCancel();
+          if (composerKeyAction(e, { sendOnEnter }) !== "send") return;
+          e.preventDefault();
+          if (prompt) onSubmit(prompt);
         }}
         style={styles.editInput}
       />

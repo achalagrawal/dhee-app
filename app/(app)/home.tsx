@@ -19,6 +19,7 @@ import { t } from "../../src/lib/i18n";
 import { useShell } from "../../src/lib/shell";
 import { useTheme } from "../../src/lib/ThemeContext";
 import { font } from "../../src/lib/theme";
+import { useAttachments } from "../../src/lib/useAttachments";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 // Greeting + composer landing. Sending starts a real thread and hands off to
@@ -35,12 +36,14 @@ export default function Home() {
   const sendMessage = useMutation(api.chat.sendMessage);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const photos = useAttachments(lang);
 
   const send = async () => {
     const prompt = draft.trim();
-    if (!prompt || busy) return;
+    const fileIds = photos.fileIds;
+    if ((!prompt && fileIds.length === 0) || photos.uploading || busy) return;
     // Incognito hands the prompt to the ephemeral chat, which never touches a
-    // thread — nothing about it is saved.
+    // thread — nothing about it is saved. Photos don't go there at all.
     if (incognito) {
       setDraft("");
       router.push({ pathname: "/chat/incognito", params: { prompt } });
@@ -49,8 +52,9 @@ export default function Home() {
     setBusy(true);
     try {
       const threadId = await startThread();
-      await sendMessage({ threadId, prompt });
+      await sendMessage({ threadId, prompt, fileIds });
       setDraft("");
+      photos.clear();
       router.push(`/chat/${threadId}` as never);
     } catch {
       setBusy(false);
@@ -97,6 +101,13 @@ export default function Home() {
             onSubmit={send}
             placeholder={t(lang, "homePlaceholder")}
             minHeight={48}
+            {...(incognito
+              ? {}
+              : {
+                  attachments: photos.attachments,
+                  onPickPhoto: () => void photos.pick(),
+                  onRemoveAttachment: photos.remove,
+                })}
           />
 
           {incognito ? (

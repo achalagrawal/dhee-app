@@ -108,6 +108,11 @@ const strings = {
     voiceMode: "Voice mode",
     dictate: "Dictate",
     addFiles: "Add files, photos, web search",
+    // Attachments
+    addPhoto: "Add a photo",
+    removePhoto: "Remove photo",
+    onlyPhotos: "Only photos can be attached for now.",
+    photoTooLarge: "That photo is too large. Photos can be up to 5 MB.",
     // Chat
     replyPlaceholder: "Reply to Dhee",
     thinking: "Dhee is considering…",
@@ -339,6 +344,11 @@ const strings = {
     voiceMode: "वॉइस मोड",
     dictate: "बोलकर लिखें",
     addFiles: "फ़ाइल, फ़ोटो, वेब खोज जोड़ें",
+    // Attachments
+    addPhoto: "फ़ोटो जोड़ें",
+    removePhoto: "फ़ोटो हटाएँ",
+    onlyPhotos: "अभी सिर्फ़ फ़ोटो जोड़ी जा सकती हैं।",
+    photoTooLarge: "यह फ़ोटो बहुत बड़ी है। फ़ोटो 5 MB तक हो सकती है।",
     // Chat
     replyPlaceholder: "धी को जवाब दें",
     thinking: "धी सोच रहा है…",

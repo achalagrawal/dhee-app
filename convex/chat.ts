@@ -2,6 +2,7 @@ import {
   type MessageDoc,
   abortStream,
   createThread,
+  getFile,
   getThreadMetadata,
   listMessages,
   listStreams,
@@ -11,6 +12,7 @@ import {
   updateThreadMetadata,
   vStreamArgs,
 } from "@convex-dev/agent";
+import type { ImagePart } from "ai";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { z } from "zod";
@@ -167,6 +169,27 @@ async function lastUserTurn(
   return { prompt, after: page.slice(0, index) };
 }
 
+// Resolves attached photos into the parts a model message carries. Each
+// `getFile` also proves the id is a file the component knows about, so an id
+// the client invented never reaches `saveMessage`.
+//
+// Photos only, deliberately: `getFile` returns an image part solely for an
+// `image/*` media type, and `attachments.attach` refuses anything else at
+// upload time. Documents come back as `filePart` and are a later slice — see
+// docs/build/specs/photo-attachments.md.
+async function imagePartsFor(
+  ctx: MutationCtx,
+  fileIds: string[],
+): Promise<ImagePart[]> {
+  const parts: ImagePart[] = [];
+  for (const fileId of fileIds) {
+    const { imagePart } = await getFile(ctx, components.agent, fileId);
+    if (!imagePart) throw new Error("Only photos can be attached.");
+    parts.push(imagePart);
+  }
+  return parts;
+}
+
 async function authorizeThread(
   ctx: QueryCtx | MutationCtx | ActionCtx,
   threadId: string,
@@ -263,15 +286,40 @@ export const sendMessage = mutation({
   args: {
     threadId: v.string(),
     prompt: v.string(),
+    // Photos from `attachments.attach`, in the order they were picked.
+    fileIds: v.optional(v.array(v.string())),
   },
   returns: v.null(),
-  handler: async (ctx, { threadId, prompt }) => {
+  handler: async (ctx, { threadId, prompt, fileIds = [] }) => {
     await authorizeThread(ctx, threadId);
     const userId = await requireUserId(ctx);
 
+    const text = prompt.trim();
+    // A photo on its own is a real question — "what is this?" — so text is
+    // only required when nothing else was sent.
+    if (!text && fileIds.length === 0) {
+      throw new Error("A message needs something in it.");
+    }
+
+    // A plain prompt stays a plain prompt: every turn without photos saves
+    // exactly the shape it did before attachments existed. `metadata.fileIds`
+    // is what takes each file's refcount from 0 to 1, which is what stops the
+    // vacuum treating an attached photo as an abandoned upload.
+    const images = await imagePartsFor(ctx, fileIds);
     const { messageId } = await dhee.saveMessage(ctx, {
       threadId,
-      prompt,
+      ...(images.length > 0
+        ? {
+            message: {
+              role: "user" as const,
+              content: [
+                ...images,
+                ...(text ? [{ type: "text" as const, text }] : []),
+              ],
+            },
+            metadata: { fileIds },
+          }
+        : { prompt: text }),
       skipEmbeddings: true,
     });
 
@@ -583,9 +631,29 @@ export const editAndResend = mutation({
     await revokeSharesTouching(ctx, threadId, discarded);
     await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
 
+    // An edit rewrites the words, not what was shown. Dropping the photos here
+    // would delete them out of the conversation through a button labelled
+    // "edit" — so they are carried onto the replacement, refcounts and all.
+    const content = target.message.content;
+    const images = Array.isArray(content)
+      ? (content.filter((part) => part.type === "image") as ImagePart[])
+      : [];
+
     const { messageId: newMessageId, message: saved } = await dhee.saveMessage(
       ctx,
-      { threadId, prompt: trimmed, skipEmbeddings: true },
+      {
+        threadId,
+        ...(images.length > 0
+          ? {
+              message: {
+                role: "user" as const,
+                content: [...images, { type: "text" as const, text: trimmed }],
+              },
+              metadata: { fileIds: target.fileIds ?? [] },
+            }
+          : { prompt: trimmed }),
+        skipEmbeddings: true,
+      },
     );
 
     await upsertThreadMeta(ctx, threadId, userId, {

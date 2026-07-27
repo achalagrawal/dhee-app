@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  Image,
   KeyboardAvoidingView,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -38,6 +39,7 @@ import {
   readableColumn,
   shadow,
 } from "../../../src/lib/theme";
+import { useAttachments } from "../../../src/lib/useAttachments";
 import { useEnterToSend } from "../../../src/lib/useEnterToSend";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
@@ -81,6 +83,7 @@ export default function Chat() {
     messageId: string;
     prompt: string;
   } | null>(null);
+  const photos = useAttachments(lang);
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const stopGeneration = useMutation(api.chat.stopGeneration);
@@ -202,16 +205,23 @@ export default function Chat() {
 
   const send = useCallback(async () => {
     const prompt = draft.trim();
-    if (!prompt || !threadId) return;
+    const fileIds = photos.fileIds;
+    if ((!prompt && fileIds.length === 0) || photos.uploading || !threadId) {
+      return;
+    }
     setDraft("");
     setFailure(null);
     try {
-      await sendMessage({ threadId, prompt });
+      await sendMessage({ threadId, prompt, fileIds });
+      // Only once it landed. Clearing optimistically would leave a failed send
+      // with its words restored and its photos gone — and the uploads orphaned
+      // server-side, since nothing references them yet.
+      photos.clear();
     } catch (e) {
       setDraft(prompt);
       setFailure({ reason: failureFrom(e), retry: "send" });
     }
-  }, [draft, threadId, sendMessage]);
+  }, [draft, threadId, sendMessage, photos]);
 
   const stop = useCallback(async () => {
     if (!threadId) return;
@@ -482,6 +492,9 @@ export default function Chat() {
               minHeight={24}
               generating={generating && !stopping}
               onStop={stop}
+              attachments={photos.attachments}
+              onPickPhoto={() => void photos.pick()}
+              onRemoveAttachment={photos.remove}
             />
             <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
           </View>
@@ -615,6 +628,16 @@ const Message = memo(function Message({
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
+  // Photos the person attached. Documents come through as file parts too, and
+  // have no thumbnail to show, so they are filtered out until the doc chip
+  // exists — see docs/build/specs/photo-attachments.md.
+  const photos = useMemo(
+    () =>
+      message.parts.filter(
+        (p) => p.type === "file" && p.mediaType?.startsWith("image/"),
+      ) as { url: string; filename?: string }[],
+    [message.parts],
+  );
   const streaming = message.status === "streaming";
   const done = message.status === "success" || message.status === "failed";
 
@@ -640,12 +663,29 @@ const Message = memo(function Message({
         </View>
       );
     }
-    if (!message.text.trim()) return null;
+    if (!message.text.trim() && photos.length === 0) return null;
     return (
       <View style={styles.userWrap}>
-        <View style={styles.userBubble}>
-          <Text style={styles.userText}>{message.text}</Text>
-        </View>
+        {photos.length > 0 ? (
+          <View style={styles.photoRow}>
+            {photos.map((photo) => (
+              <Image
+                key={photo.url}
+                source={{ uri: photo.url }}
+                accessibilityLabel={photo.filename}
+                accessibilityIgnoresInvertColors
+                style={styles.photo}
+              />
+            ))}
+          </View>
+        ) : null}
+        {/* A photo on its own is a whole message; an empty bubble under it
+            would only be a box with nothing in it. */}
+        {message.text.trim() ? (
+          <View style={styles.userBubble}>
+            <Text style={styles.userText}>{message.text}</Text>
+          </View>
+        ) : null}
         <View style={styles.userMeta}>
           {edited ? (
             <Text style={styles.editedLabel}>{t(lang, "edited")}</Text>
@@ -778,6 +818,20 @@ function makeStyles(colors: Colors) {
       fontSize: 16.5,
       lineHeight: 25,
       ...font.regular,
+    },
+    photoRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "flex-end",
+      gap: 8,
+      maxWidth: "84%",
+    },
+    photo: {
+      width: 120,
+      height: 120,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     userMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaBtn: { padding: 5, borderRadius: 7 },

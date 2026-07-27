@@ -117,8 +117,8 @@ pre-existing bugs you stumble across).
 
 - One feature/slice per PR; fill in the PR template.
 - Working on `main` is fine to branch from, but open PRs from a branch.
-- Opening the PR is what triggers the preview build — Vercel comments with a URL
-  running your branch against a Convex backend of its own. That link is what a
+- Every push to a branch gets a preview, and Vercel comments the URL on the PR —
+  your branch running against a Convex backend of its own. That link is what a
   tester clicks. Sign in there with the email code; Google sign-in doesn't work
   on previews. Details and caveats: [`docs/deployment.md`](docs/deployment.md).
 - `main` is protected: no direct pushes, no force-pushes, no deletion, and

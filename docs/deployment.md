@@ -6,11 +6,11 @@ Dhee runs on Vercel, with the Convex backend deployed from the Vercel build
 
 ## Topology
 
-| Environment | Where it runs               | Git branch           | Domain                  | Convex deployment              |
-| ----------- | --------------------------- | -------------------- | ----------------------- | ------------------------------ |
-| Development | your machine (`convex dev`) | any                  | localhost               | your local/dev backend         |
-| Preview     | Vercel                      | any branch with a PR | generated `.vercel.app` | a throwaway backend per branch |
-| Production  | Vercel                      | `main`               | `dhee.app`              | the production backend         |
+| Environment | Where it runs               | Git branch | Domain                  | Convex deployment              |
+| ----------- | --------------------------- | ---------- | ----------------------- | ------------------------------ |
+| Development | your machine (`convex dev`) | any        | localhost               | your local/dev backend         |
+| Preview     | Vercel                      | any branch | generated `.vercel.app` | a throwaway backend per branch |
+| Production  | Vercel                      | `main`     | `dhee.app`              | the production backend         |
 
 There is no long-lived staging environment. A PR gets a preview so a tester can
 click through it; merging to `main` ships.
@@ -48,21 +48,26 @@ deployment 5 days after creation (14 on Pro).
 
 ### Which branches build
 
-Every branch is eligible, and `vercel.json`'s `ignoreCommand` is the gate:
+All of them. Every push gets a preview, whether or not a PR is open, and the
+branch's Convex backend is created on the first one.
 
-```
-if [ "$VERCEL_ENV" = "production" ] || [ -n "$VERCEL_GIT_PULL_REQUEST_ID" ]; then exit 1; else exit 0; fi
-```
+**Restricting this to branches with an open PR does not work — don't re-attempt
+it.** Vercel deploys on push and has no pull-request-opened trigger, and
+`VERCEL_GIT_PULL_REQUEST_ID` is empty "if a deployment is created on a branch
+before a pull request is made". So an `ignoreCommand` testing that variable
+skips a branch's _first_ push and only starts building once the PR exists and
+someone pushes again. A one-commit PR — exactly the case a tester is waiting on
+— then never gets a preview at all. This was tried, and it failed in that shape
+on #83.
 
-Exit **1 builds** and exit **0 skips** — inverted from the usual convention, and
-worth reading twice. `VERCEL_GIT_PULL_REQUEST_ID` is the empty string until a PR
-exists, so pushing a work-in-progress branch costs a skipped deployment rather
-than a build and a backend. Opening the PR triggers the first real one.
+Nothing suppresses a branch today, so a scratch branch costs a build and a
+throwaway backend. Convex reaps an idle preview deployment 5 days after
+creation (14 on Pro), so the tidying is automatic. If that ever becomes a real
+cost, gate on branch _name_ (`feat/*`, `fix/*`, …) rather than PR existence —
+a name is known at push time, which is the property the PR id lacks.
 
-This replaces an earlier `git.deploymentEnabled` block. Note that whichever
-mechanism is used, Vercel reads it from `vercel.json` **on the branch being
-pushed** — a branch cut before this landed behaves the old way until it picks
-up `main`.
+Note that Vercel reads `vercel.json` from the branch being pushed, so a branch
+cut before a change to this file behaves the old way until it picks up `main`.
 
 ### What the build does beyond the deploy
 

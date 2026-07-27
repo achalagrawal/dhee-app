@@ -12,6 +12,7 @@ import {
   query,
 } from "./_generated/server";
 import {
+  keepWithinTraditionLimit,
   planFor,
   planValidator,
   tooManyTraditions,
@@ -406,6 +407,16 @@ export const setPlan = internalMutation({
       .unique();
     if (!user) throw new Error(`No user with email ${email}.`);
     await ctx.db.patch(user._id, { plan });
+
+    // A revoked plan takes back what it granted. Without this the cap only
+    // governs adding, and someone downgraded keeps lenses the free plan would
+    // never have let them pick.
+    const profile = await getProfile(ctx, user._id);
+    const traditions = profile?.traditions ?? [];
+    const kept = keepWithinTraditionLimit(traditions, plan);
+    if (profile && kept.length !== traditions.length) {
+      await ctx.db.patch(profile._id, { traditions: kept });
+    }
     return null;
   },
 });

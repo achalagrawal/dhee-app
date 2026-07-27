@@ -219,18 +219,56 @@ describe("users — tradition lens", () => {
     expect(tooManyTraditions(["Stoicism", "Zen"], none, undefined)).toBe(true);
   });
 
-  test("someone already over the cap can still take lenses off", async () => {
-    // A plan can be revoked, so a list can be over the cap without anyone
-    // having done anything wrong. Refusing every edit would leave them with
-    // "clear everything" as the only way back under it.
+  test("losing the plan trims the lenses it paid for", async () => {
+    // Otherwise the cap is only a rule about adding, and a revoked plan leaves
+    // someone holding lenses the free plan would never have let them pick.
     const t = initTest();
-    const email = "downgraded@example.test";
+    const email = "trimmed@example.test";
     const as = asUser(t, await createUser(t, { email }));
     await t.mutation(internal.users.setPlan, { email, plan: "unlimited" });
     await as.mutation(api.users.setTraditions, {
-      traditions: ["Stoicism", "Zen", "Existentialism"],
+      traditions: ["Stoicism", "Zen", "Madhyasth Darshan", "Taoism"],
     });
+
     await t.mutation(internal.users.setPlan, { email, plan: "free" });
+
+    // The first framing lens survives, in the order they chose. The corpus
+    // lens isn't a framing lens and isn't counted, so it stays.
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Stoicism",
+      "Madhyasth Darshan",
+    ]);
+  });
+
+  test("gaining the plan leaves the lenses alone", async () => {
+    const t = initTest();
+    const email = "upgraded@example.test";
+    const as = asUser(t, await createUser(t, { email }));
+    await as.mutation(api.users.setTraditions, { traditions: ["Stoicism"] });
+
+    await t.mutation(internal.users.setPlan, { email, plan: "unlimited" });
+
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Stoicism",
+    ]);
+  });
+
+  test("someone already over the cap can still take lenses off", async () => {
+    // `setPlan` trims on the way down, so this state shouldn't arise — but a
+    // migration or a hand-edited row could still produce it, and refusing every
+    // edit would leave "clear everything" as the only way back under the cap.
+    const t = initTest();
+    const userId = await createUser(t);
+    const as = asUser(t, userId);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("profiles", {
+        userId,
+        preferredLanguage: "en",
+        onboarded: true,
+        createdAt: Date.now(),
+        traditions: ["Stoicism", "Zen", "Existentialism"],
+      });
+    });
 
     await as.mutation(api.users.setTraditions, {
       traditions: ["Stoicism", "Zen"],

@@ -50,6 +50,23 @@ export function traditionLimit(plan: Plan | undefined): number {
  * doing — and refusing every edit would leave "clear them all" as the only way
  * back under.
  */
+/**
+ * The lenses that survive a move to `plan` — the ones already chosen, in the
+ * order they were chosen, cut to what the plan allows. Same rule as
+ * `tooManyTraditions`, applied to a list that is already stored: a revoked plan
+ * has to take back what it granted, or the cap only ever governs adding.
+ */
+export function keepWithinTraditionLimit(
+  traditions: string[],
+  plan: Plan | undefined,
+): string[] {
+  const limit = traditionLimit(plan);
+  let counted = 0;
+  return traditions.filter(
+    (t) => isCorpusLensName(t) || (counted += 1) <= limit,
+  );
+}
+
 export function tooManyTraditions(
   next: string[],
   previous: string[],

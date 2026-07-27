@@ -11,6 +11,11 @@ import {
 } from "react-native";
 import { api } from "../../convex/_generated/api";
 import { AppShell } from "../../src/components/AppShell";
+import {
+  FailureCard,
+  type FailureReason,
+  failureFrom,
+} from "../../src/components/chat/FailureCard";
 import { Composer } from "../../src/components/Composer";
 import { Icon } from "../../src/components/ui";
 import { t } from "../../src/lib/i18n";
@@ -28,10 +33,13 @@ export default function Home() {
   const { incognito } = useShell();
   const account = useQuery(api.users.accountSummary);
 
-  const startThread = useMutation(api.chat.startThread);
+  const usage = useQuery(api.chat.usage);
   const sendMessage = useMutation(api.chat.sendMessage);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<FailureReason | null>(null);
+
+  const outOfMessages = usage?.remaining === 0;
 
   const send = async () => {
     const prompt = draft.trim();
@@ -43,14 +51,21 @@ export default function Home() {
       router.push({ pathname: "/chat/incognito", params: { prompt } });
       return;
     }
+    if (outOfMessages) {
+      setFailed("limit");
+      return;
+    }
     setBusy(true);
+    setFailed(null);
     try {
-      const threadId = await startThread();
-      await sendMessage({ threadId, prompt });
+      // The thread comes back from the send itself, so a refusal leaves no
+      // empty conversation in the history.
+      const threadId = await sendMessage({ prompt });
       setDraft("");
       router.push(`/chat/${threadId}` as never);
-    } catch {
+    } catch (e) {
       setBusy(false);
+      setFailed(failureFrom(e));
     }
   };
 
@@ -78,6 +93,12 @@ export default function Home() {
             placeholder={t(lang, "homePlaceholder")}
             minHeight={48}
           />
+
+          {/* Shown before anyone types, not just after a refused send —
+              knowing the day is spent is the point of the card. */}
+          {(failed ?? (outOfMessages ? "limit" : null)) ? (
+            <FailureCard reason={failed ?? "limit"} />
+          ) : null}
 
           {incognito ? (
             <View style={styles.incognitoNote}>

@@ -131,6 +131,9 @@ const strings = {
     rateErrorBody: "Too many questions in a short time. Give it a few seconds.",
     limitErrorTitle: "Today's free messages are used up",
     limitErrorBody: "Your messages come back tomorrow.",
+    planFree: "Free plan",
+    planUnlimited: "Unlimited plan",
+    planMessagesLeft: "%n of %m messages left today",
     // Crisis banner + support resources
     crisisTitle: "If you're in real distress, please reach out to a person.",
     crisisBody:
@@ -324,6 +327,9 @@ const strings = {
     rateErrorBody: "थोड़े समय में बहुत सवाल हो गए। कुछ क्षण दीजिए।",
     limitErrorTitle: "आज के मुफ़्त संदेश पूरे हो गए",
     limitErrorBody: "आपके संदेश कल फिर मिलेंगे।",
+    planFree: "मुफ़्त प्लान",
+    planUnlimited: "असीमित प्लान",
+    planMessagesLeft: "आज %m में से %n संदेश बाकी",
     // Crisis banner + support resources
     crisisTitle: "अगर आप सचमुच तकलीफ़ में हैं, तो किसी इंसान से बात कीजिए।",
     crisisBody:

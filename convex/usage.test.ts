@@ -96,6 +96,22 @@ describe("free-tier daily message limit", () => {
     });
   });
 
+  test("a refused first message leaves no empty conversation behind", async () => {
+    const t = initTest();
+    const userId = await createUser(t);
+    const threadId = await startThread(t, userId);
+    await exhaust(t, userId, threadId);
+
+    await limitError(
+      asUser(t, userId).mutation(api.chat.sendMessage, { prompt: "hello" }),
+    );
+
+    const { page } = await asUser(t, userId).query(api.chat.listThreads, {
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(page).toHaveLength(1);
+  });
+
   test("the reset instant is the next UTC midnight", async () => {
     const t = initTest();
     const userId = await createUser(t);

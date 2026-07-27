@@ -1,6 +1,5 @@
 import { useUIMessages, type UIMessage } from "@convex-dev/agent/react";
 import { useMutation, useQuery } from "convex/react";
-import { ConvexError } from "convex/values";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +18,11 @@ import {
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
+import {
+  FailureCard,
+  type FailureReason,
+  failureFrom,
+} from "../../../src/components/chat/FailureCard";
 import { Markdown } from "../../../src/components/chat/Markdown";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
@@ -36,34 +40,12 @@ const FOLLOW_THRESHOLD = 240;
 
 const keyExtractor = (m: UIMessage) => m.key;
 
-type FailureReason = "error" | "rate" | "limit";
-
-const FAILURE_COPY = {
-  error: ["modelErrorTitle", "modelErrorBody"],
-  rate: ["rateErrorTitle", "rateErrorBody"],
-  limit: ["limitErrorTitle", "limitErrorBody"],
-} as const;
-
 // A failure carries what to retry: the composer draft is empty after a failed
 // regenerate or edit, so re-running `send` would silently do nothing.
 type RetryTarget =
   "send" | "regenerate" | { messageId: string; prompt: string };
 
 type Failure = { reason: FailureReason; retry: RetryTarget } | null;
-
-// The daily limit throws a ConvexError carrying a code, so that one is exact.
-// Rate limiting arrives as a message, not a code, so it stays best-effort —
-// misreading it costs nothing worse than the generic wording.
-function failureFrom(error: unknown): FailureReason {
-  if (
-    error instanceof ConvexError &&
-    (error.data as { code?: string })?.code === "LIMIT_REACHED"
-  ) {
-    return "limit";
-  }
-  const text = String(error).toLowerCase();
-  return text.includes("rate") || text.includes("too many") ? "rate" : "error";
-}
 
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
@@ -83,6 +65,11 @@ export default function Chat() {
     messageId: string;
     prompt: string;
   } | null>(null);
+
+  // Known before the send, so an ordinary "out of messages" never has to
+  // travel as a server error. The server still refuses either way.
+  const usage = useQuery(api.chat.usage);
+  const outOfMessages = usage?.remaining === 0;
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const stopGeneration = useMutation(api.chat.stopGeneration);
@@ -189,6 +176,10 @@ export default function Chat() {
   const send = useCallback(async () => {
     const prompt = draft.trim();
     if (!prompt || !threadId) return;
+    if (outOfMessages) {
+      setFailure({ reason: "limit", retry: "send" });
+      return;
+    }
     setDraft("");
     setFailure(null);
     try {
@@ -197,7 +188,7 @@ export default function Chat() {
       setDraft(prompt);
       setFailure({ reason: failureFrom(e), retry: "send" });
     }
-  }, [draft, threadId, sendMessage]);
+  }, [draft, threadId, sendMessage, outOfMessages]);
 
   const stop = useCallback(async () => {
     if (!threadId) return;
@@ -400,25 +391,16 @@ export default function Chat() {
                   </View>
                 ) : null}
                 {activeFailure ? (
-                  <View style={styles.errorCard}>
-                    <View style={styles.errorBody}>
-                      <Text style={styles.errorTitle}>
-                        {t(lang, FAILURE_COPY[activeFailure.reason][0])}
-                      </Text>
-                      <Text style={styles.errorText}>
-                        {t(lang, FAILURE_COPY[activeFailure.reason][1])}
-                      </Text>
-                    </View>
-                    {/* Retrying the limit just fails again — the way past it
-                        is the upgrade request (#10), not this button. */}
-                    {activeFailure.reason === "limit" ? null : (
-                      <Pressable onPress={retryFailure} style={styles.retryBtn}>
-                        <Text style={styles.retryText}>
-                          {t(lang, "tryAgain")}
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
+                  <FailureCard
+                    reason={activeFailure.reason}
+                    // Retrying a spent allowance can only fail again — the way
+                    // past it is the upgrade request (#10), not this button.
+                    onRetry={
+                      activeFailure.reason === "limit"
+                        ? undefined
+                        : retryFailure
+                    }
+                  />
                 ) : null}
               </>
             }
@@ -800,38 +782,6 @@ function makeStyles(colors: Colors) {
       fontStyle: "italic",
       ...font.regular,
     },
-    errorCard: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 13,
-      backgroundColor: colors.surface2,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      padding: 14,
-    },
-    errorBody: { flex: 1, gap: 4 },
-    errorTitle: {
-      color: colors.text,
-      fontSize: 14.5,
-      ...font.semibold,
-    },
-    errorText: {
-      color: colors.textSoft,
-      fontSize: 14,
-      lineHeight: 21,
-      ...font.regular,
-    },
-    retryBtn: {
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
-      backgroundColor: colors.surface,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: radius.pill,
-    },
-    retryText: { color: colors.text, fontSize: 13.5, ...font.medium },
     // Scroll to latest
     scrollBtnWrap: {
       position: "absolute",

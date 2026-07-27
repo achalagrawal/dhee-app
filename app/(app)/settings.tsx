@@ -57,6 +57,7 @@ export default function Settings() {
   const lang = useLanguage();
   const account = useQuery(api.users.accountSummary);
   const profile = useQuery(api.users.currentProfile);
+  const usage = useQuery(api.chat.usage);
 
   const setName = useMutation(api.users.setName);
   const setPersonalization = useMutation(api.users.setPersonalization);
@@ -473,6 +474,23 @@ export default function Settings() {
 
         {/* Account */}
         <Group label={t(lang, "account")} colors={colors}>
+          {usage ? (
+            <View style={styles.block}>
+              <Text style={styles.meta}>
+                {t(
+                  lang,
+                  usage.plan === "unlimited" ? "planUnlimited" : "planFree",
+                )}
+              </Text>
+              {usage.remaining === null ? null : (
+                <Text style={styles.meta}>
+                  {t(lang, "planMessagesLeft")
+                    .replace("%n", String(usage.remaining))
+                    .replace("%m", String(usage.limit))}
+                </Text>
+              )}
+            </View>
+          ) : null}
           <View style={styles.block}>
             <Text style={styles.meta}>
               {t(lang, "memberSince")}{" "}

@@ -43,16 +43,16 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 2 — Composer
 
-| Feature                                                          | Status | Where              | Notes                                                                                      |
-| ---------------------------------------------------------------- | ------ | ------------------ | ------------------------------------------------------------------------------------------ |
-| Text send                                                        | ✅     | `chat.sendMessage` |                                                                                            |
-| Attachments (files/photos) + drag-drop                           | 🟡     | Composer stub      | `state.pendingFiles/uploads/dragOver`; types: IMG/PDF/MD/TXT/DOC                           |
-| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub      | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated) |
-| Web search toggle                                                | 🟡     | Composer stub      | `state.webSearchOn` (distinct from `md.ts`)                                                |
-| Dictation (mic)                                                  | 🟡     | Composer stub      | `state.dictating/dictationPref`                                                            |
-| Voice mode                                                       | 🟡     | Composer stub      | `state.speakingId`; see Epic 12                                                            |
-| Typeahead suggestions                                            | ⬜     | —                  |                                                                                            |
-| Token bar / limit-reached card                                   | ⬜     | —                  | Needs billing (Epic 14)                                                                    |
+| Feature                                                          | Status | Where              | Notes                                                                                             |
+| ---------------------------------------------------------------- | ------ | ------------------ | ------------------------------------------------------------------------------------------------- |
+| Text send                                                        | ✅     | `chat.sendMessage` |                                                                                                   |
+| Attachments (files/photos) + drag-drop                           | 🟡     | Composer stub      | `state.pendingFiles/uploads/dragOver`; types: IMG/PDF/MD/TXT/DOC                                  |
+| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub      | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated)        |
+| Web search toggle                                                | 🟡     | Composer stub      | `state.webSearchOn` (distinct from `md.ts`)                                                       |
+| Dictation (mic)                                                  | 🟡     | Composer stub      | `state.dictating/dictationPref`                                                                   |
+| Voice mode                                                       | 🟡     | Composer stub      | `state.speakingId`; see Epic 12                                                                   |
+| Typeahead suggestions                                            | ⬜     | —                  |                                                                                                   |
+| Token bar / limit-reached card                                   | 🟡     | `FailureCard`      | Limit-reached card done on home, chat and incognito; the token bar (N of M in the composer) is #9 |
 
 ## Epic 3 — Chat & messages
 
@@ -142,7 +142,7 @@ far richer than today's flat screen.
 | Notifications (push, email, follow-up nudges, weekly reflection, product news) | ⬜     | —                                                                                  | `state.notify/notifyPush/notifyEmail`                                          |
 | Security (change password, 2FA, active sessions, log out all)                  | ⬜     | —                                                                                  | `state.mfaEnabled`                                                             |
 | Data (export your data, manage storage)                                        | ⬜     | —                                                                                  | Export to text file                                                            |
-| Usage & plan (limits, cancel plan)                                             | ⬜     | —                                                                                  | `state.plan`; see Epic 14                                                      |
+| Usage & plan (limits, cancel plan)                                             | 🟡     | `settings.tsx`, `chat.usage`                                                       | Plan + messages left today; cancel plan needs Epic 14                          |
 | Delete chats / delete account / delete everything                              | 🟡     | `chat.deleteAllThreads`, `understanding.forgetEverything`, `account.purgeUserData` | Erasure cascade lands on user delete; no self-serve delete-account control yet |
 | Sign out                                                                       | ✅     | `authClient.signOut`                                                               |                                                                                |
 
@@ -182,13 +182,13 @@ far richer than today's flat screen.
 
 ## Epic 14 — Billing / plans
 
-| Feature                                                   | Status | Notes                                                                                                                                           |
-| --------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Upgrade modal                                             | ⬜     | `state.upgradeOpen`                                                                                                                             |
-| Pricing tiers: **Free $0 / Reflective $8 / Patron $20**   | ⬜     | Concrete features per tier in `PRICING` array                                                                                                   |
-| Sync across devices (paid)                                | ⬜     | Prototype stores locally; real app is server-backed                                                                                             |
-| Usage limit enforcement (**free = 5/day**, `DAILY_LIMIT`) | 🟡     | Backend only (#7): `users.plan`, `usage` table, `FREE_DAILY_MESSAGE_LIMIT`, `chat.usage`, `users.setPlan`. Token bar / limit-reached card is #9 |
-| Cancel plan                                               | ⬜     |                                                                                                                                                 |
+| Feature                                                   | Status | Notes                                                                                                                                                          |
+| --------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upgrade modal                                             | ⬜     | `state.upgradeOpen`                                                                                                                                            |
+| Pricing tiers: **Free $0 / Reflective $8 / Patron $20**   | ⬜     | Concrete features per tier in `PRICING` array                                                                                                                  |
+| Sync across devices (paid)                                | ⬜     | Prototype stores locally; real app is server-backed                                                                                                            |
+| Usage limit enforcement (**free = 5/day**, `DAILY_LIMIT`) | 🟡     | #7: `users.plan`, `usage` table, `FREE_DAILY_MESSAGE_LIMIT`, `chat.usage`, `users.setPlan`, plus the limit-reached card. Token bar and upgrade path are #9/#10 |
+| Cancel plan                                               | ⬜     |                                                                                                                                                                |
 
 ## Epic 15 — Sharing
 

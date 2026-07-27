@@ -264,14 +264,21 @@ export const startThread = mutation({
 
 export const sendMessage = mutation({
   args: {
-    threadId: v.string(),
+    // Omitted from home, where the first message is what starts the
+    // conversation. Creating the thread here rather than in a separate call
+    // means a refused send rolls the thread back with it, instead of leaving
+    // an empty conversation in someone's history.
+    threadId: v.optional(v.string()),
     prompt: v.string(),
   },
-  returns: v.null(),
-  handler: async (ctx, { threadId, prompt }) => {
-    await authorizeThread(ctx, threadId);
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const { prompt } = args;
     const userId = await requireUserId(ctx);
+    if (args.threadId) await authorizeThread(ctx, args.threadId);
     await spendMessage(ctx, userId);
+    const threadId =
+      args.threadId ?? (await createThread(ctx, components.agent, { userId }));
 
     const { messageId } = await dhee.saveMessage(ctx, {
       threadId,
@@ -336,7 +343,7 @@ export const sendMessage = mutation({
         threadId,
       });
     }
-    return null;
+    return threadId;
   },
 });
 

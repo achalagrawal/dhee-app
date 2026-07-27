@@ -81,6 +81,22 @@ describe("chat — auth & authorization", () => {
 });
 
 describe("chat — sendMessage bookkeeping", () => {
+  test("omitting the threadId starts one and returns it", async () => {
+    // Home sends before a thread exists. Creating it in the same mutation is
+    // what keeps a refused send from leaving an empty conversation behind.
+    const t = initTest();
+    const user = await createUser(t);
+
+    const threadId = await asUser(t, user).mutation(api.chat.sendMessage, {
+      prompt: "hi",
+    });
+
+    expect(await threadMessages(t, threadId)).toHaveLength(1);
+    expect(
+      (await scheduledNames(t)).some((n) => n.includes("streamReply")),
+    ).toBe(true);
+  });
+
   test("the first turn schedules a reply now and an extraction later", async () => {
     const t = initTest();
     const user = await createUser(t);

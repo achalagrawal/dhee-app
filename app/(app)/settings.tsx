@@ -3,7 +3,6 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -14,7 +13,13 @@ import {
 import { api } from "../../convex/_generated/api";
 import { AppShell } from "../../src/components/AppShell";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
-import { Avatar, Field, Icon, type IconName } from "../../src/components/ui";
+import {
+  Avatar,
+  Field,
+  Icon,
+  type IconName,
+  Loading,
+} from "../../src/components/ui";
 import { t } from "../../src/lib/i18n";
 import { type ThemePref, useTheme } from "../../src/lib/ThemeContext";
 import {
@@ -85,7 +90,7 @@ export default function Settings() {
     return (
       <AppShell>
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.accent} />
+          <Loading lang={lang} />
         </View>
       </AppShell>
     );

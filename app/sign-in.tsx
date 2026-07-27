@@ -2,7 +2,6 @@ import { useConvexAuth } from "convex/react";
 import { Redirect } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -13,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { SigningIn } from "../src/components/SigningIn";
-import { Field } from "../src/components/ui";
+import { Field, Loading } from "../src/components/ui";
 import { authClient } from "../src/lib/auth-client";
 import { t } from "../src/lib/i18n";
 import { legalUrls } from "../src/lib/legal";
@@ -286,7 +285,8 @@ function PrimaryButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={colors.onAccent} />
+        // Sized to the label's own line so the button doesn't resize mid-press.
+        <Loading size={22} color={colors.onAccent} />
       ) : (
         <Text style={styles.buttonLabel}>{label}</Text>
       )}

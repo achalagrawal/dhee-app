@@ -19,11 +19,13 @@ import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
 import { Markdown } from "../../../src/components/chat/Markdown";
+import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
+import { activityTrail } from "../../../src/lib/activity";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
@@ -127,7 +129,17 @@ export default function Chat() {
     [results],
   );
 
-  // "Considering…" only before the assistant has produced any text.
+  // What Dhee is reaching for this turn, read off the tool parts the agent
+  // streams alongside the text. The turn's step messages are combined into one
+  // UIMessage by `useUIMessages`, so the last row carries the whole trail.
+  // Spec §3.
+  const activities = useMemo(() => {
+    const last = results[results.length - 1];
+    if (!last || last.role !== "assistant") return [];
+    return activityTrail(last.parts);
+  }, [results]);
+
+  // The indicator shows only before the assistant has produced any text.
   const thinking = useMemo(() => {
     const last = results[results.length - 1];
     if (!last) return false;
@@ -378,12 +390,7 @@ export default function Chat() {
             ListFooterComponent={
               <>
                 {thinking ? (
-                  <View style={styles.thinkingRow}>
-                    <DheeAvatar />
-                    <Text style={styles.thinkingText}>
-                      {t(lang, "thinking")}
-                    </Text>
-                  </View>
+                  <ThinkingTrail activities={activities} lang={lang} />
                 ) : null}
                 {activeFailure ? (
                   <View style={styles.errorCard}>
@@ -784,14 +791,7 @@ function makeStyles(colors: Colors) {
     },
     copyLabel: { color: colors.textFaint, fontSize: 12.5, ...font.regular },
     actionBtn: { padding: 8, borderRadius: 8 },
-    // Thinking / error
-    thinkingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    thinkingText: {
-      color: colors.textFaint,
-      fontSize: 15,
-      fontStyle: "italic",
-      ...font.regular,
-    },
+    // Error
     errorCard: {
       flexDirection: "row",
       alignItems: "flex-start",

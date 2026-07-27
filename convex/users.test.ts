@@ -6,6 +6,7 @@ import {
 } from "./agents/dhee";
 import { api } from "./_generated/api";
 import { PAID_TRADITION_LIMIT, traditionLimit } from "./lib/plan";
+import { DEFAULT_TRADITION } from "../src/lib/traditions";
 import { asUser, createUser, initTest } from "./test.setup";
 
 // Personalization: the fields, and the prompt they assemble into. See
@@ -280,11 +281,56 @@ describe("buildSystemPrompt", () => {
   });
 });
 
-describe("buildSystemPrompt — the Rule 1 narrowing", () => {
+describe("buildSystemPrompt — the base prompt's own commitments", () => {
+  // The launch rewrite turned Dhee into an assistant for Madhyasth Darshan
+  // rather than a companion concealing that it had read any. These pin the
+  // parts of that rewrite a later edit could undo without noticing: the
+  // grounding block, the depth mandate, and — the easiest to lose — that the
+  // plain-language rule is now a preference and no longer a prohibition.
+  const base = buildSystemPrompt();
+
+  test("the fundamentals travel in the prompt, so an unretrieved turn is still grounded", () => {
+    // Most turns retrieve nothing, and every practical one does not. If this
+    // block goes, those turns fall back to the model's general recollection of
+    // the darshan, which is exactly what the corpus is here to replace.
+    expect(base).toContain("Existence is co-existence");
+    expect(base).toContain("समाधान, समृद्धि, अभय, सह-अस्तित्व");
+    expect(base).toContain("जीवन");
+    expect(base).toContain("भ्रम");
+  });
+
+  test("it asks for depth, and says depth is not length", () => {
+    expect(base).toContain("higher dimension");
+    expect(base).toContain("Depth, not length");
+  });
+
+  test("a small question never comes back empty, and never comes back invented", () => {
+    // Two failure modes, opposite directions, one passage. Leading with "I
+    // don't have that" reads as a tool that failed and costs the trust the
+    // depth is meant to build; inventing the bus time costs more. The prompt
+    // has to hold both, so both are pinned.
+    expect(base).toContain("do not open with what you lack");
+    expect(base).toContain("never come back empty");
+    expect(base).toContain("Never invent the fact");
+    // And the guardrail against the other excess: depth reached for to sound
+    // deep. If this goes, "always answer from higher up" turns insufferable.
+    expect(base).toContain("real seeing, not decoration");
+  });
+
+  test("plain language is a preference, not a prohibition", () => {
+    // The old prompt said "Never use terms of art". It does not any more, and
+    // convex/evals/checks.ts was relaxed to match — if this reverts to a ban,
+    // the eval stops agreeing with the prompt.
+    expect(base).toContain("This is a preference, not a prohibition");
+    expect(base).not.toContain("Never use terms of art");
+  });
+});
+
+describe("buildSystemPrompt — the lens narrowing", () => {
   // docs/build/specs/personalization.md decides that naming a tradition
-  // unlocks that tradition's vocabulary for the person who named it. Rule 1
-  // is described in the code as load-bearing, so these tests pin the decision
-  // where a refactor would otherwise only break it in a real conversation.
+  // unlocks that tradition's vocabulary for the person who named it. These
+  // tests pin the decision where a refactor would otherwise only break it in a
+  // real conversation.
 
   test("a Madhyasth Darshan lens permits its vocabulary", () => {
     const prompt = buildSystemPrompt({ traditions: ["Madhyasth Darshan"] });
@@ -306,10 +352,10 @@ describe("buildSystemPrompt — the Rule 1 narrowing", () => {
     );
   });
 
-  test("the base plain-language rule is still there underneath", () => {
+  test("the base plain-language preference is still there underneath", () => {
     const prompt = buildSystemPrompt({ traditions: ["Madhyasth Darshan"] });
-    expect(prompt).toContain("PLAIN, EVERYDAY LANGUAGE ONLY");
-    expect(prompt).toContain("PERSPECTIVE, NOT LECTURE");
+    expect(prompt).toContain("PLAIN LANGUAGE, held lightly");
+    expect(prompt).toContain("say the thing rather than name it");
   });
 });
 
@@ -321,18 +367,19 @@ describe("buildSystemPrompt — the corpus lens (study mode)", () => {
 
   const study = buildSystemPrompt({ traditions: ["Madhyasth Darshan"] });
 
-  test("it lifts the citation ban the base rules impose", () => {
-    // "Which page says this" is the question #62 is missing, and the base
-    // prompt forbids answering it.
+  test("it lifts the reticence about sources the base rules impose", () => {
     expect(study).toContain("book, chapter and page");
     expect(study).toContain("quote the source verbatim");
     expect(study).toContain("does not apply to this person");
   });
 
-  test("length stops being capped at one or two paragraphs", () => {
+  test("length stops being capped", () => {
     expect(study).toContain("as long as the question needs");
-    // And the base rule it overrides is still present to be overridden.
-    expect(study).toContain("One or two short paragraphs is usually enough");
+    // And the base rule it overrides is still present to be overridden. If the
+    // base wording changes, change the quotation in the study block with it —
+    // an override that names a sentence nobody wrote overrides nothing.
+    expect(study).toContain("**Depth, not length.**");
+    expect(study).toContain('"depth, not length" is not a ceiling here');
   });
 
   test("the non-conversion guardrail travels with the permission", () => {
@@ -365,11 +412,11 @@ describe("buildSystemPrompt — the corpus lens (study mode)", () => {
     expect(plain).not.toContain("you may use that tradition's own vocabulary");
   });
 
-  test("the never-quote instruction lives in the base prompt, so it can be lifted", () => {
+  test("the don't-paste instruction lives in the base prompt, so it can be lifted", () => {
     // It used to sit in the tool descriptions, where nothing per-person could
     // reach it. If it moves back, study mode silently stops working.
     expect(buildSystemPrompt()).toContain(
-      "Never quote or paraphrase a tool result directly",
+      "Don't paste or closely paraphrase a passage unasked",
     );
   });
 });
@@ -390,6 +437,14 @@ describe("isCorpusLens", () => {
 
   test("it finds the lens alongside others", () => {
     expect(isCorpusLens(["Stoicism", "Madhyasth Darshan"])).toBe(true);
+  });
+
+  test("the lens onboarding preselects actually opens study mode", () => {
+    // DEFAULT_TRADITION is free text by the time it reaches here — onboarding
+    // writes it into the same string field someone can type into. A typo would
+    // fail safe, which is the problem: every new user would quietly get a
+    // framing lens with no books behind it and nobody would see an error.
+    expect(isCorpusLens([DEFAULT_TRADITION])).toBe(true);
   });
 
   test("a near miss fails safe rather than opening the corpus", () => {

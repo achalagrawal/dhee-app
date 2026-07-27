@@ -190,6 +190,22 @@ const DEVANAGARI_TERMS = [
 
 const TERMS = [...ROMAN_TERMS, ...DEVANAGARI_TERMS];
 
+/**
+ * How many distinct terms of art an ordinary reply may carry before it counts
+ * as leaning on vocabulary.
+ *
+ * The prompt used to ban these outright and this check used to be `=== 0`. It
+ * no longer is: Dhee is an assistant *for* Madhyasth Darshan, and a term that
+ * genuinely is the most honest word is allowed to land — the instruction is to
+ * lean plain, not to dodge. Two is the line because the failure mode the prompt
+ * names is stacking ("don't stack terms, don't teach a glossary nobody asked
+ * for"), and one or two glossed terms in a reply is not stacking.
+ *
+ * A reply at the limit is still worth reading. This catches the glossary, not
+ * the word.
+ */
+export const MAX_LIGHT_TERMS = 2;
+
 // `\b` is defined on ASCII word characters, so /\bजीवन\b/ does not mean what it
 // looks like it means. Unicode letter lookarounds work in both scripts.
 function wordish(term: string): RegExp {
@@ -431,12 +447,14 @@ export function runChecks(r: ReplyUnderTest, e: Expectations): Check[] {
     return [{ id: "non-empty", ok: false, detail: "the reply was empty" }];
   }
 
-  if (e.termsOfArt === "forbidden") {
+  if (e.termsOfArt === "discouraged") {
     const terms = termsOfArtIn(r.reply, { echoAllowance: r.probe });
     checks.push({
-      id: "plain-language",
-      ok: terms.length === 0,
-      detail: terms.length ? `leaked: ${terms.join(", ")}` : undefined,
+      id: "plain-language (light)",
+      ok: terms.length <= MAX_LIGHT_TERMS,
+      detail: terms.length
+        ? `${terms.length} term${terms.length === 1 ? "" : "s"}: ${terms.join(", ")}`
+        : undefined,
     });
   }
 

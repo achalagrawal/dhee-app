@@ -5,11 +5,12 @@ import {
   useQuery,
 } from "convex/react";
 import { Redirect } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { api } from "../convex/_generated/api";
 import { SigningIn } from "../src/components/SigningIn";
+import { Loading } from "../src/components/ui";
 import { useOAuthHandoff } from "../src/lib/oauth-return";
-import { colors } from "../src/lib/theme";
+import { useTheme } from "../src/lib/ThemeContext";
 
 // Entry gate. Auth state and onboarding state are both server-owned, so the
 // routing decision waits for the query rather than guessing from local state.
@@ -40,10 +41,13 @@ function OnboardingGate() {
   return <Redirect href="/home" />;
 }
 
+// The first thing anyone sees on a cold open, so it is the mark turning rather
+// than the platform's arc (#103).
 function Splash() {
+  const { colors } = useTheme();
   return (
-    <View style={styles.splash}>
-      <ActivityIndicator color={colors.accent} />
+    <View style={[styles.splash, { backgroundColor: colors.bg }]}>
+      <Loading />
     </View>
   );
 }
@@ -53,6 +57,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.bg,
   },
 });

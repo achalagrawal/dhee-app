@@ -1,6 +1,7 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { t } from "../lib/i18n";
+import { Loading } from "./ui/Loading";
 import { useTheme } from "../lib/ThemeContext";
 import { type Colors, font, spacing } from "../lib/theme";
 
@@ -20,7 +21,7 @@ export function SigningIn() {
         <Text style={styles.wordmark}>{t("en", "appName")}</Text>
         <Text style={styles.tagline}>{t("en", "tagline")}</Text>
         <View style={styles.status}>
-          <ActivityIndicator color={colors.accent} />
+          <Loading size={22} />
           <Text style={styles.label}>{t("en", "signingIn")}</Text>
         </View>
       </View>

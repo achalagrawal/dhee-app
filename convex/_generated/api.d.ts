@@ -31,6 +31,7 @@ import type * as lib_redirect from "../lib/redirect.js";
 import type * as md from "../md.js";
 import type * as memory from "../memory.js";
 import type * as seed from "../seed.js";
+import type * as share from "../share.js";
 import type * as tools_md from "../tools/md.js";
 import type * as understanding from "../understanding.js";
 import type * as users from "../users.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   md: typeof md;
   memory: typeof memory;
   seed: typeof seed;
+  share: typeof share;
   "tools/md": typeof tools_md;
   understanding: typeof understanding;
   users: typeof users;

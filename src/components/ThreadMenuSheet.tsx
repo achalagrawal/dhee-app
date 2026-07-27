@@ -1,7 +1,6 @@
 import { useMutation } from "convex/react";
 import { useEffect, useState } from "react";
 import {
-  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -26,10 +25,17 @@ type Props = {
   onClose: () => void;
   /** Called after a delete so the caller can navigate away if needed. */
   onDeleted?: (threadId: string) => void;
+  /**
+   * Opens the caller's share sheet. Omitted when this conversation can't be
+   * shared — a crisis-flagged thread, which `share.shareThread` refuses — and
+   * the row is then left out rather than shown and made to fail (#65).
+   */
+  onShare?: () => void;
 };
 
-// Bottom-sheet options for a conversation. Rename, Delete, Star and Pin are
-// wired to their mutations; Share is still pending (no backend yet).
+// Bottom-sheet options for a conversation. Every row here is wired to its
+// mutation; the share row hands back to the caller, which owns the sheet
+// because the thread header opens the same one (#98).
 export function ThreadMenuSheet({
   threadId,
   currentTitle,
@@ -37,6 +43,7 @@ export function ThreadMenuSheet({
   pinned = false,
   onClose,
   onDeleted,
+  onShare,
 }: Props) {
   const { colors } = useTheme();
   const lang = useLanguage();
@@ -60,7 +67,6 @@ export function ThreadMenuSheet({
   }, [threadId, currentTitle]);
 
   const visible = threadId !== null;
-  const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
   const commitRename = () => {
     const title = draft.trim();
@@ -97,11 +103,18 @@ export function ThreadMenuSheet({
       label: t(lang, "rename"),
       onPress: () => setRenaming(true),
     },
-    {
-      icon: "share",
-      label: t(lang, "shareLabel"),
-      onPress: () => soon(t(lang, "shareLabel")),
-    },
+    ...(onShare
+      ? [
+          {
+            icon: "share" as IconName,
+            label: t(lang, "shareLabel"),
+            onPress: () => {
+              onClose();
+              onShare();
+            },
+          },
+        ]
+      : []),
     {
       icon: "trash",
       label: t(lang, "deleteConversation"),

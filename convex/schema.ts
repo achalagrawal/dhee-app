@@ -142,6 +142,32 @@ export default defineSchema({
     .index("by_thread", ["threadId"])
     .index("by_user", ["userId"]),
 
+  // A conversation published as a read-only link. One active row per thread;
+  // revoked rows are kept as tombstones so a slug that was once handed out is
+  // never reissued to a different snapshot. See docs/build/specs/sharing.md.
+  //
+  // `title` and `throughOrder` are frozen copies rather than lookups: a share
+  // is a snapshot, so renaming the thread or carrying on the conversation must
+  // not change what a link already sent to someone shows.
+  sharedThreads: defineTable({
+    userId: v.id("users"),
+    threadId: v.string(),
+    // The public path segment, /s/<slug>. Unguessable is the whole of the
+    // access control, so this is random rather than derived from the thread.
+    slug: v.string(),
+    title: v.optional(v.string()),
+    // The agent-component message the snapshot ends at, and its `order`. The
+    // id alone is not enough: an edit can delete it, and a dangling id would
+    // otherwise read as "no bound" and publish the whole thread.
+    throughMessageId: v.string(),
+    throughOrder: v.number(),
+    createdAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_thread", ["threadId"])
+    .index("by_user", ["userId"]),
+
   // Thumbs up/down on an assistant message. One row per (user, message);
   // messageId is the agent UIMessage key. Cleared when its thread is deleted.
   messageFeedback: defineTable({

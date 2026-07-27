@@ -23,6 +23,7 @@ import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
+import { ShareSheet } from "../../../src/components/ShareSheet";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
 import { activityTrail } from "../../../src/lib/activity";
@@ -68,6 +69,7 @@ export default function Chat() {
   // A stop is deliberately not a failure. Spec §7.
   const [failure, setFailure] = useState<Failure>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef = useRef(true);
   // So the button flips back without waiting for the abort to round-trip.
@@ -361,6 +363,18 @@ export default function Chat() {
             accessibilityLabel={t(lang, "newConversation")}
             onPress={newThread}
           />
+          {/* Share sits in the header rather than only under ⋯ (#98). Hidden
+              on a crisis-flagged thread, which `share.shareThread` refuses —
+              a button that always throws is worse than no button (#65). */}
+          {crisisFlagged ? null : (
+            <IconButton
+              name="share"
+              variant="surface"
+              size={40}
+              accessibilityLabel={t(lang, "shareLabel")}
+              onPress={() => setShareOpen(true)}
+            />
+          )}
           <IconButton
             name="dots"
             variant="surface"
@@ -467,6 +481,12 @@ export default function Chat() {
         threadId={menuOpen ? (threadId ?? null) : null}
         onClose={() => setMenuOpen(false)}
         onDeleted={() => router.replace("/home")}
+        onShare={crisisFlagged ? undefined : () => setShareOpen(true)}
+      />
+
+      <ShareSheet
+        threadId={shareOpen ? (threadId ?? null) : null}
+        onClose={() => setShareOpen(false)}
       />
 
       <ConfirmDialog

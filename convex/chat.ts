@@ -37,6 +37,11 @@ import {
   MEMORY_EXTRACTION_INTERVAL_TURNS,
 } from "./config";
 import { detectsCrisis } from "./lib/crisis";
+import {
+  deleteSharesForThread,
+  deleteSharesForUser,
+  revokeSharesTouching,
+} from "./share";
 import { requireUserId } from "./users";
 
 // Chat surface. Every entry point is user-scoped: a thread belongs to the
@@ -530,6 +535,7 @@ export const regenerate = mutation({
     await assertNoActiveReply(ctx, threadId, turn.after);
 
     await clearMarksFor(ctx, threadId, turn.after);
+    await revokeSharesTouching(ctx, threadId, turn.after);
     await dhee.deleteMessages(ctx, {
       messageIds: turn.after.map((m) => m._id),
     });
@@ -574,6 +580,7 @@ export const editAndResend = mutation({
     await assertNoActiveReply(ctx, threadId, discarded);
 
     const marks = await clearMarksFor(ctx, threadId, discarded);
+    await revokeSharesTouching(ctx, threadId, discarded);
     await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
 
     const { messageId: newMessageId, message: saved } = await dhee.saveMessage(
@@ -679,6 +686,9 @@ export const deleteThread = mutation({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .collect();
     for (const row of feedback) await ctx.db.delete(row._id);
+    // A share of a deleted thread points at messages that are going away, and
+    // there would be no screen left to revoke it from.
+    await deleteSharesForThread(ctx, threadId);
     return null;
   },
 });
@@ -711,6 +721,7 @@ export const deleteAllThreads = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     for (const row of feedback) await ctx.db.delete(row._id);
+    await deleteSharesForUser(ctx, userId);
     return page.length;
   },
 });

@@ -92,6 +92,12 @@ export default function Chat() {
     api.chat.threadFeedback,
     threadId ? { threadId } : "skip",
   );
+  // The conversation's own name, for the header and for the menu that renames,
+  // stars and deletes it — those rows are unreadable without their subject on
+  // screen (#77). Named by `titleThread` after the first reply, so it arrives a
+  // beat late on a brand-new conversation.
+  const info = useQuery(api.chat.threadInfo, threadId ? { threadId } : "skip");
+  const title = info?.title ?? t(lang, "newConversation");
   // Raised server-side, so it survives a reload and applies to every client.
   const crisisFlagged = useQuery(
     api.chat.threadCrisisFlag,
@@ -352,6 +358,9 @@ export default function Chat() {
 
   return (
     <AppShell
+      title={title}
+      onTitlePress={() => setMenuOpen(true)}
+      titleAccessibilityLabel={t(lang, "conversationOptions")}
       right={
         <>
           <IconButton
@@ -465,6 +474,9 @@ export default function Chat() {
 
       <ThreadMenuSheet
         threadId={menuOpen ? (threadId ?? null) : null}
+        currentTitle={info?.title ?? undefined}
+        starred={info?.starred}
+        pinned={info?.pinned}
         onClose={() => setMenuOpen(false)}
         onDeleted={() => router.replace("/home")}
       />

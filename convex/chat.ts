@@ -767,6 +767,33 @@ export const threadFlags = query({
   },
 });
 
+// One conversation's own name and flags, for the screen that is inside it.
+// The chat header names the conversation and its menu acts on it, and neither
+// can read that off `listThreads`: that query is paginated, and a thread
+// reached by deep link or search may not be on the page the client holds.
+// `title` is null until the titling pass has named the thread — the client
+// decides what an unnamed conversation is called.
+export const threadInfo = query({
+  args: { threadId: v.string() },
+  returns: v.object({
+    title: v.union(v.string(), v.null()),
+    starred: v.boolean(),
+    pinned: v.boolean(),
+  }),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const { title } = await getThreadMetadata(ctx, components.agent, {
+      threadId,
+    });
+    const meta = await threadMetaFor(ctx, threadId);
+    return {
+      title: title?.trim() ? title.trim() : null,
+      starred: !!meta?.starred,
+      pinned: !!meta?.pinned,
+    };
+  },
+});
+
 // Whether this conversation has raised the support banner. Authorized like
 // every other thread read, so one person's flag is never visible to another.
 export const threadCrisisFlag = query({

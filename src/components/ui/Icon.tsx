@@ -1,4 +1,5 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
+import { DheeMark } from "./DheeMark";
 
 // The prototype draws its own thin-stroke icon set inline. This mirrors the
 // ones used across the in-scope screens, each keeping the prototype's original
@@ -429,19 +430,9 @@ export function Icon({
         </Svg>
       );
     case "logo":
-      return (
-        <Svg width={size} height={size} viewBox="0 0 32 32">
-          <Circle
-            cx={16}
-            cy={16}
-            r={12}
-            stroke={color}
-            strokeWidth={2}
-            fill="none"
-          />
-          <Circle cx={16} cy={16} r={4} fill={color} />
-        </Svg>
-      );
+      // The mark is its own component: it has an animated state, which no
+      // other icon here does. See DheeMark.tsx.
+      return <DheeMark size={size} color={color} />;
     default:
       return null;
   }

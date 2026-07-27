@@ -651,7 +651,8 @@ const Message = memo(function Message({
   // lands; their labels are still in i18n.ts waiting.
   return (
     <View style={styles.botRow}>
-      <DheeAvatar />
+      {/* Words are landing but the turn is not over, so the mark keeps going. */}
+      <DheeAvatar animated={streaming} />
       <View style={styles.botBody}>
         <Markdown
           text={message.text}

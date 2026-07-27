@@ -19,15 +19,23 @@ import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
 import { Markdown } from "../../../src/components/chat/Markdown";
+import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
+import { activityTrail } from "../../../src/lib/activity";
 import { t } from "../../../src/lib/i18n";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
-import { font, noFocusRing, radius, shadow } from "../../../src/lib/theme";
+import {
+  font,
+  noFocusRing,
+  radius,
+  readableColumn,
+  shadow,
+} from "../../../src/lib/theme";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
 // Matches the mockup's `onMainScroll`.
@@ -127,7 +135,17 @@ export default function Chat() {
     [results],
   );
 
-  // "Considering…" only before the assistant has produced any text.
+  // What Dhee is reaching for this turn, read off the tool parts the agent
+  // streams alongside the text. The turn's step messages are combined into one
+  // UIMessage by `useUIMessages`, so the last row carries the whole trail.
+  // Spec §3.
+  const activities = useMemo(() => {
+    const last = results[results.length - 1];
+    if (!last || last.role !== "assistant") return [];
+    return activityTrail(last.parts);
+  }, [results]);
+
+  // The indicator shows only before the assistant has produced any text.
   const thinking = useMemo(() => {
     const last = results[results.length - 1];
     if (!last) return false;
@@ -378,12 +396,7 @@ export default function Chat() {
             ListFooterComponent={
               <>
                 {thinking ? (
-                  <View style={styles.thinkingRow}>
-                    <DheeAvatar />
-                    <Text style={styles.thinkingText}>
-                      {t(lang, "thinking")}
-                    </Text>
-                  </View>
+                  <ThinkingTrail activities={activities} lang={lang} />
                 ) : null}
                 {activeFailure ? (
                   <View style={styles.errorCard}>
@@ -435,16 +448,18 @@ export default function Chat() {
         </View>
 
         <View style={styles.dock}>
-          <Composer
-            value={draft}
-            onChangeText={setDraft}
-            onSubmit={send}
-            placeholder={t(lang, "replyPlaceholder")}
-            minHeight={24}
-            generating={generating && !stopping}
-            onStop={stop}
-          />
-          <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
+          <View style={styles.dockInner}>
+            <Composer
+              value={draft}
+              onChangeText={setDraft}
+              onSubmit={send}
+              placeholder={t(lang, "replyPlaceholder")}
+              minHeight={24}
+              generating={generating && !stopping}
+              onStop={stop}
+            />
+            <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -695,8 +710,11 @@ const Message = memo(function Message({
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
     flex: { flex: 1 },
-    bannerWrap: { paddingHorizontal: 16, paddingTop: 12 },
+    bannerWrap: { ...readableColumn, paddingHorizontal: 16, paddingTop: 12 },
+    // The transcript scrolls the full width; only its contents are penned into
+    // the column, so the scrollbar still sits at the window's edge.
     list: {
+      ...readableColumn,
       paddingHorizontal: 16,
       paddingTop: 14,
       paddingBottom: 24,
@@ -788,14 +806,7 @@ function makeStyles(colors: Colors) {
     },
     copyLabel: { color: colors.textFaint, fontSize: 12.5, ...font.regular },
     actionBtn: { padding: 8, borderRadius: 8 },
-    // Thinking / error
-    thinkingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    thinkingText: {
-      color: colors.textFaint,
-      fontSize: 15,
-      fontStyle: "italic",
-      ...font.regular,
-    },
+    // Error
     errorCard: {
       flexDirection: "row",
       alignItems: "flex-start",
@@ -846,13 +857,15 @@ function makeStyles(colors: Colors) {
       alignItems: "center",
       justifyContent: "center",
     },
-    // Dock
+    // Dock — the band spans the window so its background meets both edges;
+    // the composer inside it stays in the column, lined up with the transcript.
     dock: {
       paddingHorizontal: 16,
       paddingTop: 8,
       paddingBottom: Platform.OS === "ios" ? 8 : 12,
       backgroundColor: colors.bg,
     },
+    dockInner: readableColumn,
     disclaimer: {
       textAlign: "center",
       color: colors.textFaint,

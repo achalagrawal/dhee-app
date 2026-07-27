@@ -15,13 +15,19 @@ import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
 import { Markdown } from "../../../src/components/chat/Markdown";
+import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
 import { Icon } from "../../../src/components/ui";
 import { t } from "../../../src/lib/i18n";
 import { useShell } from "../../../src/lib/shell";
 import { useTheme } from "../../../src/lib/ThemeContext";
-import { type Colors, font, radius } from "../../../src/lib/theme";
+import {
+  type Colors,
+  font,
+  radius,
+  readableColumn,
+} from "../../../src/lib/theme";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
 type Msg = { id: string; role: "user" | "assistant"; text: string };
@@ -163,23 +169,22 @@ export default function IncognitoChat() {
             )
           }
           ListFooterComponent={
-            busy ? (
-              <View style={styles.thinkingRow}>
-                <DheeAvatar />
-                <Text style={styles.thinkingText}>{t(lang, "thinking")}</Text>
-              </View>
-            ) : null
+            // No trail: nothing streams here, so there is no tool traffic to
+            // report and the plain line is the whole truth. Spec §3.
+            busy ? <ThinkingTrail lang={lang} /> : null
           }
         />
 
         <View style={styles.dock}>
-          <Composer
-            value={draft}
-            onChangeText={setDraft}
-            onSubmit={() => send(draft)}
-            placeholder={t(lang, "replyPlaceholder")}
-            minHeight={24}
-          />
+          <View style={styles.dockInner}>
+            <Composer
+              value={draft}
+              onChangeText={setDraft}
+              onSubmit={() => send(draft)}
+              placeholder={t(lang, "replyPlaceholder")}
+              minHeight={24}
+            />
+          </View>
         </View>
       </KeyboardAvoidingView>
     </AppShell>
@@ -189,8 +194,14 @@ export default function IncognitoChat() {
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
     flex: { flex: 1 },
-    bannerWrap: { paddingHorizontal: 16, paddingTop: 12 },
-    list: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, gap: 22 },
+    bannerWrap: { ...readableColumn, paddingHorizontal: 16, paddingTop: 12 },
+    list: {
+      ...readableColumn,
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 24,
+      gap: 22,
+    },
     intro: {
       flexDirection: "row",
       alignItems: "center",
@@ -236,18 +247,12 @@ function makeStyles(colors: Colors) {
       borderRadius: 8,
       marginTop: 6,
     },
-    thinkingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    thinkingText: {
-      color: colors.textFaint,
-      fontSize: 15,
-      fontStyle: "italic",
-      ...font.regular,
-    },
     dock: {
       paddingHorizontal: 16,
       paddingTop: 8,
       paddingBottom: Platform.OS === "ios" ? 8 : 12,
       backgroundColor: colors.bg,
     },
+    dockInner: readableColumn,
   });
 }

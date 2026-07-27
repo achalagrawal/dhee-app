@@ -155,6 +155,16 @@ export function focusRing(colors: Colors): TextStyle {
   };
 }
 
+// The centred reading column. The prototype pins the transcript, the composer
+// dock and the standalone pages to `max-width: 740px; margin: 0 auto`, so a
+// desktop window never stretches a reply into one very long line or the input
+// box across the whole monitor. A narrow screen just fills it.
+export const readableColumn: ViewStyle = {
+  width: "100%",
+  maxWidth: 740,
+  alignSelf: "center",
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,

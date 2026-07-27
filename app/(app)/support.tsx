@@ -12,7 +12,7 @@ import { AppShell } from "../../src/components/AppShell";
 import { Icon } from "../../src/components/ui";
 import { t } from "../../src/lib/i18n";
 import { useTheme } from "../../src/lib/ThemeContext";
-import { type Colors, font, radius } from "../../src/lib/theme";
+import { type Colors, font, radius, readableColumn } from "../../src/lib/theme";
 import { useLanguage } from "../../src/lib/useLanguage";
 
 // Where the crisis banner's "See support resources" goes.
@@ -154,7 +154,8 @@ export default function Support() {
 
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
-    page: { padding: 16, paddingBottom: 40, gap: 14, maxWidth: 740 },
+    // maxWidth alone left the page hugging the window's left edge on desktop.
+    page: { ...readableColumn, padding: 16, paddingBottom: 40, gap: 14 },
     back: {
       flexDirection: "row",
       alignItems: "center",

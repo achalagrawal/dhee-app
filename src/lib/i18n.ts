@@ -207,6 +207,26 @@ const strings = {
     shareLabel: "Share",
     rename: "Rename",
     renamePlaceholder: "Conversation name",
+    // Sharing a conversation
+    shareTitle: "Share this",
+    shareSubtitle: "Anyone with the link can read it.",
+    shareSnapshotNote:
+      "The link shows this conversation as it is now. Whatever you say next stays private.",
+    shareCreating: "Making the link…",
+    shareFailed: "That link couldn't be made. Try again.",
+    copyLink: "Copy link",
+    linkCopied: "Link copied",
+    shareUpdate: "Update the link",
+    shareUpdated: "Link updated",
+    unshare: "Stop sharing",
+    done: "Done",
+    // The public page a link opens
+    sharedUntitled: "A conversation with Dhee",
+    sharedGone: "This link isn't available.",
+    sharedGoneBody:
+      "It may have been turned off, or the conversation may have been deleted.",
+    sharedFooter: "Shared from Dhee",
+    sharedCta: "Ask your own question",
     // Incognito chat
     incognitoTitle: "Incognito",
     incognitoIntro:
@@ -409,6 +429,26 @@ const strings = {
     shareLabel: "साझा करें",
     rename: "नाम बदलें",
     renamePlaceholder: "बातचीत का नाम",
+    // Sharing a conversation
+    shareTitle: "इसे साझा करें",
+    shareSubtitle: "जिसके पास यह लिंक होगा, वह इसे पढ़ सकेगा।",
+    shareSnapshotNote:
+      "लिंक इस बातचीत को वैसा ही दिखाएगा जैसी यह अभी है। इसके बाद आप जो कहेंगे, वह निजी रहेगा।",
+    shareCreating: "लिंक बन रहा है…",
+    shareFailed: "लिंक नहीं बन सका। फिर कोशिश करें।",
+    copyLink: "लिंक कॉपी करें",
+    linkCopied: "लिंक कॉपी हो गया",
+    shareUpdate: "लिंक अपडेट करें",
+    shareUpdated: "लिंक अपडेट हो गया",
+    unshare: "साझा करना बंद करें",
+    done: "हो गया",
+    // The public page a link opens
+    sharedUntitled: "धी के साथ एक बातचीत",
+    sharedGone: "यह लिंक उपलब्ध नहीं है।",
+    sharedGoneBody:
+      "हो सकता है इसे बंद कर दिया गया हो, या बातचीत हटा दी गई हो।",
+    sharedFooter: "धी से साझा किया गया",
+    sharedCta: "अपना सवाल पूछें",
     // Incognito chat
     incognitoTitle: "गुप्त",
     incognitoIntro:

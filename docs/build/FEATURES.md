@@ -194,10 +194,13 @@ far richer than today's flat screen.
 
 ## Epic 15 — Sharing
 
-| Feature                                | Status | Notes                                 |
-| -------------------------------------- | ------ | ------------------------------------- |
-| Share conversation modal (link + body) | ⬜     | `state.shareOpen/shareLink/shareBody` |
-| Shared/public thread view              | ⬜     | Backend                               |
+Spec: `specs/sharing.md`. Closes #98 and #65.
+
+| Feature                                | Status | Notes                                                                            |
+| -------------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| Share conversation modal (link + body) | ✅     | `ShareSheet`; header button + ⋯ row. No "share as card" (that's an image export) |
+| Shared/public thread view              | ✅     | `convex/share.ts` (snapshot + revocation) → `app/s/[slug].tsx`, no auth gate     |
+| Per-share link previews (OG tags)      | ⬜     | Out of scope for the above — needs an HTTP route, `output: "single"` can't do it |
 
 ## Epic 16 — Safety
 

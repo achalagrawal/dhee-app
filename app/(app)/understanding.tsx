@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { AppShell } from "../../src/components/AppShell";
+import { Loading } from "../../src/components/ui";
 import { type Language, t } from "../../src/lib/i18n";
 import { useTheme } from "../../src/lib/ThemeContext";
 import { type Colors, font, noFocusRing, radius } from "../../src/lib/theme";
@@ -34,7 +34,7 @@ export default function Understanding() {
     return (
       <AppShell>
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.accent} />
+          <Loading lang={lang} />
         </View>
       </AppShell>
     );

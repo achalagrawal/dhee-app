@@ -1,8 +1,9 @@
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { Redirect, Stack } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { AppDrawer } from "../../src/components/AppDrawer";
 import { SearchModal } from "../../src/components/SearchModal";
+import { Loading } from "../../src/components/ui";
 import { ShellProvider } from "../../src/lib/shell";
 import { useTheme } from "../../src/lib/ThemeContext";
 
@@ -22,7 +23,7 @@ export default function AppLayout() {
     <>
       <AuthLoading>
         <View style={[styles.splash, { backgroundColor: colors.bg }]}>
-          <ActivityIndicator color={colors.accent} />
+          <Loading />
         </View>
       </AuthLoading>
       <Unauthenticated>

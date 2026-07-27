@@ -102,6 +102,47 @@ describe("users — tradition lens", () => {
     ).rejects.toThrow("free plan includes one");
   });
 
+  test("the corpus lens does not spend the free plan's one lens", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+
+    // The quota is about how much framing text lands in the prompt. Madhyasth
+    // Darshan is a capability, not a framing, so someone who came with Stoicism
+    // can still open the books.
+    await as.mutation(api.users.setTraditions, {
+      traditions: ["Stoicism", "Madhyasth Darshan"],
+    });
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Stoicism",
+      "Madhyasth Darshan",
+    ]);
+  });
+
+  test("the corpus lens is exempt under its other spellings too", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+
+    await as.mutation(api.users.setTraditions, {
+      traditions: ["Stoicism", "जीवन विद्या"],
+    });
+    expect(
+      (await as.query(api.users.currentProfile, {}))?.traditions,
+    ).toHaveLength(2);
+  });
+
+  test("the exemption does not become a second free framing lens", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+
+    // A near miss must fail safe: "Madhyamaka" is a different tradition and
+    // still counts against the quota.
+    await expect(
+      as.mutation(api.users.setTraditions, {
+        traditions: ["Stoicism", "Madhyamaka"],
+      }),
+    ).rejects.toThrow("free plan includes one");
+  });
+
   test("duplicates collapse case-insensitively rather than counting twice", async () => {
     const t = initTest();
     const as = asUser(t, await createUser(t));

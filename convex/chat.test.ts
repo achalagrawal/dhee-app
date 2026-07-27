@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { api, components } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
+import { REPLY_CONTEXT_OPTIONS, replyOptionsFor } from "./chat";
 import {
   asUser,
   createUser,
@@ -899,5 +900,29 @@ describe("chat — message feedback", () => {
       rating: null,
     });
     expect(await as.query(api.chat.threadFeedback, { threadId })).toEqual([]);
+  });
+});
+
+describe("chat — per-turn model options", () => {
+  // Spec test 12 (docs/build/specs/personalization.md): assert on the
+  // arguments, not by running the model. `replyOptionsFor` exists so this can
+  // be checked directly rather than inferred from a scheduled function.
+  test("the raised step budget is reserved for the corpus lens", () => {
+    expect(replyOptionsFor(["Madhyasth Darshan"])).toHaveProperty("stopWhen");
+    expect(replyOptionsFor(["मध्यस्थ दर्शन"])).toHaveProperty("stopWhen");
+  });
+
+  test("a framing lens does not raise the step budget", () => {
+    // Decision 2 must not leak into the other 24 traditions.
+    expect(replyOptionsFor(["Stoicism"])).not.toHaveProperty("stopWhen");
+    expect(replyOptionsFor([])).not.toHaveProperty("stopWhen");
+    expect(replyOptionsFor(undefined)).not.toHaveProperty("stopWhen");
+  });
+
+  test("replies are built on a bounded window that excludes tool traffic", () => {
+    // The Agent default is 100 messages *including* tool results, which would
+    // replay raw corpus passages on every later turn of the thread.
+    expect(REPLY_CONTEXT_OPTIONS.excludeToolMessages).toBe(true);
+    expect(REPLY_CONTEXT_OPTIONS.recentMessages).toBeLessThanOrEqual(20);
   });
 });

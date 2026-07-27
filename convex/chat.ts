@@ -31,6 +31,7 @@ import {
   dhee,
   isCorpusLens,
 } from "./agents/dhee";
+import { backgroundModel } from "./agents/config";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import { detectsCrisis } from "./lib/crisis";
 import { requireUserId } from "./users";
@@ -319,9 +320,7 @@ export const incognitoReply = action({
         system: buildSystemPrompt(personalization),
         messages: messages.map((m) => ({ role: m.role, content: m.text })),
         // Study mode is a setting, and settings apply in incognito.
-        ...(isCorpusLens(personalization.traditions)
-          ? { stopWhen: stepCountIs(STUDY_STEPS) }
-          : {}),
+        ...replyOptionsFor(personalization.traditions),
       },
       {
         // Persist nothing, and pull in no prior context — a userId is required
@@ -334,6 +333,42 @@ export const incognitoReply = action({
     return { text, crisisFlagged };
   },
 });
+
+/**
+ * How much prior conversation a reply is built on.
+ *
+ * The Agent's default is 100 recent messages *including tool traffic* — the
+ * doc comment on `excludeToolMessages` claims the opposite, but the component
+ * reads `args.excludeToolMessages ? [false] : [true, false]`, so tool messages
+ * are in unless you say otherwise. That default is expensive here in a way it
+ * isn't for most agents: a study-mode turn can add a dozen steps of raw Hindi
+ * corpus passages, and every one of them would be replayed on every later turn
+ * for the life of the thread.
+ *
+ * Dropping them is safe because the corpus never reaches the person through a
+ * tool message anyway — study mode already requires the reply itself to name
+ * the book and page, so what matters survives in the assistant text.
+ */
+export const REPLY_CONTEXT_OPTIONS = {
+  recentMessages: 20,
+  excludeToolMessages: true,
+} as const;
+
+/**
+ * The per-turn options that depend on who is asking. Split out as a pure
+ * function so the step budget and the context window can be asserted directly
+ * — the spec asks for this to be checked on the arguments rather than by
+ * running the model.
+ */
+export function replyOptionsFor(traditions: string[] | undefined) {
+  return {
+    // A study question spends steps before it can answer: find the book,
+    // read the page, look up the terms it turns on. Five is the budget for
+    // "search, maybe read a page, reply", and it runs out. Everyone else
+    // keeps the Agent's default.
+    ...(isCorpusLens(traditions) ? { stopWhen: stepCountIs(STUDY_STEPS) } : {}),
+  };
+}
 
 export const streamReply = internalAction({
   args: {
@@ -354,15 +389,12 @@ export const streamReply = internalAction({
         {
           promptMessageId,
           system: buildSystemPrompt({ contextBlock, ...personalization }),
-          // A study question spends steps before it can answer: find the book,
-          // read the page, look up the terms it turns on. Five is the budget
-          // for "search, maybe read a page, reply", and it runs out. Everyone
-          // else keeps the Agent's default.
-          ...(isCorpusLens(personalization.traditions)
-            ? { stopWhen: stepCountIs(STUDY_STEPS) }
-            : {}),
+          ...replyOptionsFor(personalization.traditions),
         },
-        { saveStreamDeltas: { chunking: "word", throttleMs: 100 } },
+        {
+          saveStreamDeltas: { chunking: "word", throttleMs: 100 },
+          contextOptions: REPLY_CONTEXT_OPTIONS,
+        },
       );
       await result.consumeStream();
     } finally {
@@ -528,7 +560,10 @@ export const titleThread = internalAction({
       { threadId },
       {
         // Deliberately not the Dhee persona: this call should not reach for
-        // corpus tools or answer anything, just label what was said.
+        // corpus tools or answer anything, just label what was said. For the
+        // same reason it doesn't need the chat model — labelling is the one
+        // job in the pipeline where the cheaper model is plainly enough.
+        model: backgroundModel,
         system:
           "You write short labels for saved conversations. Write in the same language the person used. Use their own plain words — never introduce specialized or philosophical vocabulary. The title is for finding this conversation again in a list.",
         schema: z.object({

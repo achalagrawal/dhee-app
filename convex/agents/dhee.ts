@@ -65,11 +65,14 @@ export const CORPUS_LENS_ALIASES = [
 /** Step budget for a study-mode turn. The ordinary path keeps the Agent's 5. */
 export const STUDY_STEPS = 12;
 
+/** Whether one entry names the corpus, under any of its spellings. */
+export function isCorpusLensName(tradition: string): boolean {
+  const name = tradition.trim().toLowerCase();
+  return CORPUS_LENS_ALIASES.some((alias) => alias === name);
+}
+
 export function isCorpusLens(traditions: string[] | undefined): boolean {
-  return (traditions ?? []).some((t) => {
-    const name = t.trim().toLowerCase();
-    return CORPUS_LENS_ALIASES.some((alias) => alias === name);
-  });
+  return (traditions ?? []).some(isCorpusLensName);
 }
 
 function clean(value: string | undefined): string {

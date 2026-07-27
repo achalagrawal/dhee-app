@@ -1,0 +1,93 @@
+name: Bug report
+description: Something in the app is broken or behaves unexpectedly.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Dhee. The two things that make a report actionable
+        are **exact steps** and **what you saw instead**. Everything else is a bonus.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: One or two sentences. The title should be the short version of this.
+      placeholder: Sending a second message in a thread spins forever and never replies.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Number them. Start from a state anyone can reach (fresh login, new thread…).
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did you see this?
+      options:
+        - Production (the live site)
+        - A PR preview deployment
+        - Local dev build
+        - iOS (Expo Go or a build)
+        - Android (Expo Go or a build)
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: PR number or URL
+      description: >
+        If you were testing a PR, put the PR number or its preview URL here so
+        the report lands on the right change.
+      placeholder: "#82 — or https://dhee-app-git-feat-xyz.vercel.app"
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How bad is it?
+      options:
+        - p0-critical — data loss, security, or the app is unusable
+        - p1-high — a core flow is broken
+        - p2-normal — annoying but there's a way around it
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, screen recording, or console errors
+      description: >
+        Drag files straight into this box. On web, browser console errors
+        (Cmd+Opt+J in Chrome) are extremely useful — paste the red ones.
+
+  - type: input
+    id: env
+    attributes:
+      label: Device / browser
+      placeholder: iPhone 15, iOS 18.2 — or Chrome 131 on macOS
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched existing issues and this isn't already reported
+          required: true
+        - label: I can reproduce it more than once (if not, say so above — flaky bugs are still worth filing)

@@ -1,0 +1,8 @@
+# Every PR automatically requests a review from the maintainer.
+# `main` requires 1 approving review, and only people with write access can
+# give one — so in practice this line is who unblocks a PR.
+#
+# Note: code-owner review is NOT set as *required* in the branch protection
+# rule. If it were, the maintainer's own PRs would be permanently blocked
+# (GitHub never counts an author's approval of their own PR).
+* @achalagrawal

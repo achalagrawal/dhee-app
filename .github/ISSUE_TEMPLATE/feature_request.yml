@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest something Dhee should do.
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dhee is built against a tracked plan in
+        [`docs/build/FEATURES.md`](../blob/main/docs/build/FEATURES.md).
+        Please check it first — what you want may already be queued up.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you hitting?
+      description: Describe the situation, not the solution. Solutions are easier to judge once the problem is clear.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+
+  - type: input
+    id: tracked
+    attributes:
+      label: Related row in docs/build/FEATURES.md
+      description: Leave blank if this isn't tracked yet.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried or considered instead?

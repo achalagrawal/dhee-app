@@ -18,6 +18,7 @@ import {
   tooManyTraditions,
   traditionLimit,
 } from "./lib/plan";
+import { clearTodaysUsage } from "./usage";
 
 /** The signed-in person's app-side user id, or null if there is no valid
  *  identity on the request.
@@ -406,7 +407,14 @@ export const setPlan = internalMutation({
       .withIndex("by_email", (q) => q.eq("email", email))
       .unique();
     if (!user) throw new Error(`No user with email ${email}.`);
+    const had = planFor(user);
     await ctx.db.patch(user._id, { plan });
+
+    // The free day starts when the free plan does. Only on the change itself —
+    // setting free on someone already free must not refill them.
+    if (had === "unlimited" && plan === "free") {
+      await clearTodaysUsage(ctx, user._id);
+    }
 
     // A revoked plan takes back what it granted. Without this the cap only
     // governs adding, and someone downgraded keeps lenses the free plan would

@@ -243,6 +243,42 @@ describe("free-tier daily message limit", () => {
 });
 
 describe("users.setPlan", () => {
+  test("a downgrade doesn't charge the free day for unlimited messages", async () => {
+    // The counter runs on every plan, because it is also the usage history.
+    // What it must not do is hand someone a spent day the moment their plan
+    // ends — the free allowance starts when the free plan does.
+    const t = initTest();
+    const email = "downgrade@example.test";
+    const userId = await createUser(t, { email });
+    await t.mutation(internal.users.setPlan, { email, plan: "unlimited" });
+    const threadId = await startThread(t, userId);
+    await exhaust(t, userId, threadId);
+    await send(t, userId, threadId, "and more besides");
+
+    await t.mutation(internal.users.setPlan, { email, plan: "free" });
+
+    expect(await asUser(t, userId).query(api.chat.usage, {})).toMatchObject({
+      plan: "free",
+      used: 0,
+      remaining: FREE_DAILY_MESSAGE_LIMIT,
+    });
+  });
+
+  test("staying on free keeps the day's count", async () => {
+    // Otherwise re-running the fulfillment lever quietly refills someone.
+    const t = initTest();
+    const email = "stays-free@example.test";
+    const userId = await createUser(t, { email });
+    const threadId = await startThread(t, userId);
+    await send(t, userId, threadId, "one");
+
+    await t.mutation(internal.users.setPlan, { email, plan: "free" });
+
+    expect(await asUser(t, userId).query(api.chat.usage, {})).toMatchObject({
+      used: 1,
+    });
+  });
+
   test("flips the plan by email", async () => {
     const t = initTest();
     const userId = await createUser(t, { email: "someone@example.test" });

@@ -84,6 +84,19 @@ export async function spendMessage(
   }
 }
 
+/**
+ * Start today over. For the moment a plan ends: the counter runs on every plan
+ * because it is also the usage history, so without this a downgrade would hand
+ * someone a day already spent on messages their plan had covered.
+ */
+export async function clearTodaysUsage(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+): Promise<void> {
+  const { row } = await todayFor(ctx, userId);
+  if (row) await ctx.db.patch(row._id, { messages: 0 });
+}
+
 /** The action-side entry point: `chat.incognitoReply` has no `ctx.db`. */
 export const spend = internalMutation({
   args: { userId: v.id("users") },

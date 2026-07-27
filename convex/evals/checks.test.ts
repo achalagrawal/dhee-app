@@ -282,7 +282,7 @@ describe("runChecks", () => {
   const ordinary: Expectations = {
     retrieval: "required",
     citations: "forbidden",
-    termsOfArt: "forbidden",
+    termsOfArt: "discouraged",
     verbatimQuote: "forbidden",
     script: "latin",
     shape: "brief",
@@ -305,13 +305,41 @@ describe("runChecks", () => {
     const checks = runChecks(clean, ordinary);
     expect(checks.every((c) => c.ok)).toBe(true);
     expect(checks.map((c) => c.id)).toEqual([
-      "plain-language",
+      "plain-language (light)",
       "no-citations",
       "searched-corpus",
       "no-raw-corpus",
       "script-mirrored",
       "brief",
     ]);
+  });
+
+  test("a term or two is allowed to land; a glossary is not", () => {
+    // The prompt asks Dhee to lean plain, not to dodge — so this check has to
+    // pass a reply that reaches for the honest word and fail the one that
+    // reaches for five. If it ever goes back to `=== 0`, it has stopped
+    // agreeing with the prompt it is meant to measure.
+    const oneTerm = {
+      ...clean,
+      reply:
+        "What you are describing has a name in this tradition — vyavastha, the order a thing is already part of. You are not outside it because a title did not land.",
+    };
+    expect(
+      runChecks(oneTerm, ordinary).find(
+        (c) => c.id === "plain-language (light)",
+      )?.ok,
+    ).toBe(true);
+
+    const glossary = {
+      ...clean,
+      reply:
+        "This is about sah-astitva, and about vyavastha, and about jeevan, and about manaviya conduct, which madhyasth darshan sets out in its paribhasha.",
+    };
+    const check = runChecks(glossary, ordinary).find(
+      (c) => c.id === "plain-language (light)",
+    );
+    expect(check?.ok).toBe(false);
+    expect(check?.detail).toContain("terms");
   });
 
   test("checks an expectation switches off are omitted, not silently passed", () => {

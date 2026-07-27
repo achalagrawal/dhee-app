@@ -419,9 +419,9 @@ export const REPLY_CONTEXT_OPTIONS = {
 export function replyOptionsFor(traditions: string[] | undefined) {
   return {
     // A study question spends steps before it can answer: find the book,
-    // read the page, look up the terms it turns on. Five is the budget for
-    // "search, maybe read a page, reply", and it runs out. Everyone else
-    // keeps the Agent's default.
+    // read the page, look up the terms it turns on. The Agent's own budget is
+    // sized for "search, look up a term, maybe read a page, reply", and a
+    // study turn runs past it. Everyone else keeps that default.
     ...(isCorpusLens(traditions) ? { stopWhen: stepCountIs(STUDY_STEPS) } : {}),
   };
 }

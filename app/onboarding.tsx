@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
 import { type Language, t } from "../src/lib/i18n";
-import { TRADITIONS } from "../src/lib/traditions";
+import { DEFAULT_TRADITION, TRADITIONS } from "../src/lib/traditions";
 import { useTheme } from "../src/lib/ThemeContext";
 import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
@@ -21,7 +21,9 @@ export default function Onboarding() {
   const { colors } = useTheme();
   const [lang, setLang] = useState<Language>("en");
   const [name, setName] = useState("");
-  const [tradition, setTradition] = useState("");
+  // Preselected, not imposed: almost everyone arriving here is studying this,
+  // and the chip they tapped to turn it on is the same chip that turns it off.
+  const [tradition, setTradition] = useState<string>(DEFAULT_TRADITION);
   const [busy, setBusy] = useState(false);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
   const profile = useQuery(api.users.currentProfile);

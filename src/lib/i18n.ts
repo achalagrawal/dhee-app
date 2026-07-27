@@ -159,8 +159,12 @@ const strings = {
     clearLenses: "Clear lenses",
     oneLensOnFree:
       "The free plan includes one lens. Remove the current one to choose a different framework.",
-    traditionPrompt: "Do you think within a particular tradition?",
-    traditionOptional: "Optional — you can add this later in settings.",
+    traditionPrompt: "Which tradition do you think within?",
+    // Says the default out loud, and says how to drop it in the same breath —
+    // a lens switched on for you that you weren't told about is the thing
+    // people resent, not the lens itself.
+    traditionOptional:
+      "Madhyasth Darshan is on by default — tap it again to turn it off, or pick another. You can change this any time in settings.",
     // History groups
     starred: "Starred",
     today: "Today",
@@ -346,8 +350,9 @@ const strings = {
     clearLenses: "सब हटाएँ",
     oneLensOnFree:
       "मुफ़्त योजना में एक ही परंपरा चुनी जा सकती है। दूसरी चुनने के लिए पहले मौजूदा हटाएँ।",
-    traditionPrompt: "क्या आप किसी विचार-परंपरा के भीतर सोचते हैं?",
-    traditionOptional: "वैकल्पिक — इसे बाद में सेटिंग्स में भी जोड़ सकते हैं।",
+    traditionPrompt: "आप किस विचार-परंपरा के भीतर सोचते हैं?",
+    traditionOptional:
+      "मध्यस्थ दर्शन पहले से चुना हुआ है — हटाने के लिए उसी पर फिर से टैप करें, या कोई और चुनें। इसे कभी भी सेटिंग्स में बदल सकते हैं।",
     // History groups
     starred: "तारांकित",
     today: "आज",

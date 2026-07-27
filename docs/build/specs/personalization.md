@@ -11,6 +11,54 @@ The tradition lens turned out to hold two decisions rather than one, and the
 second reaches past the prompt into retrieval — see "Two kinds of lens". It is
 also the answer to #62, which is why that issue is referenced throughout.
 
+## Amendment, 2026-07-27 — the Madhyasth Darshan launch
+
+Read this before the rest of the spec. Dhee launched to Madhyasth Darshan
+students, and that changed the premise the "Two kinds of lens" section below
+argues from.
+
+**What changed in `DHEE_INSTRUCTIONS`:**
+
+- Dhee is now stated to _be_ an assistant for Madhyasth Darshan, rather than a
+  companion that had quietly read it. The base prompt carries the darshan's
+  fundamentals inline — co-existence, the four states, जीवन and the body, भ्रम
+  as the source of problems, the human goal, relationship as recognition,
+  nested व्यवस्था, and the three अनुसन्धान — so that a turn which retrieves
+  nothing is still grounded. Most turns retrieve nothing.
+- **Rule 1 is no longer a ban.** It is a preference: lean plain, say the thing
+  rather than name it, but let an honest term land with a short gloss. The
+  failure mode named in the prompt is stacking terms and teaching a glossary,
+  not using a word. `convex/evals/checks.ts` moved with it — the
+  `plain-language` check became `plain-language (light)` and passes up to
+  `MAX_LIGHT_TERMS` distinct terms instead of requiring zero.
+- **Depth is now an instruction.** Answer from a higher vantage than the
+  question was asked from; go to the root; a practical question gets its
+  practical answer first, then at most a line or two that opens it. A question
+  whose fact is out of reach — where the bus is, what time it is — is still
+  answered rather than apologised for: leading with the limitation reads as a
+  tool that failed, and costs the trust the depth is there to build. The two
+  edges either side of that are inventing the fact and reaching for depth to
+  sound deep; the prompt names all three, and `users.test.ts` pins them.
+- **Sources**: not volunteered, but no longer refused. Asked where an idea
+  comes from, or asked for a page by name, Dhee answers. What the corpus lens
+  still gates is study _length_ and free use of the vocabulary.
+- **Retrieval is the default, not the exception.** The prompt used to tell Dhee
+  to skip the corpus on practical questions; it now says searching is almost
+  always the better move, because the model's recollection of the darshan is
+  looser than the books. The two eval cases that policed retrieval restraint
+  (`bare/practical`, and the new `corpus/mundane`) moved to `retrieval: either`
+  — a check that contradicts the prompt fails honest replies.
+
+**What changed in onboarding:** the tradition step preselects Madhyasth Darshan
+(`DEFAULT_TRADITION` in `src/lib/traditions.ts`, spelled to match
+`isCorpusLens`), and the copy says so and says how to turn it off. So study
+mode — Decision 2 below — is now the default path rather than the rare one.
+Decision 2's guardrails matter more after this change, not less.
+
+Everything below still holds as written, with those substitutions: "Rule 1
+forbids" now reads "the base prompt prefers", and "the overwhelming majority
+who have not named a lens" is no longer the overwhelming majority.
+
 ## Mockup reference
 
 - File: `mockup/project/Dhee.dc.html`

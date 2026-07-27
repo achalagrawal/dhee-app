@@ -32,9 +32,15 @@ type Props = {
 const MAX_HEIGHT = 160;
 
 // The rounded composer card shared by Home and Chat. Text entry + Send are
-// wired; the attach (+), model pill, web-search, voice and dictation controls
-// are rendered for fidelity but are inert until their backends exist — each
-// surfaces a "coming soon" note so nothing looks broken.
+// wired; the attach (+) and model pill are rendered for fidelity but are inert
+// until their backends exist — each surfaces a "coming soon" note so nothing
+// looks broken.
+//
+// Voice mode and dictation used to sit beside Send and pop "coming soon" (#97).
+// Neither has a cheap path — dictation needs a native module or a transcription
+// vendor, voice mode needs TTS plus barge-in — so they are hidden rather than
+// left inert next to the button people press most. They come back when Epic 12
+// lands; their icons (`mic`/`voice`) and labels are still in place waiting.
 export function Composer({
   value,
   onChangeText,
@@ -146,20 +152,6 @@ export function Composer({
         </View>
 
         <View style={styles.right}>
-          <IconButton
-            name="voice"
-            variant="surface"
-            size={40}
-            accessibilityLabel={t(lang, "voiceMode")}
-            onPress={() => soon(t(lang, "voiceMode"))}
-          />
-          <IconButton
-            name="mic"
-            variant="surface"
-            size={40}
-            accessibilityLabel={t(lang, "dictate")}
-            onPress={() => soon(t(lang, "dictate"))}
-          />
           {generating ? (
             <IconButton
               name="stop"

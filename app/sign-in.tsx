@@ -19,6 +19,7 @@ import { DheeMark } from "../src/components/ui/DheeMark";
 import { authClient } from "../src/lib/auth-client";
 import { t } from "../src/lib/i18n";
 import { legalUrls } from "../src/lib/legal";
+import { USE_NATIVE_DRIVER } from "../src/lib/motion";
 import { signInWithGoogle } from "../src/lib/oauth";
 import { useOAuthHandoff } from "../src/lib/oauth-return";
 import { useTheme } from "../src/lib/ThemeContext";
@@ -224,9 +225,15 @@ export default function SignIn() {
 // Dhee is working (#103), and nothing is working yet — it belongs to the wait
 // *after* someone presses a button, which is what SigningIn shows. So the way
 // in breathes instead: a swell, a longer settle, and a degree of sway, on a
-// cycle near a resting breath. Slow enough to be felt rather than watched.
-const INHALE_MS = 4200;
-const EXHALE_MS = 5400;
+// cycle near a resting breath.
+//
+// Calibrated by eye rather than by taste: the first pass moved 5% over 9.6s,
+// which measured as motion but didn't read as any — on a 64px mark that is two
+// pixels, slower than the eye tracks without being told to look. These numbers
+// are roughly twice that, which is the point where you notice it without
+// watching for it, and still nothing like a pulse.
+const INHALE_MS = 3600;
+const EXHALE_MS = 4600;
 
 function BreathingMark({ size, color }: { size: number; color: string }) {
   const breath = useRef(new Animated.Value(0)).current;
@@ -241,13 +248,13 @@ function BreathingMark({ size, color }: { size: number; color: string }) {
           // the corner a linear ramp leaves — the difference between breathing
           // and blinking.
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(breath, {
           toValue: 0,
           duration: EXHALE_MS,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
     );
@@ -264,10 +271,10 @@ function BreathingMark({ size, color }: { size: number; color: string }) {
       // notification badge, and a starburst turning a degree against its own
       // rays reads as something settling, not something pinging.
       style={{
-        opacity: over([0.86, 1]),
+        opacity: over([0.75, 1]),
         transform: [
-          { scale: over([1, 1.05]) },
-          { rotate: over(["-1.2deg", "1.2deg"]) },
+          { scale: over([1, 1.09]) },
+          { rotate: over(["-2.2deg", "2.2deg"]) },
         ],
       }}
     >

@@ -6,6 +6,7 @@ import {
   type Activity,
 } from "../../lib/activity";
 import { t } from "../../lib/i18n";
+import { USE_NATIVE_DRIVER } from "../../lib/motion";
 import { useTheme } from "../../lib/ThemeContext";
 import { font, type Colors } from "../../lib/theme";
 import type { Language } from "../../lib/i18n";
@@ -41,12 +42,12 @@ export function ThinkingTrail({
         Animated.timing(pulse, {
           toValue: 0.45,
           duration: PULSE_MS,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(pulse, {
           toValue: 1,
           duration: PULSE_MS,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
     );

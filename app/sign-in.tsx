@@ -1,22 +1,27 @@
 import { useConvexAuth } from "convex/react";
 import { Redirect } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SigningIn } from "../src/components/SigningIn";
+import { Field, Loading } from "../src/components/ui";
+import { DheeMark } from "../src/components/ui/DheeMark";
 import { authClient } from "../src/lib/auth-client";
 import { t } from "../src/lib/i18n";
 import { legalUrls } from "../src/lib/legal";
+import { USE_NATIVE_DRIVER } from "../src/lib/motion";
 import { signInWithGoogle } from "../src/lib/oauth";
+import { useOAuthHandoff } from "../src/lib/oauth-return";
 import { useTheme } from "../src/lib/ThemeContext";
 import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
@@ -28,7 +33,13 @@ export default function SignIn() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Google has said yes and we're waiting on the session. Distinct from `busy`,
+  // which also covers the seconds a person spends over on Google's own screens.
+  const [googleSettling, setGoogleSettling] = useState(false);
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Web can land back on this route with the handoff still in flight — a hard
+  // refresh on `/?ott=…`, or a redirect that beat the session home.
+  const handingOff = useOAuthHandoff();
 
   // Sign-in happens before we know the person's language preference, so this
   // screen is English-only by necessity. Onboarding is where they choose.
@@ -59,9 +70,13 @@ export default function SignIn() {
     try {
       const outcome = await signInWithGoogle();
       // On success the redirect below takes over once isAuthenticated flips,
-      // so `busy` deliberately stays true. Backing out of the browser sheet
-      // just returns the screen to idle — it isn't a failure.
+      // so `busy` deliberately stays true. Until then the form would sit there
+      // greyed out with nothing to say — swap it for the signing-in screen, so
+      // the wait reads as progress rather than as a sign-in that didn't take.
+      // Backing out of the browser sheet just returns the screen to idle — it
+      // isn't a failure.
       if (outcome === "cancelled") setBusy(false);
+      else setGoogleSettling(true);
     } catch {
       setError(t(lang, "somethingWentWrong"));
       setBusy(false);
@@ -92,6 +107,9 @@ export default function SignIn() {
   // a successful sign-in leaves the person watching a spinner forever.
   if (isAuthenticated) return <Redirect href="/" />;
 
+  // A sign-in already under way outranks the form that would start another one.
+  if (handingOff || googleSettling) return <SigningIn />;
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -99,8 +117,11 @@ export default function SignIn() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.content}>
-          <Text style={styles.wordmark}>{t(lang, "appName")}</Text>
-          <Text style={styles.tagline}>{t(lang, "tagline")}</Text>
+          <View style={styles.header}>
+            <BreathingMark size={64} color={colors.accentStrong} />
+            <Text style={styles.wordmark}>{t(lang, "appName")}</Text>
+            <Text style={styles.tagline}>{t(lang, "tagline")}</Text>
+          </View>
 
           <View style={styles.form}>
             {step === "email" ? (
@@ -129,7 +150,7 @@ export default function SignIn() {
                 </View>
 
                 <Text style={styles.label}>{t(lang, "signInSubtitle")}</Text>
-                <TextInput
+                <Field
                   style={styles.input}
                   placeholder={t(lang, "emailPlaceholder")}
                   placeholderTextColor={colors.textFaint}
@@ -156,7 +177,7 @@ export default function SignIn() {
                 <Text style={styles.label}>
                   {t(lang, "codeSubtitle")} {email}
                 </Text>
-                <TextInput
+                <Field
                   style={[styles.input, styles.codeInput]}
                   placeholder={t(lang, "codePlaceholder")}
                   placeholderTextColor={colors.textFaint}
@@ -197,6 +218,69 @@ export default function SignIn() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+// The mark on this screen must not do the sweep. That turn is the mark saying
+// Dhee is working (#103), and nothing is working yet — it belongs to the wait
+// *after* someone presses a button, which is what SigningIn shows. So the way
+// in breathes instead: a swell, a longer settle, and a degree of sway, on a
+// cycle near a resting breath.
+//
+// Calibrated by eye rather than by taste, over two passes. 5% across 9.6s
+// measured as motion but did not read as any: two pixels on a 64px mark, slower
+// than the eye follows unless told to look — you had to zoom in to catch it.
+// Doubling that was still under-read. These are roughly triple the original:
+// ten pixels of travel on a six-second cycle, plainly moving from across a
+// desk, and still slow enough that it never reads as a pulse or a spinner.
+const INHALE_MS = 2800;
+const EXHALE_MS = 3600;
+
+function BreathingMark({ size, color }: { size: number; color: string }) {
+  const breath = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breath, {
+          toValue: 1,
+          duration: INHALE_MS,
+          // A sine in and out, so the turn at each end is a curve rather than
+          // the corner a linear ramp leaves — the difference between breathing
+          // and blinking.
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.timing(breath, {
+          toValue: 0,
+          duration: EXHALE_MS,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [breath]);
+
+  const over = (range: [number, number] | [string, string]) =>
+    breath.interpolate({ inputRange: [0, 1], outputRange: range });
+
+  return (
+    <Animated.View
+      // The sway is what keeps it off the shelf: scale alone pulses like a
+      // notification badge, and a starburst turning a degree against its own
+      // rays reads as something settling, not something pinging.
+      style={{
+        opacity: over([0.65, 1]),
+        transform: [
+          { scale: over([1, 1.16]) },
+          { rotate: over(["-3.5deg", "3.5deg"]) },
+        ],
+      }}
+    >
+      <DheeMark size={size} color={color} />
+    </Animated.View>
   );
 }
 
@@ -271,7 +355,8 @@ function PrimaryButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={colors.onAccent} />
+        // Sized to the label's own line so the button doesn't resize mid-press.
+        <Loading size={22} color={colors.onAccent} />
       ) : (
         <Text style={styles.buttonLabel}>{label}</Text>
       )}
@@ -291,10 +376,16 @@ function makeStyles(colors: Colors) {
       width: "100%",
       alignSelf: "center",
     },
+    // The mark leads, the name sits under it, and the whole block centres — the
+    // one screen with nothing else on it above the form, so it can hold the
+    // middle rather than hang off the left edge the way in-app headers do.
+    header: { alignItems: "center" },
     wordmark: {
+      marginTop: spacing.md,
       fontSize: 44,
       color: colors.text,
       letterSpacing: 1,
+      textAlign: "center",
       ...font.medium,
     },
     tagline: {
@@ -302,6 +393,7 @@ function makeStyles(colors: Colors) {
       fontSize: 17,
       lineHeight: 25,
       color: colors.textSoft,
+      textAlign: "center",
       ...font.regular,
     },
     form: { marginTop: spacing.xl * 1.5, gap: spacing.md },

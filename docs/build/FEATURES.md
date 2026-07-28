@@ -28,31 +28,33 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 1 — App shell & navigation
 
-| Feature                                          | Status | Where                             | Notes                                                                                                                                                                         |
-| ------------------------------------------------ | ------ | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| App shell (sidebar + main + header)              | 🟡     | `AppShell`, `AppDrawer`           | Design polish pending                                                                                                                                                         |
-| Sidebar collapse / icon rail (desktop)           | ⬜     | —                                 | `state.sidebarCollapsed`                                                                                                                                                      |
-| New conversation                                 | ✅     | `chat.startThread`                |                                                                                                                                                                               |
-| Search conversations                             | ✅     | `SearchModal`, `chat.listThreads` |                                                                                                                                                                               |
-| History: recent groups                           | 🟡     | `threads.tsx`                     | Grouping/labels vs design                                                                                                                                                     |
-| Starred section                                  | 🟡     | `chat.setStarred/threadFlags`     | Backend done, UI pending                                                                                                                                                      |
-| Pinned rows                                      | 🟡     | `chat.setPinned`                  | Backend done, UI pending                                                                                                                                                      |
-| Home topic modes + per-mode starter questions    | ⬜     | —                                 | `state.mode`/`suggestedPrompts`; 6 modes (`MODES`: decision, relationship, purpose, grief, work, everyday), each with ~3 written starter questions (`STARTERS`) shown on home |
-| Time-of-day greeting (morning/afternoon/evening) | 🟡     | `home.tsx`                        | I18N `morning/afternoon/evening`                                                                                                                                              |
-| "Get the app" / download button                  | ⬜     | —                                 | → download page                                                                                                                                                               |
+| Feature                                          | Status | Where                                 | Notes                                                                                                                                                                         |
+| ------------------------------------------------ | ------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App shell (sidebar + main + header)              | 🟡     | `AppShell`, `AppSidebar`, `AppDrawer` | Sidebar is persistent on desktop, a drawer below 821px                                                                                                                        |
+| Sidebar collapse / icon rail (desktop)           | ✅     | `AppSidebar`, `SidebarContent`        | [Spec](./specs/sidebar-collapse.md). 270px ↔ 66px rail above 821px, remembered; the rail's mark is the expand control                                                         |
+| Header names the conversation + opens its menu   | ✅     | `AppShell`, `chat.threadInfo`         | Kept at every width, unlike the mockup's mobile logo — see [`specs/conversation-title.md`](./specs/conversation-title.md) (#77)                                               |
+| New conversation                                 | ✅     | `chat.startThread`                    |                                                                                                                                                                               |
+| Search conversations                             | ✅     | `SearchModal`, `chat.listThreads`     |                                                                                                                                                                               |
+| History: recent groups                           | 🟡     | `threads.tsx`                         | Grouping/labels vs design                                                                                                                                                     |
+| Starred section                                  | 🟡     | `chat.setStarred/threadFlags`         | Backend done, UI pending                                                                                                                                                      |
+| Pinned rows                                      | 🟡     | `chat.setPinned`                      | Backend done, UI pending                                                                                                                                                      |
+| Home topic modes + per-mode starter questions    | ⬜     | —                                     | `state.mode`/`suggestedPrompts`; 6 modes (`MODES`: decision, relationship, purpose, grief, work, everyday), each with ~3 written starter questions (`STARTERS`) shown on home |
+| Time-of-day greeting (morning/afternoon/evening) | 🟡     | `home.tsx`, `lib/greeting.ts`         | I18N `morning/afternoon/evening`; the line sizes down on a narrow screen so a long name stays on one line (#105)                                                              |
+| "Get the app" / download button                  | ⬜     | —                                     | → download page                                                                                                                                                               |
 
 ## Epic 2 — Composer
 
-| Feature                                                          | Status | Where              | Notes                                                                                             |
-| ---------------------------------------------------------------- | ------ | ------------------ | ------------------------------------------------------------------------------------------------- |
-| Text send                                                        | ✅     | `chat.sendMessage` |                                                                                                   |
-| Attachments (files/photos) + drag-drop                           | 🟡     | Composer stub      | `state.pendingFiles/uploads/dragOver`; types: IMG/PDF/MD/TXT/DOC                                  |
-| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub      | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated)        |
-| Web search toggle                                                | 🟡     | Composer stub      | `state.webSearchOn` (distinct from `md.ts`)                                                       |
-| Dictation (mic)                                                  | 🟡     | Composer stub      | `state.dictating/dictationPref`                                                                   |
-| Voice mode                                                       | 🟡     | Composer stub      | `state.speakingId`; see Epic 12                                                                   |
-| Typeahead suggestions                                            | ⬜     | —                  |                                                                                                   |
-| Token bar / limit-reached card                                   | 🟡     | `FailureCard`      | Limit-reached card done on home, chat and incognito; the token bar (N of M in the composer) is #9 |
+| Feature                                                          | Status | Where                        | Notes                                                                                                                                             |
+| ---------------------------------------------------------------- | ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text send                                                        | ✅     | `chat.sendMessage`           |                                                                                                                                                   |
+| Enter sends / Shift+Enter newline                                | ✅     | `lib/keyboard.ts`            | Keyboard devices only; IME-safe; spec: [`specs/enter-to-send.md`](./specs/enter-to-send.md)                                                       |
+| Attachments (files/photos) + drag-drop                           | 🟡     | `Composer`, `useAttachments` | Photos work end to end ([spec](./specs/photo-attachments.md)). Still stubbed: documents (IMG only today), drag-drop (`state.dragOver`), incognito |
+| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub                | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated)                                                        |
+| Web search toggle                                                | 🟡     | Composer stub                | `state.webSearchOn` (distinct from `md.ts`)                                                                                                       |
+| Dictation (mic)                                                  | ⬜     | —                            | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                                                                                |
+| Voice mode                                                       | ⬜     | —                            | `state.speakingId`; button hidden until Epic 12 (#97)                                                                                             |
+| Typeahead suggestions                                            | ⬜     | —                            |                                                                                                                                                   |
+| Token bar / limit-reached card                                   | 🟡     | `FailureCard`                | Limit-reached card done on home, chat and incognito; the token bar (N of M in the composer) is #9                                                 |
 
 ## Epic 3 — Chat & messages
 
@@ -62,7 +64,7 @@ failure surfaces, scroll — are pinned in [`specs/chat-loop.md`](./specs/chat-l
 | Feature                                   | Status | Where                                    | Notes                                                                     |
 | ----------------------------------------- | ------ | ---------------------------------------- | ------------------------------------------------------------------------- |
 | Streaming reply                           | 🟡     | `chat.streamReply`                       | Built; cadence + caret unverified against mockup                          |
-| Thinking indicator                        | ✅     | `chat/[threadId].tsx`                    | Suppressed once text arrives                                              |
+| Thinking indicator                        | ✅     | `lib/activity.ts`, `chat/ThinkingTrail`  | Live: names the tool step running (search, paribhasha, page) (#89)        |
 | Stop generating                           | ✅     | `chat.stopGeneration`                    | Aborts the stream; partial reply kept                                     |
 | Edit & resend user message                | ✅     | `chat.editAndResend`                     | Forks the thread; confirms when >1 reply is lost; marks the bubble edited |
 | Regenerate response                       | ✅     | `chat.regenerate`                        | Replaces the last reply; feedback cleared                                 |
@@ -160,11 +162,12 @@ far richer than today's flat screen.
 
 ## Epic 11 — Attachments & media backend
 
-| Feature                                  | Status | Notes                                                                      |
-| ---------------------------------------- | ------ | -------------------------------------------------------------------------- |
-| File/image storage + `expo-image-picker` | ⬜     | Convex file storage; `users.generateAvatarUploadUrl` is a starting pattern |
-| Attachments rendered in messages         | ⬜     | image thumbs + doc chips (IMG/PDF/MD/TXT/DOC)                              |
-| Multimodal in generation                 | ⬜     | Pass attachments to the model                                              |
+| Feature                                  | Status | Notes                                                                   |
+| ---------------------------------------- | ------ | ----------------------------------------------------------------------- |
+| File/image storage + `expo-image-picker` | 🟡     | `convex/attachments.ts` — photos only; documents need a wider allowlist |
+| Attachments rendered in messages         | 🟡     | Image thumbs done; doc chips (PDF/MD/TXT/DOC) wait on the above         |
+| Multimodal in generation                 | ✅     | Image parts ride the saved turn; `streamReply` needed no change         |
+| Vacuuming unreferenced files             | ⬜     | `files.getFilesToDelete` + a cron; see the photo-attachments spec       |
 
 ## Epic 12 — Voice & dictation
 
@@ -192,10 +195,14 @@ far richer than today's flat screen.
 
 ## Epic 15 — Sharing
 
-| Feature                                | Status | Notes                                 |
-| -------------------------------------- | ------ | ------------------------------------- |
-| Share conversation modal (link + body) | ⬜     | `state.shareOpen/shareLink/shareBody` |
-| Shared/public thread view              | ⬜     | Backend                               |
+Spec: `specs/sharing.md`. Closes #98 and #65.
+
+| Feature                                | Status | Notes                                                                                                                                            |
+| -------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Share conversation modal (link + body) | ✅     | `ShareSheet`; header button + ⋯ row. No "share as card" (that's an image export)                                                                 |
+| Shared/public thread view              | ✅     | `convex/share.ts` (snapshot + revocation) → `app/s/[slug].tsx`, no auth gate                                                                     |
+| Site-wide link previews (OG tags)      | ✅     | `scripts/build-shell.mjs` overrides the Expo shell; card art from `pnpm og`                                                                      |
+| Per-share link previews (OG tags)      | ⬜     | The row above gives every `/s/…` the same card. Per-conversation titles need HTML per request — an HTTP route, which `output: "single"` can't do |
 
 ## Epic 16 — Safety
 

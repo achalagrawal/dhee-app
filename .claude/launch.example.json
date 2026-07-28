@@ -1,0 +1,18 @@
+{
+  "_comment": "Reference copy. The real .claude/launch.json is generated per checkout by scripts/worktree-setup.mjs, because the port differs between the main checkout (8081) and each worktree (8082-8099) and the Browser pane reads `port` from here. Do not commit the generated file.",
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dhee",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/worktree-dev.mjs"],
+      "port": 8081
+    },
+    {
+      "name": "expo-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["web", "--port", "8081"],
+      "port": 8081
+    }
+  ]
+}

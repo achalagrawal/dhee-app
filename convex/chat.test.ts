@@ -1,3 +1,4 @@
+import type { MessageDoc } from "@convex-dev/agent";
 import { getThreadMetadata } from "@convex-dev/agent";
 import { describe, expect, test } from "vitest";
 import { api, components } from "./_generated/api";
@@ -6,6 +7,8 @@ import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import { REPLY_CONTEXT_OPTIONS, replyOptionsFor } from "./chat";
 import {
   asUser,
+  attachPhoto,
+  attachmentDoc,
   createUser,
   initTest,
   seedExchange,
@@ -182,6 +185,154 @@ describe("chat — sendMessage bookkeeping", () => {
   });
 });
 
+// Photos on a turn. The storage half is covered in attachments.test.ts; this
+// is what a photo does to the message that carries it. See
+// docs/build/specs/photo-attachments.md.
+describe("chat — photo attachments", () => {
+  // The parts a user message carries, as the model would read them.
+  function partsOf(message: MessageDoc) {
+    const content = message.message?.content;
+    return Array.isArray(content) ? content : [];
+  }
+
+  test("a photo rides along as an image part, ahead of the text", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    const fileId = await attachPhoto(t, user);
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "what is this?",
+      fileIds: [fileId],
+    });
+
+    const [saved] = await threadMessages(t, threadId);
+    expect(partsOf(saved).map((p) => p.type)).toEqual(["image", "text"]);
+    expect(saved.text).toBe("what is this?");
+    expect(saved.fileIds).toEqual([fileId]);
+    // Refcounted from 0 to 1 by the save — which is what tells a vacuum this
+    // is an attached photo and not an abandoned upload.
+    expect((await attachmentDoc(t, fileId))?.refcount).toBe(1);
+  });
+
+  test("several photos keep the order they were picked in", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    const first = await attachPhoto(t, user, { content: "a" });
+    const second = await attachPhoto(t, user, { content: "b" });
+
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "these two",
+      fileIds: [first, second],
+    });
+
+    const [saved] = await threadMessages(t, threadId);
+    expect(saved.fileIds).toEqual([first, second]);
+    expect(partsOf(saved).map((p) => p.type)).toEqual([
+      "image",
+      "image",
+      "text",
+    ]);
+  });
+
+  test("a photo on its own is a message", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    const fileId = await attachPhoto(t, user);
+
+    // "What is this?" without the words. The reply is scheduled the same way
+    // any other turn's is.
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "",
+      fileIds: [fileId],
+    });
+
+    const [saved] = await threadMessages(t, threadId);
+    expect(partsOf(saved).map((p) => p.type)).toEqual(["image"]);
+    expect(
+      (await scheduledNames(t)).some((n) => n.includes("streamReply")),
+    ).toBe(true);
+  });
+
+  test("neither words nor photos is refused", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await expect(
+      as.mutation(api.chat.sendMessage, { threadId, prompt: "   " }),
+    ).rejects.toThrow("needs something in it");
+    expect(await threadMessages(t, threadId)).toHaveLength(0);
+  });
+
+  test("a fileId nobody registered is refused", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await expect(
+      as.mutation(api.chat.sendMessage, {
+        threadId,
+        prompt: "hi",
+        fileIds: ["not-a-file"],
+      }),
+    ).rejects.toThrow();
+    expect(await threadMessages(t, threadId)).toHaveLength(0);
+  });
+
+  test("a turn without photos saves exactly as it did before", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    await as.mutation(api.chat.sendMessage, { threadId, prompt: "hi" });
+
+    const [saved] = await threadMessages(t, threadId);
+    // A plain string, not a one-element parts array.
+    expect(saved.message?.content).toBe("hi");
+    expect(saved.fileIds).toBeUndefined();
+  });
+
+  test("editing the words keeps the photo", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+    const fileId = await attachPhoto(t, user);
+    await as.mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "what is this?",
+      fileIds: [fileId],
+    });
+
+    const [original] = await threadMessages(t, threadId);
+    await as.mutation(api.chat.editAndResend, {
+      threadId,
+      messageId: original._id,
+      prompt: "what plant is this?",
+    });
+
+    // An edit rewrites the words. Dropping the photo would delete it out of
+    // the conversation through a button labelled "edit".
+    const [edited] = await threadMessages(t, threadId);
+    expect(edited.text).toBe("what plant is this?");
+    expect(partsOf(edited).map((p) => p.type)).toEqual(["image", "text"]);
+    expect(edited.fileIds).toEqual([fileId]);
+    expect((await attachmentDoc(t, fileId))?.refcount).toBe(1);
+  });
+});
+
 describe("chat — star / pin flags", () => {
   test("setStarred and setPinned surface through threadFlags", async () => {
     const t = initTest();
@@ -210,6 +361,40 @@ describe("chat — star / pin flags", () => {
       starred: true,
     });
     expect(await asUser(t, b).query(api.chat.threadFlags, {})).toEqual([]);
+  });
+});
+
+describe("chat — threadInfo", () => {
+  test("reports the conversation's name and flags, null until it is named", async () => {
+    const t = initTest();
+    const user = await createUser(t);
+    const as = asUser(t, user);
+    const threadId = await as.mutation(api.chat.startThread, {});
+
+    expect(await as.query(api.chat.threadInfo, { threadId })).toEqual({
+      title: null,
+      starred: false,
+      pinned: false,
+    });
+
+    await as.mutation(api.chat.renameThread, { threadId, title: "Grief" });
+    await as.mutation(api.chat.setStarred, { threadId, starred: true });
+    expect(await as.query(api.chat.threadInfo, { threadId })).toEqual({
+      title: "Grief",
+      starred: true,
+      pinned: false,
+    });
+  });
+
+  test("another person's conversation is not readable", async () => {
+    const t = initTest();
+    const a = await createUser(t);
+    const b = await createUser(t);
+    const threadId = await asUser(t, a).mutation(api.chat.startThread, {});
+
+    await expect(
+      asUser(t, b).query(api.chat.threadInfo, { threadId }),
+    ).rejects.toThrow("Not your conversation");
   });
 });
 

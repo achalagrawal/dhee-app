@@ -11,6 +11,7 @@
 import type * as account from "../account.js";
 import type * as agents_config from "../agents/config.js";
 import type * as agents_dhee from "../agents/dhee.js";
+import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as config from "../config.js";
@@ -33,6 +34,7 @@ import type * as lib_redirect from "../lib/redirect.js";
 import type * as md from "../md.js";
 import type * as memory from "../memory.js";
 import type * as seed from "../seed.js";
+import type * as share from "../share.js";
 import type * as tools_md from "../tools/md.js";
 import type * as understanding from "../understanding.js";
 import type * as usage from "../usage.js";
@@ -48,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   account: typeof account;
   "agents/config": typeof agents_config;
   "agents/dhee": typeof agents_dhee;
+  attachments: typeof attachments;
   auth: typeof auth;
   chat: typeof chat;
   config: typeof config;
@@ -70,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   md: typeof md;
   memory: typeof memory;
   seed: typeof seed;
+  share: typeof share;
   "tools/md": typeof tools_md;
   understanding: typeof understanding;
   usage: typeof usage;

@@ -11,6 +11,8 @@ const strings = {
     signInTitle: "Sign in",
     signInSubtitle: "We'll email you a six-digit code.",
     continueWithGoogle: "Continue with Google",
+    signingIn: "Signing you in…",
+    loading: "Loading…",
     or: "or",
     emailPlaceholder: "you@example.com",
     sendCode: "Send code",
@@ -69,7 +71,7 @@ const strings = {
     deleteAllChatsBody:
       "Permanently removes every conversation and its messages. This can't be undone.",
     confirm: "Yes, delete",
-    renameConversation: "Rename",
+    renameConversation: "Rename conversation",
     deleteConversation: "Delete",
     deleteConversationBody: "Delete this conversation? This can't be undone.",
     justNow: "just now",
@@ -80,6 +82,8 @@ const strings = {
     // Shell / navigation
     openMenu: "Open menu",
     closeMenu: "Close menu",
+    openSidebar: "Open sidebar",
+    collapseSidebar: "Collapse sidebar",
     incognito: "Incognito",
     incognitoBanner: "Incognito — this chat won't be saved",
     turnOff: "Turn off",
@@ -104,9 +108,30 @@ const strings = {
     voiceMode: "Voice mode",
     dictate: "Dictate",
     addFiles: "Add files, photos, web search",
+    // Attachments
+    addPhoto: "Add a photo",
+    removePhoto: "Remove photo",
+    onlyPhotos: "Only photos can be attached for now.",
+    photoTooLarge: "That photo is too large. Photos can be up to 5 MB.",
     // Chat
     replyPlaceholder: "Reply to Dhee",
     thinking: "Dhee is considering…",
+    // What Dhee is doing while it works, one line per tool call. Written from
+    // the person's side — what is being looked at, never the tool's name. The
+    // "…For" variants take the model's own input (%s); the plain ones show
+    // until that input has finished streaming. See src/lib/activity.ts.
+    actSearching: "Searching the books",
+    actSearchingFor: "Searching the books for “%s”",
+    actPhrase: "Looking for those exact words",
+    actPhraseFor: "Looking for “%s” in the books",
+    actParibhasha: "Checking how the books define it",
+    actParibhashaFor: "Checking how the books define “%s”",
+    actReadingPage: "Reading a page from the books",
+    actReadingPageNo: "Reading page %s",
+    actBooks: "Looking over the library",
+    actToc: "Finding the right chapter",
+    actWorking: "Looking something up",
+    actTakingIn: "Taking in what came back",
     chatDisclaimer: "Dhee offers perspective, not professional advice.",
     copy: "Copy",
     copied: "Copied",
@@ -195,6 +220,26 @@ const strings = {
     shareLabel: "Share",
     rename: "Rename",
     renamePlaceholder: "Conversation name",
+    // Sharing a conversation
+    shareTitle: "Share this",
+    shareSubtitle: "Anyone with the link can read it.",
+    shareSnapshotNote:
+      "The link shows this conversation as it is now. Whatever you say next stays private.",
+    shareCreating: "Making the link…",
+    shareFailed: "That link couldn't be made. Try again.",
+    copyLink: "Copy link",
+    linkCopied: "Link copied",
+    shareUpdate: "Update the link",
+    shareUpdated: "Link updated",
+    unshare: "Stop sharing",
+    done: "Done",
+    // The public page a link opens
+    sharedUntitled: "A conversation with Dhee",
+    sharedGone: "This link isn't available.",
+    sharedGoneBody:
+      "It may have been turned off, or the conversation may have been deleted.",
+    sharedFooter: "Shared from Dhee",
+    sharedCta: "Ask your own question",
     // Incognito chat
     incognitoTitle: "Incognito",
     incognitoIntro:
@@ -208,6 +253,8 @@ const strings = {
     signInTitle: "साइन इन करें",
     signInSubtitle: "हम आपको छह अंकों का कोड ईमेल करेंगे।",
     continueWithGoogle: "Google से जारी रखें",
+    signingIn: "आपको साइन इन किया जा रहा है…",
+    loading: "लोड हो रहा है…",
     or: "या",
     emailPlaceholder: "you@example.com",
     sendCode: "कोड भेजें",
@@ -266,7 +313,7 @@ const strings = {
     deleteAllChatsBody:
       "हर बातचीत और उसके संदेश हमेशा के लिए मिट जाएँगे। यह वापस नहीं आएगा।",
     confirm: "हाँ, हटाएँ",
-    renameConversation: "नाम बदलें",
+    renameConversation: "बातचीत का नाम बदलें",
     deleteConversation: "हटाएँ",
     deleteConversationBody: "यह बातचीत हटा दें? यह वापस नहीं आएगी।",
     justNow: "अभी",
@@ -277,6 +324,8 @@ const strings = {
     // Shell / navigation
     openMenu: "मेन्यू खोलें",
     closeMenu: "मेन्यू बंद करें",
+    openSidebar: "साइडबार खोलें",
+    collapseSidebar: "साइडबार समेटें",
     incognito: "गुप्त",
     incognitoBanner: "गुप्त — यह बातचीत सहेजी नहीं जाएगी",
     turnOff: "बंद करें",
@@ -301,9 +350,26 @@ const strings = {
     voiceMode: "वॉइस मोड",
     dictate: "बोलकर लिखें",
     addFiles: "फ़ाइल, फ़ोटो, वेब खोज जोड़ें",
+    // Attachments
+    addPhoto: "फ़ोटो जोड़ें",
+    removePhoto: "फ़ोटो हटाएँ",
+    onlyPhotos: "अभी सिर्फ़ फ़ोटो जोड़ी जा सकती हैं।",
+    photoTooLarge: "यह फ़ोटो बहुत बड़ी है। फ़ोटो 5 MB तक हो सकती है।",
     // Chat
     replyPlaceholder: "धी को जवाब दें",
     thinking: "धी सोच रहा है…",
+    actSearching: "किताबों में खोज रहा है",
+    actSearchingFor: "किताबों में “%s” खोज रहा है",
+    actPhrase: "ठीक वही शब्द खोज रहा है",
+    actPhraseFor: "किताबों में ठीक “%s” खोज रहा है",
+    actParibhasha: "किताबों की परिभाषा देख रहा है",
+    actParibhashaFor: "“%s” की परिभाषा देख रहा है",
+    actReadingPage: "किताब का एक पन्ना पढ़ रहा है",
+    actReadingPageNo: "पन्ना %s पढ़ रहा है",
+    actBooks: "किताबों की सूची देख रहा है",
+    actToc: "सही अध्याय ढूँढ रहा है",
+    actWorking: "कुछ देख रहा है",
+    actTakingIn: "जो मिला उसे समझ रहा है",
     chatDisclaimer: "धी नज़रिया देता है, पेशेवर सलाह नहीं।",
     copy: "कॉपी",
     copied: "कॉपी हो गया",
@@ -389,6 +455,26 @@ const strings = {
     shareLabel: "साझा करें",
     rename: "नाम बदलें",
     renamePlaceholder: "बातचीत का नाम",
+    // Sharing a conversation
+    shareTitle: "इसे साझा करें",
+    shareSubtitle: "जिसके पास यह लिंक होगा, वह इसे पढ़ सकेगा।",
+    shareSnapshotNote:
+      "लिंक इस बातचीत को वैसा ही दिखाएगा जैसी यह अभी है। इसके बाद आप जो कहेंगे, वह निजी रहेगा।",
+    shareCreating: "लिंक बन रहा है…",
+    shareFailed: "लिंक नहीं बन सका। फिर कोशिश करें।",
+    copyLink: "लिंक कॉपी करें",
+    linkCopied: "लिंक कॉपी हो गया",
+    shareUpdate: "लिंक अपडेट करें",
+    shareUpdated: "लिंक अपडेट हो गया",
+    unshare: "साझा करना बंद करें",
+    done: "हो गया",
+    // The public page a link opens
+    sharedUntitled: "धी के साथ एक बातचीत",
+    sharedGone: "यह लिंक उपलब्ध नहीं है।",
+    sharedGoneBody:
+      "हो सकता है इसे बंद कर दिया गया हो, या बातचीत हटा दी गई हो।",
+    sharedFooter: "धी से साझा किया गया",
+    sharedCta: "अपना सवाल पूछें",
     // Incognito chat
     incognitoTitle: "गुप्त",
     incognitoIntro:

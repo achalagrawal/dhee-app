@@ -1,18 +1,11 @@
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../../convex/_generated/api";
 import { AppShell } from "../../src/components/AppShell";
 import { ThreadMenuSheet } from "../../src/components/ThreadMenuSheet";
-import { Icon, IconButton } from "../../src/components/ui";
+import { Icon, IconButton, Loading } from "../../src/components/ui";
 import { t } from "../../src/lib/i18n";
 import { useShell } from "../../src/lib/shell";
 import { useTheme } from "../../src/lib/ThemeContext";
@@ -131,7 +124,7 @@ export default function History() {
 
         {status === "LoadingFirstPage" ? (
           <View style={styles.centered}>
-            <ActivityIndicator color={colors.accent} />
+            <Loading lang={lang} />
           </View>
         ) : results.length === 0 ? (
           <View style={styles.empty}>

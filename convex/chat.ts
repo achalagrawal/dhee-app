@@ -2,6 +2,7 @@ import {
   type MessageDoc,
   abortStream,
   createThread,
+  getFile,
   getThreadMetadata,
   listMessages,
   listStreams,
@@ -11,6 +12,7 @@ import {
   updateThreadMetadata,
   vStreamArgs,
 } from "@convex-dev/agent";
+import type { ImagePart } from "ai";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { z } from "zod";
@@ -33,6 +35,11 @@ import {
   MEMORY_EXTRACTION_INTERVAL_TURNS,
 } from "./config";
 import { detectsCrisis } from "./lib/crisis";
+import {
+  deleteSharesForThread,
+  deleteSharesForUser,
+  revokeSharesTouching,
+} from "./share";
 import { spendMessage, usageFor, usageValidator } from "./usage";
 import { requireUserId } from "./users";
 
@@ -159,6 +166,27 @@ async function lastUserTurn(
   return { prompt, after: page.slice(0, index) };
 }
 
+// Resolves attached photos into the parts a model message carries. Each
+// `getFile` also proves the id is a file the component knows about, so an id
+// the client invented never reaches `saveMessage`.
+//
+// Photos only, deliberately: `getFile` returns an image part solely for an
+// `image/*` media type, and `attachments.attach` refuses anything else at
+// upload time. Documents come back as `filePart` and are a later slice — see
+// docs/build/specs/photo-attachments.md.
+async function imagePartsFor(
+  ctx: MutationCtx,
+  fileIds: string[],
+): Promise<ImagePart[]> {
+  const parts: ImagePart[] = [];
+  for (const fileId of fileIds) {
+    const { imagePart } = await getFile(ctx, components.agent, fileId);
+    if (!imagePart) throw new Error("Only photos can be attached.");
+    parts.push(imagePart);
+  }
+  return parts;
+}
+
 async function authorizeThread(
   ctx: QueryCtx | MutationCtx | ActionCtx,
   threadId: string,
@@ -266,19 +294,44 @@ export const sendMessage = mutation({
     // an empty conversation in someone's history.
     threadId: v.optional(v.string()),
     prompt: v.string(),
+    // Photos from `attachments.attach`, in the order they were picked.
+    fileIds: v.optional(v.array(v.string())),
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    const { prompt } = args;
+    const { prompt, fileIds = [] } = args;
     const userId = await requireUserId(ctx);
     if (args.threadId) await authorizeThread(ctx, args.threadId);
     await spendMessage(ctx, userId);
     const threadId =
       args.threadId ?? (await createThread(ctx, components.agent, { userId }));
 
+    const text = prompt.trim();
+    // A photo on its own is a real question — "what is this?" — so text is
+    // only required when nothing else was sent.
+    if (!text && fileIds.length === 0) {
+      throw new Error("A message needs something in it.");
+    }
+
+    // A plain prompt stays a plain prompt: every turn without photos saves
+    // exactly the shape it did before attachments existed. `metadata.fileIds`
+    // is what takes each file's refcount from 0 to 1, which is what stops the
+    // vacuum treating an attached photo as an abandoned upload.
+    const images = await imagePartsFor(ctx, fileIds);
     const { messageId } = await dhee.saveMessage(ctx, {
       threadId,
-      prompt,
+      ...(images.length > 0
+        ? {
+            message: {
+              role: "user" as const,
+              content: [
+                ...images,
+                ...(text ? [{ type: "text" as const, text }] : []),
+              ],
+            },
+            metadata: { fileIds },
+          }
+        : { prompt: text }),
       skipEmbeddings: true,
     });
 
@@ -546,6 +599,7 @@ export const regenerate = mutation({
     await spendMessage(ctx, userId);
 
     await clearMarksFor(ctx, threadId, turn.after);
+    await revokeSharesTouching(ctx, threadId, turn.after);
     await dhee.deleteMessages(ctx, {
       messageIds: turn.after.map((m) => m._id),
     });
@@ -591,11 +645,32 @@ export const editAndResend = mutation({
     await spendMessage(ctx, userId);
 
     const marks = await clearMarksFor(ctx, threadId, discarded);
+    await revokeSharesTouching(ctx, threadId, discarded);
     await dhee.deleteMessages(ctx, { messageIds: discarded.map((m) => m._id) });
+
+    // An edit rewrites the words, not what was shown. Dropping the photos here
+    // would delete them out of the conversation through a button labelled
+    // "edit" — so they are carried onto the replacement, refcounts and all.
+    const content = target.message.content;
+    const images = Array.isArray(content)
+      ? (content.filter((part) => part.type === "image") as ImagePart[])
+      : [];
 
     const { messageId: newMessageId, message: saved } = await dhee.saveMessage(
       ctx,
-      { threadId, prompt: trimmed, skipEmbeddings: true },
+      {
+        threadId,
+        ...(images.length > 0
+          ? {
+              message: {
+                role: "user" as const,
+                content: [...images, { type: "text" as const, text: trimmed }],
+              },
+              metadata: { fileIds: target.fileIds ?? [] },
+            }
+          : { prompt: trimmed }),
+        skipEmbeddings: true,
+      },
     );
 
     await upsertThreadMeta(ctx, threadId, userId, {
@@ -696,6 +771,9 @@ export const deleteThread = mutation({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .collect();
     for (const row of feedback) await ctx.db.delete(row._id);
+    // A share of a deleted thread points at messages that are going away, and
+    // there would be no screen left to revoke it from.
+    await deleteSharesForThread(ctx, threadId);
     return null;
   },
 });
@@ -728,6 +806,7 @@ export const deleteAllThreads = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     for (const row of feedback) await ctx.db.delete(row._id);
+    await deleteSharesForUser(ctx, userId);
     return page.length;
   },
 });
@@ -781,6 +860,33 @@ export const threadFlags = query({
         starred: !!m.starred,
         pinned: !!m.pinned,
       }));
+  },
+});
+
+// One conversation's own name and flags, for the screen that is inside it.
+// The chat header names the conversation and its menu acts on it, and neither
+// can read that off `listThreads`: that query is paginated, and a thread
+// reached by deep link or search may not be on the page the client holds.
+// `title` is null until the titling pass has named the thread — the client
+// decides what an unnamed conversation is called.
+export const threadInfo = query({
+  args: { threadId: v.string() },
+  returns: v.object({
+    title: v.union(v.string(), v.null()),
+    starred: v.boolean(),
+    pinned: v.boolean(),
+  }),
+  handler: async (ctx, { threadId }) => {
+    await authorizeThread(ctx, threadId);
+    const { title } = await getThreadMetadata(ctx, components.agent, {
+      threadId,
+    });
+    const meta = await threadMetaFor(ctx, threadId);
+    return {
+      title: title?.trim() ? title.trim() : null,
+      starred: !!meta?.starred,
+      pinned: !!meta?.pinned,
+    };
   },
 });
 

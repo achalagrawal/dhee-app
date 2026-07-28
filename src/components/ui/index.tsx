@@ -1,19 +1,57 @@
+import type { Ref } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   type StyleProp,
   StyleSheet,
   Text,
+  TextInput,
+  type TextInputProps,
   View,
   type ViewStyle,
 } from "react-native";
 import { useTheme } from "../../lib/ThemeContext";
-import { font, radius } from "../../lib/theme";
+import { focusRing, font, noFocusRing, radius } from "../../lib/theme";
 import { Icon, type IconName } from "./Icon";
+import { Loading } from "./Loading";
 
 export { Icon } from "./Icon";
 export type { IconName } from "./Icon";
+export { Loading } from "./Loading";
+
+/**
+ * A text input for forms — sign-in, onboarding, settings — where someone moves
+ * between several fields and needs to see which one they are in. Swaps Safari's
+ * blue system ring for one in the app's accent. Surfaces with a single input
+ * that its own card already frames (the composer, the message editors, search,
+ * rename) use `TextInput` with `noFocusRing` and show no ring at all.
+ */
+export function Field({
+  style,
+  onFocus,
+  onBlur,
+  ref,
+  ...props
+}: TextInputProps & { ref?: Ref<TextInput> }) {
+  const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
+  return (
+    <TextInput
+      ref={ref}
+      {...props}
+      style={[style, focused ? focusRing(colors) : noFocusRing]}
+      onFocus={(e) => {
+        setFocused(true);
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        onBlur?.(e);
+      }}
+    />
+  );
+}
 
 function initials(name?: string | null): string {
   const n = (name ?? "").trim();
@@ -168,7 +206,8 @@ export function PrimaryButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={colors.onAccent} />
+        // Sized to the label's own line so the pill doesn't resize mid-press.
+        <Loading size={20} color={colors.onAccent} />
       ) : (
         <Text
           style={{ color: colors.onAccent, fontSize: 15.5, ...font.semibold }}

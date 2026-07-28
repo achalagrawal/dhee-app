@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
+import { previewTags, site } from "./lib/meta.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -94,16 +95,32 @@ function render({ slug, src, title, description }) {
   }
 
   const others = PAGES.filter((p) => p.slug !== slug);
-  return template({ title, description, body, others });
+  return template({ slug, title, description, body, others });
 }
 
-const template = ({ title, description, body, others }) => `<!doctype html>
+// These pages get shared as links too — a privacy policy pasted into a review
+// thread, a safety page sent to someone who needs it — and each is served as
+// its own HTML rather than through the app shell, so the tags build-shell.mjs
+// writes do not reach them. Per-page title and description, one shared card.
+const template = ({
+  slug,
+  title,
+  description,
+  body,
+  others,
+}) => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title} — Dhee</title>
     <meta name="description" content="${description}" />
+${previewTags({
+  type: "article",
+  title: `${title} — Dhee`,
+  description,
+  url: `${site}/${slug}`,
+})}
     <style>
       /* Tokens mirror src/lib/theme.ts (light + dark, default accent). No
          webfont: a network request the page does not need is a request that

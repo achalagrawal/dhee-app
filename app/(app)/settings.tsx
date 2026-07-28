@@ -3,20 +3,24 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { api } from "../../convex/_generated/api";
 import { tooManyTraditions, traditionLimit } from "../../convex/lib/plan";
 import { AppShell } from "../../src/components/AppShell";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
-import { Avatar, Icon, type IconName } from "../../src/components/ui";
+import {
+  Avatar,
+  Field,
+  Icon,
+  type IconName,
+  Loading,
+} from "../../src/components/ui";
 import { t } from "../../src/lib/i18n";
 import { type ThemePref, useTheme } from "../../src/lib/ThemeContext";
 import {
@@ -83,7 +87,7 @@ export default function Settings() {
     return (
       <AppShell>
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.accent} />
+          <Loading lang={lang} />
         </View>
       </AppShell>
     );
@@ -265,7 +269,7 @@ export default function Settings() {
         {/* Profile */}
         <Group label={t(lang, "yourName")} colors={colors}>
           <View style={styles.block}>
-            <TextInput
+            <Field
               style={styles.input}
               value={nameValue}
               onChangeText={setDraftName}
@@ -305,7 +309,7 @@ export default function Settings() {
         >
           <View style={styles.block}>
             <Text style={styles.blockLabel}>{t(lang, "nickname")}</Text>
-            <TextInput
+            <Field
               style={styles.input}
               value={personal.nickname}
               onChangeText={(v) => setPersonalDraft({ nickname: v })}
@@ -325,7 +329,7 @@ export default function Settings() {
             ]}
           >
             <Text style={styles.blockLabel}>{t(lang, "occupation")}</Text>
-            <TextInput
+            <Field
               style={styles.input}
               value={personal.occupation}
               onChangeText={(v) => setPersonalDraft({ occupation: v })}
@@ -345,7 +349,7 @@ export default function Settings() {
             ]}
           >
             <Text style={styles.blockLabel}>{t(lang, "aboutYou")}</Text>
-            <TextInput
+            <Field
               style={[styles.input, styles.textArea]}
               value={personal.aboutYou}
               onChangeText={(v) => setPersonalDraft({ aboutYou: v })}
@@ -371,7 +375,7 @@ export default function Settings() {
           colors={colors}
         >
           <View style={styles.block}>
-            <TextInput
+            <Field
               style={styles.input}
               value={lensDraft}
               onChangeText={setLensDraft}

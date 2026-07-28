@@ -1,5 +1,18 @@
 {
   "enabledPlugins": {
     "convex@claude-plugins-official": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/worktree-setup.mjs",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
   }
 }

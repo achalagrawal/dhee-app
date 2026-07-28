@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Field } from "../src/components/ui";
 import { api } from "../convex/_generated/api";
 import { type Language, t } from "../src/lib/i18n";
 import { DEFAULT_TRADITION, TRADITIONS } from "../src/lib/traditions";
@@ -81,7 +82,7 @@ export default function Onboarding() {
 
           <View style={styles.block}>
             <Text style={styles.label}>{t(lang, "namePrompt")}</Text>
-            <TextInput
+            <Field
               style={styles.input}
               placeholder={t(lang, "namePlaceholder")}
               placeholderTextColor={colors.textFaint}
@@ -95,7 +96,7 @@ export default function Onboarding() {
           {/* Writes the same field the settings picker edits. */}
           <View style={styles.block}>
             <Text style={styles.label}>{t(lang, "traditionPrompt")}</Text>
-            <TextInput
+            <Field
               ref={traditionInput}
               style={styles.input}
               placeholder={t(lang, "traditionPlaceholder")}

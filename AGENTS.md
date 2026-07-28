@@ -19,6 +19,15 @@ We build Dhee toward the Claude Design mockups using a spec-driven, tracked loop
 source of truth for what's done and what's next. See `docs/build/README.md` for the
 per-feature workflow (spec → backend TDD → wire UI → verify → track).
 
+## Running the app
+
+`pnpm dev` — never `pnpm web` or `convex dev` directly. Sessions run in parallel
+worktrees, and `pnpm dev` is what stops them colliding: it claims this
+checkout's port and picks between reusing the main checkout's backend and
+provisioning one for this worktree, based on whether the branch changes
+`convex/`. It needs no input and prompts for nothing. See
+`README.md#running-more-than-one-checkout`.
+
 ## Checks before finishing
 
 Run these before committing — CI (`.github/workflows/ci.yml`) enforces all three,

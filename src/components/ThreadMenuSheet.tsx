@@ -1,7 +1,6 @@
 import { useMutation } from "convex/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -13,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../convex/_generated/api";
 import { t } from "../lib/i18n";
 import { useTheme } from "../lib/ThemeContext";
-import { font, radius } from "../lib/theme";
+import { font, noFocusRing, radius } from "../lib/theme";
 import { useLanguage } from "../lib/useLanguage";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Icon, type IconName } from "./ui";
@@ -26,10 +25,21 @@ type Props = {
   onClose: () => void;
   /** Called after a delete so the caller can navigate away if needed. */
   onDeleted?: (threadId: string) => void;
+  /**
+   * Opens the caller's share sheet. Omitted when this conversation can't be
+   * shared — a crisis-flagged thread, which `share.shareThread` refuses — and
+   * the row is then left out rather than shown and made to fail (#65).
+   */
+  onShare?: () => void;
 };
 
-// Bottom-sheet options for a conversation. Rename, Delete, Star and Pin are
-// wired to their mutations; Share is still pending (no backend yet).
+// Bottom-sheet options for a conversation. Every row here is wired to its
+// mutation; the share row hands back to the caller, which owns the sheet
+// because the thread header opens the same one (#98).
+//
+// The sheet always names the conversation it acts on, in both states. "Rename"
+// and "Delete" on their own read as being about the message, the app or the
+// account — the person opening this has no other way to tell (#77).
 export function ThreadMenuSheet({
   threadId,
   currentTitle,
@@ -37,6 +47,7 @@ export function ThreadMenuSheet({
   pinned = false,
   onClose,
   onDeleted,
+  onShare,
 }: Props) {
   const { colors } = useTheme();
   const lang = useLanguage();
@@ -50,17 +61,21 @@ export function ThreadMenuSheet({
   const [draft, setDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Reset transient state whenever a different thread's sheet opens.
+  // Reset transient state whenever a different thread's sheet opens. Keyed on
+  // the thread alone: `currentTitle` can land from a live query — the titling
+  // pass naming a fresh conversation — and re-running on that would close the
+  // rename box under someone mid-edit.
+  const titleRef = useRef(currentTitle);
+  titleRef.current = currentTitle;
   useEffect(() => {
     if (threadId) {
       setRenaming(false);
-      setDraft(currentTitle ?? "");
+      setDraft(titleRef.current ?? "");
       setConfirmDelete(false);
     }
-  }, [threadId, currentTitle]);
+  }, [threadId]);
 
   const visible = threadId !== null;
-  const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
   const commitRename = () => {
     const title = draft.trim();
@@ -97,11 +112,18 @@ export function ThreadMenuSheet({
       label: t(lang, "rename"),
       onPress: () => setRenaming(true),
     },
-    {
-      icon: "share",
-      label: t(lang, "shareLabel"),
-      onPress: () => soon(t(lang, "shareLabel")),
-    },
+    ...(onShare
+      ? [
+          {
+            icon: "share" as IconName,
+            label: t(lang, "shareLabel"),
+            onPress: () => {
+              onClose();
+              onShare();
+            },
+          },
+        ]
+      : []),
     {
       icon: "trash",
       label: t(lang, "deleteConversation"),
@@ -132,6 +154,15 @@ export function ThreadMenuSheet({
           <View
             style={[styles.grabber, { backgroundColor: colors.borderStrong }]}
           />
+
+          <Text
+            numberOfLines={1}
+            style={[styles.heading, { color: colors.textFaint }]}
+          >
+            {renaming
+              ? t(lang, "renameConversation")
+              : currentTitle?.trim() || t(lang, "newConversation")}
+          </Text>
 
           {renaming ? (
             <View style={styles.renameWrap}>
@@ -251,6 +282,14 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 8,
   },
+  // Names the conversation every row below acts on.
+  heading: {
+    fontSize: 12.5,
+    letterSpacing: 0.3,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+    ...font.medium,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -268,6 +307,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     ...font.regular,
+    ...noFocusRing,
   },
   renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
   renameBtn: {

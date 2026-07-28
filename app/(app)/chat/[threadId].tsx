@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  Image,
   KeyboardAvoidingView,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -24,15 +25,27 @@ import {
   failureFrom,
 } from "../../../src/components/chat/FailureCard";
 import { Markdown } from "../../../src/components/chat/Markdown";
+import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
 import { ConfirmDialog } from "../../../src/components/ConfirmDialog";
 import { CrisisBanner } from "../../../src/components/CrisisBanner";
+import { ShareSheet } from "../../../src/components/ShareSheet";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
+import { activityTrail } from "../../../src/lib/activity";
 import { t } from "../../../src/lib/i18n";
+import { composerKeyAction } from "../../../src/lib/keyboard";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
-import { font, radius, shadow } from "../../../src/lib/theme";
+import {
+  font,
+  noFocusRing,
+  radius,
+  readableColumn,
+  shadow,
+} from "../../../src/lib/theme";
+import { useAttachments } from "../../../src/lib/useAttachments";
+import { useEnterToSend } from "../../../src/lib/useEnterToSend";
 import { useLanguage } from "../../../src/lib/useLanguage";
 
 // Matches the mockup's `onMainScroll`.
@@ -56,6 +69,7 @@ export default function Chat() {
   // A stop is deliberately not a failure. Spec §7.
   const [failure, setFailure] = useState<Failure>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef = useRef(true);
   // So the button flips back without waiting for the abort to round-trip.
@@ -65,6 +79,7 @@ export default function Chat() {
     messageId: string;
     prompt: string;
   } | null>(null);
+  const photos = useAttachments(lang);
 
   // Known before the send, so an ordinary "out of messages" never has to
   // travel as a server error. The server still refuses either way.
@@ -85,6 +100,12 @@ export default function Chat() {
     api.chat.threadFeedback,
     threadId ? { threadId } : "skip",
   );
+  // The conversation's own name, for the header and for the menu that renames,
+  // stars and deletes it — those rows are unreadable without their subject on
+  // screen (#77). Named by `titleThread` after the first reply, so it arrives a
+  // beat late on a brand-new conversation.
+  const info = useQuery(api.chat.threadInfo, threadId ? { threadId } : "skip");
+  const title = info?.title ?? t(lang, "newConversation");
   // Raised server-side, so it survives a reload and applies to every client.
   const crisisFlagged = useQuery(
     api.chat.threadCrisisFlag,
@@ -128,7 +149,17 @@ export default function Chat() {
     [results],
   );
 
-  // "Considering…" only before the assistant has produced any text.
+  // What Dhee is reaching for this turn, read off the tool parts the agent
+  // streams alongside the text. The turn's step messages are combined into one
+  // UIMessage by `useUIMessages`, so the last row carries the whole trail.
+  // Spec §3.
+  const activities = useMemo(() => {
+    const last = results[results.length - 1];
+    if (!last || last.role !== "assistant") return [];
+    return activityTrail(last.parts);
+  }, [results]);
+
+  // The indicator shows only before the assistant has produced any text.
   const thinking = useMemo(() => {
     const last = results[results.length - 1];
     if (!last) return false;
@@ -175,7 +206,10 @@ export default function Chat() {
 
   const send = useCallback(async () => {
     const prompt = draft.trim();
-    if (!prompt || !threadId) return;
+    const fileIds = photos.fileIds;
+    if ((!prompt && fileIds.length === 0) || photos.uploading || !threadId) {
+      return;
+    }
     if (outOfMessages) {
       setFailure({ reason: "limit", retry: "send" });
       return;
@@ -183,12 +217,16 @@ export default function Chat() {
     setDraft("");
     setFailure(null);
     try {
-      await sendMessage({ threadId, prompt });
+      await sendMessage({ threadId, prompt, fileIds });
+      // Only once it landed. Clearing optimistically would leave a failed send
+      // with its words restored and its photos gone — and the uploads orphaned
+      // server-side, since nothing references them yet.
+      photos.clear();
     } catch (e) {
       setDraft(prompt);
       setFailure({ reason: failureFrom(e), retry: "send" });
     }
-  }, [draft, threadId, sendMessage, outOfMessages]);
+  }, [draft, threadId, sendMessage, photos, outOfMessages]);
 
   const stop = useCallback(async () => {
     if (!threadId) return;
@@ -339,6 +377,9 @@ export default function Chat() {
 
   return (
     <AppShell
+      title={title}
+      onTitlePress={() => setMenuOpen(true)}
+      titleAccessibilityLabel={t(lang, "conversationOptions")}
       right={
         <>
           <IconButton
@@ -348,6 +389,18 @@ export default function Chat() {
             accessibilityLabel={t(lang, "newConversation")}
             onPress={newThread}
           />
+          {/* Share sits in the header rather than only under ⋯ (#98). Hidden
+              on a crisis-flagged thread, which `share.shareThread` refuses —
+              a button that always throws is worse than no button (#65). */}
+          {crisisFlagged ? null : (
+            <IconButton
+              name="share"
+              variant="surface"
+              size={40}
+              accessibilityLabel={t(lang, "shareLabel")}
+              onPress={() => setShareOpen(true)}
+            />
+          )}
           <IconButton
             name="dots"
             variant="surface"
@@ -383,12 +436,7 @@ export default function Chat() {
             ListFooterComponent={
               <>
                 {thinking ? (
-                  <View style={styles.thinkingRow}>
-                    <DheeAvatar />
-                    <Text style={styles.thinkingText}>
-                      {t(lang, "thinking")}
-                    </Text>
-                  </View>
+                  <ThinkingTrail activities={activities} lang={lang} />
                 ) : null}
                 {activeFailure ? (
                   <FailureCard
@@ -425,23 +473,37 @@ export default function Chat() {
         </View>
 
         <View style={styles.dock}>
-          <Composer
-            value={draft}
-            onChangeText={setDraft}
-            onSubmit={send}
-            placeholder={t(lang, "replyPlaceholder")}
-            minHeight={24}
-            generating={generating && !stopping}
-            onStop={stop}
-          />
-          <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
+          <View style={styles.dockInner}>
+            <Composer
+              value={draft}
+              onChangeText={setDraft}
+              onSubmit={send}
+              placeholder={t(lang, "replyPlaceholder")}
+              minHeight={24}
+              generating={generating && !stopping}
+              onStop={stop}
+              attachments={photos.attachments}
+              onPickPhoto={() => void photos.pick()}
+              onRemoveAttachment={photos.remove}
+            />
+            <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
       <ThreadMenuSheet
         threadId={menuOpen ? (threadId ?? null) : null}
+        currentTitle={info?.title ?? undefined}
+        starred={info?.starred}
+        pinned={info?.pinned}
         onClose={() => setMenuOpen(false)}
         onDeleted={() => router.replace("/home")}
+        onShare={crisisFlagged ? undefined : () => setShareOpen(true)}
+      />
+
+      <ShareSheet
+        threadId={shareOpen ? (threadId ?? null) : null}
+        onClose={() => setShareOpen(false)}
       />
 
       <ConfirmDialog
@@ -477,6 +539,7 @@ function MessageEditor({
 }) {
   const [draft, setDraft] = useState(initial);
   const prompt = draft.trim();
+  const sendOnEnter = useEnterToSend();
   return (
     <View style={styles.editCard}>
       <TextInput
@@ -484,8 +547,14 @@ function MessageEditor({
         onChangeText={setDraft}
         multiline
         autoFocus
+        // Same reason as the composer: keep iOS Safari from offering AutoFill
+        // on a free-text field and flickering the keyboard. Issue #72.
+        autoComplete="off"
         onKeyPress={(e) => {
-          if (e.nativeEvent.key === "Escape") onCancel();
+          if (e.nativeEvent.key === "Escape") return onCancel();
+          if (composerKeyAction(e, { sendOnEnter }) !== "send") return;
+          e.preventDefault();
+          if (prompt) onSubmit(prompt);
         }}
         style={styles.editInput}
       />
@@ -549,6 +618,16 @@ const Message = memo(function Message({
 }) {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";
+  // Photos the person attached. Documents come through as file parts too, and
+  // have no thumbnail to show, so they are filtered out until the doc chip
+  // exists — see docs/build/specs/photo-attachments.md.
+  const photos = useMemo(
+    () =>
+      message.parts.filter(
+        (p) => p.type === "file" && p.mediaType?.startsWith("image/"),
+      ) as { url: string; filename?: string }[],
+    [message.parts],
+  );
   const streaming = message.status === "streaming";
   const done = message.status === "success" || message.status === "failed";
 
@@ -574,12 +653,29 @@ const Message = memo(function Message({
         </View>
       );
     }
-    if (!message.text.trim()) return null;
+    if (!message.text.trim() && photos.length === 0) return null;
     return (
       <View style={styles.userWrap}>
-        <View style={styles.userBubble}>
-          <Text style={styles.userText}>{message.text}</Text>
-        </View>
+        {photos.length > 0 ? (
+          <View style={styles.photoRow}>
+            {photos.map((photo) => (
+              <Image
+                key={photo.url}
+                source={{ uri: photo.url }}
+                accessibilityLabel={photo.filename}
+                accessibilityIgnoresInvertColors
+                style={styles.photo}
+              />
+            ))}
+          </View>
+        ) : null}
+        {/* A photo on its own is a whole message; an empty bubble under it
+            would only be a box with nothing in it. */}
+        {message.text.trim() ? (
+          <View style={styles.userBubble}>
+            <Text style={styles.userText}>{message.text}</Text>
+          </View>
+        ) : null}
         <View style={styles.userMeta}>
           {edited ? (
             <Text style={styles.editedLabel}>{t(lang, "edited")}</Text>
@@ -623,7 +719,8 @@ const Message = memo(function Message({
   // lands; their labels are still in i18n.ts waiting.
   return (
     <View style={styles.botRow}>
-      <DheeAvatar />
+      {/* Words are landing but the turn is not over, so the mark keeps going. */}
+      <DheeAvatar animated={streaming} />
       <View style={styles.botBody}>
         <Markdown
           text={message.text}
@@ -682,8 +779,11 @@ const Message = memo(function Message({
 function makeStyles(colors: Colors) {
   return StyleSheet.create({
     flex: { flex: 1 },
-    bannerWrap: { paddingHorizontal: 16, paddingTop: 12 },
+    bannerWrap: { ...readableColumn, paddingHorizontal: 16, paddingTop: 12 },
+    // The transcript scrolls the full width; only its contents are penned into
+    // the column, so the scrollbar still sits at the window's edge.
     list: {
+      ...readableColumn,
       paddingHorizontal: 16,
       paddingTop: 14,
       paddingBottom: 24,
@@ -709,6 +809,20 @@ function makeStyles(colors: Colors) {
       lineHeight: 25,
       ...font.regular,
     },
+    photoRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "flex-end",
+      gap: 8,
+      maxWidth: "84%",
+    },
+    photo: {
+      width: 120,
+      height: 120,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
     userMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaBtn: { padding: 5, borderRadius: 7 },
     editedLabel: { color: colors.textFaint, fontSize: 12, ...font.regular },
@@ -729,6 +843,7 @@ function makeStyles(colors: Colors) {
       minHeight: 72,
       textAlignVertical: "top",
       ...font.regular,
+      ...noFocusRing,
     },
     editActions: {
       flexDirection: "row",
@@ -774,14 +889,6 @@ function makeStyles(colors: Colors) {
     },
     copyLabel: { color: colors.textFaint, fontSize: 12.5, ...font.regular },
     actionBtn: { padding: 8, borderRadius: 8 },
-    // Thinking / error
-    thinkingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    thinkingText: {
-      color: colors.textFaint,
-      fontSize: 15,
-      fontStyle: "italic",
-      ...font.regular,
-    },
     // Scroll to latest
     scrollBtnWrap: {
       position: "absolute",
@@ -800,13 +907,15 @@ function makeStyles(colors: Colors) {
       alignItems: "center",
       justifyContent: "center",
     },
-    // Dock
+    // Dock — the band spans the window so its background meets both edges;
+    // the composer inside it stays in the column, lined up with the transcript.
     dock: {
       paddingHorizontal: 16,
       paddingTop: 8,
       paddingBottom: Platform.OS === "ios" ? 8 : 12,
       backgroundColor: colors.bg,
     },
+    dockInner: readableColumn,
     disclaimer: {
       textAlign: "center",
       color: colors.textFaint,

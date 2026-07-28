@@ -182,25 +182,66 @@ Expo Go's `exp://` when the backend is loopback) and refuses everything else.
 Finally:
 
 ```bash
-pnpm web                 # or: pnpm ios / pnpm android
+pnpm dev                 # or: pnpm ios / pnpm android
+```
+
+`pnpm dev` starts the backend and the web app together. In a plain clone that's
+all it does; in a second checkout it does rather more — see below.
+
+### Running more than one checkout
+
+Working on two branches at once means two checkouts, usually git worktrees. Left
+alone they collide: both want port 8081, and both want to push their own
+schema into the one local backend. `pnpm dev` sorts that out.
+
+**Ports are assigned, not guessed.** The main checkout keeps 8081. Each worktree
+claims a port from 8082–8099 the first time it runs and keeps it for as long as
+it exists, recorded in `.claude/worktree-ports.json` in the main checkout. Slots
+come back when a worktree is deleted.
+
+**The backend depends on what the branch touches.** A branch with no changes
+under `convex/` reuses the main checkout's backend, so your account and your
+conversations are already there and nothing has to be set up. A branch that
+_does_ change backend code gets a local backend of its own — separate database,
+separate ports, secrets copied across — so a schema change can't reach anything
+else. Codegen output and `*.test.ts` files don't count as backend changes.
+
+Override with `pnpm dev --shared` or `pnpm dev --isolated` when the guess is
+wrong.
+
+Two things to know before you sign in from a worktree:
+
+- **Google sign-in only works in the main checkout.** The callback URI is
+  registered per deployment and `SITE_URL` names one origin, so the round trip
+  always lands back on 8081. Everywhere else, use the email code — with no
+  `AWS_*` credentials set, it's printed in the `convex dev` output rather than
+  emailed.
+- **An isolated backend starts empty.** New database, so sign in again and
+  expect no history. `npx convex run seed:demo` fills it.
+
+Worktrees are prepared automatically when a Claude Code session opens one (the
+`SessionStart` hook in `.claude/settings.json`). To do it by hand:
+
+```bash
+node scripts/worktree-setup.mjs --install
 ```
 
 ### Environment variables
 
-| Variable                                     | Where             | Purpose                                                                                    |
-| -------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------ |
-| `OPENROUTER_API_KEY`                         | Convex deployment | Model access for chat and extraction                                                       |
-| `AWS_REGION`                                 | Convex deployment | SES region, e.g. `ap-south-1`                                                              |
-| `AWS_ACCESS_KEY_ID`, `..._SECRET_ACCESS_KEY` | Convex deployment | IAM credentials with `ses:SendEmail`                                                       |
-| `AUTH_EMAIL_FROM`                            | Convex deployment | Sender address; must be verified in SES                                                    |
-| `BETTER_AUTH_SECRET`                         | Convex deployment | Better Auth signing/encryption secret                                                      |
-| `SITE_URL`                                   | Convex deployment | Base URL for auth links, and the OAuth redirect allowlist                                  |
-| `EXTRA_TRUSTED_ORIGINS`                      | Convex deployment | Preview only; set by the Vercel build (see deployment doc)                                 |
-| `AUTH_GOOGLE_ID`                             | Convex deployment | Google OAuth client id ("Continue with Google")                                            |
-| `AUTH_GOOGLE_SECRET`                         | Convex deployment | Google OAuth client secret                                                                 |
-| `MD_MCP_URL`                                 | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one)                                 |
-| `EXPO_PUBLIC_CONVEX_URL`                     | `.env.local`      | Written automatically by `convex dev`                                                      |
-| `EXPO_PUBLIC_CONVEX_SITE_URL`                | `.env.local`      | Where the auth client reaches Better Auth's handler; derived from the URL above when unset |
+| Variable                                     | Where             | Purpose                                                                                              |
+| -------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY`                         | Convex deployment | Model access for chat and extraction                                                                 |
+| `AWS_REGION`                                 | Convex deployment | SES region, e.g. `ap-south-1`                                                                        |
+| `AWS_ACCESS_KEY_ID`, `..._SECRET_ACCESS_KEY` | Convex deployment | IAM credentials with `ses:SendEmail`                                                                 |
+| `AUTH_EMAIL_FROM`                            | Convex deployment | Sender address; must be verified in SES                                                              |
+| `BETTER_AUTH_SECRET`                         | Convex deployment | Better Auth signing/encryption secret                                                                |
+| `SITE_URL`                                   | Convex deployment | Base URL for auth links, and the OAuth redirect allowlist                                            |
+| `EXTRA_TRUSTED_ORIGINS`                      | Convex deployment | Extra allowed origins: preview URLs (set by the Vercel build) and worktree ports (set by `pnpm dev`) |
+| `AUTH_GOOGLE_ID`                             | Convex deployment | Google OAuth client id ("Continue with Google")                                                      |
+| `AUTH_GOOGLE_SECRET`                         | Convex deployment | Google OAuth client secret                                                                           |
+| `MD_MCP_URL`                                 | Convex deployment | Corpus MCP endpoint (optional; defaults to the hosted one)                                           |
+| `EXPO_PUBLIC_CONVEX_URL`                     | `.env.local`      | Written automatically by `convex dev`                                                                |
+| `EXPO_PUBLIC_CONVEX_SITE_URL`                | `.env.local`      | Where the auth client reaches Better Auth's handler; derived from the URL above when unset           |
 
 ### Seed data
 

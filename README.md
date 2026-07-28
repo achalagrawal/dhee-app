@@ -63,12 +63,38 @@ and the runtime shapes match, but their better-fetch generics don't line up;
 without the cast the plugin array degrades and `authClient` silently loses
 `emailOtp`.
 
+## Adding it to a Home Screen
+
+The web build installs: **Share → Add to Home Screen** on iOS, or the install
+prompt on Android, and Dhee opens in its own window with the mark as its icon
+and no browser chrome. Worth knowing before you test it there — iOS gives an
+installed web app **its own storage container**, separate from Safari's, so a
+session signed in through the browser does not carry across. Sign in again
+inside the installed app once.
+
+What makes that work is `public/index.html`, the HTML shell Expo fills in for
+the single-page build, plus `public/manifest.webmanifest` beside it. Neither is
+committed — `scripts/build-shell.mjs` writes both, and `pnpm icons` cuts the
+icons they point at, all three run by the web build. Two things here are easy
+to lose and neither fails loudly:
+
+- **`output: "single"` means `app/+html.tsx` is never read.** Expo takes the
+  shell from `public/index.html` when it exists and its own bare template when
+  it doesn't, so head tags belong in `build-shell.mjs`. A `+html.tsx` would be
+  silently ignored.
+- **The `apple-touch-icon` is not optional.** With no PNG to find, iOS
+  screenshots the page and makes the icon out of that.
+
+The same shell carries the [link-preview tags](scripts/lib/meta.mjs), for the
+same reason: a crawler runs no JavaScript either.
+
 ## Repo layout
 
 ```
 app/            Expo Router routes (sign-in, onboarding, threads, chat, understanding)
 src/            Components, theme, i18n, fonts, Convex client
 convex/         Schema, agent, MCP tools, memory workflow, auth
+scripts/        Build-time generators for everything in public/ (all gitignored)
 ```
 
 ## Local setup

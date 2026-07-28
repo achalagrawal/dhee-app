@@ -16,10 +16,13 @@ Full backend setup (Convex deployment, env vars, seed data) is in the
 [README](README.md#local-setup). You don't need a running backend to run the
 checks below — the tests are in-memory.
 
-`assets/favicon.png` is committed but not hand-drawn: it is the Dhee mark, cut
-for the tab strip, written by `pnpm favicon` from the same measured geometry as
-[`DheeMark`](src/components/ui/DheeMark.tsx). Re-run it if the mark or the
-accent moves; Expo turns it into `dist/favicon.ico` during the web build.
+The app's rasters are not hand-drawn: `pnpm icons` writes `assets/favicon.png`
+and the Home Screen icons in `public/`, and `pnpm og` writes the link-preview
+card, all cut from the same measured geometry as
+[`DheeMark`](src/components/ui/DheeMark.tsx) via
+[`scripts/lib/mark.mjs`](scripts/lib/mark.mjs). Re-run them if the mark or the
+accent moves. The web build runs both, so only the committed favicon — which
+Expo turns into `dist/favicon.ico` — needs the manual pass.
 
 ## Checks (run before every commit)
 

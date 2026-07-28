@@ -26,6 +26,7 @@ import type * as evals_scenarios from "../evals/scenarios.js";
 import type * as http from "../http.js";
 import type * as lib_backend from "../lib/backend.js";
 import type * as lib_crisis from "../lib/crisis.js";
+import type * as lib_lens from "../lib/lens.js";
 import type * as lib_mcp from "../lib/mcp.js";
 import type * as lib_origins from "../lib/origins.js";
 import type * as lib_plan from "../lib/plan.js";
@@ -36,6 +37,7 @@ import type * as seed from "../seed.js";
 import type * as share from "../share.js";
 import type * as tools_md from "../tools/md.js";
 import type * as understanding from "../understanding.js";
+import type * as usage from "../usage.js";
 import type * as users from "../users.js";
 
 import type {
@@ -63,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/backend": typeof lib_backend;
   "lib/crisis": typeof lib_crisis;
+  "lib/lens": typeof lib_lens;
   "lib/mcp": typeof lib_mcp;
   "lib/origins": typeof lib_origins;
   "lib/plan": typeof lib_plan;
@@ -73,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   share: typeof share;
   "tools/md": typeof tools_md;
   understanding: typeof understanding;
+  usage: typeof usage;
   users: typeof users;
 }>;
 

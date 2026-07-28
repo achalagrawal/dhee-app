@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vitest";
+import { buildSystemPrompt } from "./agents/dhee";
+import { CORPUS_LENS_ALIASES, isCorpusLens } from "./lib/lens";
+import { api, internal } from "./_generated/api";
 import {
-  CORPUS_LENS_ALIASES,
-  buildSystemPrompt,
-  isCorpusLens,
-} from "./agents/dhee";
-import { api } from "./_generated/api";
-import { PAID_TRADITION_LIMIT, traditionLimit } from "./lib/plan";
+  PAID_TRADITION_LIMIT,
+  tooManyTraditions,
+  traditionLimit,
+} from "./lib/plan";
 import { DEFAULT_TRADITION } from "../src/lib/traditions";
 import { asUser, createUser, initTest } from "./test.setup";
 
@@ -202,13 +203,59 @@ describe("users — tradition lens", () => {
     );
   });
 
+  test("one rule decides the cap, so the settings screen can ask it too", () => {
+    // The screen used to hardcode "one lens" and so contradicted the server
+    // twice: it blocked a paid person's second lens, and it blocked the corpus
+    // lens the server deliberately doesn't count.
+    expect(tooManyTraditions(["Stoicism"], "free")).toBe(false);
+    expect(tooManyTraditions(["Stoicism", "Madhyasth Darshan"], "free")).toBe(
+      false,
+    );
+    expect(tooManyTraditions(["Stoicism", "Zen"], "free")).toBe(true);
+    expect(tooManyTraditions(["Stoicism", "Zen"], "unlimited")).toBe(false);
+    expect(tooManyTraditions(["Stoicism", "Zen"], undefined)).toBe(true);
+  });
+
+  test("losing the plan trims the lenses it paid for", async () => {
+    // Otherwise the cap is only a rule about adding, and a revoked plan leaves
+    // someone holding lenses the free plan would never have let them pick.
+    const t = initTest();
+    const email = "trimmed@example.test";
+    const as = asUser(t, await createUser(t, { email }));
+    await t.mutation(internal.users.setPlan, { email, plan: "unlimited" });
+    await as.mutation(api.users.setTraditions, {
+      traditions: ["Stoicism", "Zen", "Madhyasth Darshan", "Taoism"],
+    });
+
+    await t.mutation(internal.users.setPlan, { email, plan: "free" });
+
+    // The first framing lens survives, in the order they chose. The corpus
+    // lens isn't a framing lens and isn't counted, so it stays.
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Stoicism",
+      "Madhyasth Darshan",
+    ]);
+  });
+
+  test("gaining the plan leaves the lenses alone", async () => {
+    const t = initTest();
+    const email = "upgraded@example.test";
+    const as = asUser(t, await createUser(t, { email }));
+    await as.mutation(api.users.setTraditions, { traditions: ["Stoicism"] });
+
+    await t.mutation(internal.users.setPlan, { email, plan: "unlimited" });
+
+    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
+      "Stoicism",
+    ]);
+  });
+
   test("a missing plan is treated as free, not as unlimited", async () => {
-    // Fail closed: the plan field arrives with #7, and until then nobody
-    // should be silently upgraded.
+    // Fail closed: a row written before plans existed must not be silently
+    // upgraded.
     expect(traditionLimit(undefined)).toBe(1);
     expect(traditionLimit("free")).toBe(1);
-    expect(traditionLimit("reflective")).toBe(PAID_TRADITION_LIMIT);
-    expect(traditionLimit("patron")).toBe(PAID_TRADITION_LIMIT);
+    expect(traditionLimit("unlimited")).toBe(PAID_TRADITION_LIMIT);
   });
 });
 

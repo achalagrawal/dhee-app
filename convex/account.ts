@@ -100,6 +100,15 @@ export const purgeUserData = internalMutation({
       for (const row of rows) await ctx.db.delete(row._id);
     }
 
+    // Separately, because its index is `by_user_day` — the sweep above only
+    // sees tables with a plain `by_user`. Reading the compound index on its
+    // first field gives every day this person has.
+    const counters = await ctx.db
+      .query("usage")
+      .withIndex("by_user_day", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of counters) await ctx.db.delete(row._id);
+
     await deleteThreads(ctx, userId);
     return null;
   },

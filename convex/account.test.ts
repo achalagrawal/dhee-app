@@ -135,6 +135,34 @@ describe("account — purgeUserData", () => {
     });
   });
 
+  test("removes the daily usage counters too", async () => {
+    // Keyed by `by_user_day`, not `by_user`, so it is invisible to the generic
+    // sweep — and a counter left behind is a row about someone who asked to be
+    // forgotten.
+    const t = initTest();
+    const user = await createUser(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("usage", {
+        userId: user,
+        day: "2026-07-27",
+        messages: 3,
+      });
+      await ctx.db.insert("usage", {
+        userId: user,
+        day: "2026-07-28",
+        messages: 1,
+      });
+    });
+
+    await t.mutation(internal.account.purgeUserData, { userId: user });
+
+    expect(
+      await t.run(
+        async (ctx) => (await ctx.db.query("usage").collect()).length,
+      ),
+    ).toBe(0);
+  });
+
   test("cancels a queued memory extraction instead of letting it outlive the account", async () => {
     const t = initTest();
     const user = await createUser(t);

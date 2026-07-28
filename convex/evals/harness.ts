@@ -1,7 +1,8 @@
 import type { ProviderMetadata } from "ai";
 import { v } from "convex/values";
 import { internalAction, type ActionCtx } from "../_generated/server";
-import { buildSystemPrompt, dhee, isCorpusLens } from "../agents/dhee";
+import { buildSystemPrompt, dhee } from "../agents/dhee";
+import { isCorpusLens } from "../lib/lens";
 import { replyOptionsFor } from "../chat";
 import { CHAT_MODEL } from "../config";
 import { fingerprint, runChecks, type Check } from "./checks";

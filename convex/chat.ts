@@ -27,12 +27,8 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import {
-  STUDY_STEPS,
-  buildSystemPrompt,
-  dhee,
-  isCorpusLens,
-} from "./agents/dhee";
+import { STUDY_STEPS, buildSystemPrompt, dhee } from "./agents/dhee";
+import { isCorpusLens } from "./lib/lens";
 import { backgroundModel } from "./agents/config";
 import {
   MEMORY_EXTRACTION_IDLE_MS,
@@ -44,6 +40,7 @@ import {
   deleteSharesForUser,
   revokeSharesTouching,
 } from "./share";
+import { spendMessage, usageFor, usageValidator } from "./usage";
 import { requireUserId } from "./users";
 
 // Chat surface. Every entry point is user-scoped: a thread belongs to the
@@ -273,6 +270,13 @@ export const listThreads = query({
   },
 });
 
+// Drives the token bar and the limit-reached card.
+export const usage = query({
+  args: {},
+  returns: usageValidator,
+  handler: async (ctx) => await usageFor(ctx, await requireUserId(ctx)),
+});
+
 export const startThread = mutation({
   args: {},
   returns: v.string(),
@@ -284,15 +288,23 @@ export const startThread = mutation({
 
 export const sendMessage = mutation({
   args: {
-    threadId: v.string(),
+    // Omitted from home, where the first message is what starts the
+    // conversation. Creating the thread here rather than in a separate call
+    // means a refused send rolls the thread back with it, instead of leaving
+    // an empty conversation in someone's history.
+    threadId: v.optional(v.string()),
     prompt: v.string(),
     // Photos from `attachments.attach`, in the order they were picked.
     fileIds: v.optional(v.array(v.string())),
   },
-  returns: v.null(),
-  handler: async (ctx, { threadId, prompt, fileIds = [] }) => {
-    await authorizeThread(ctx, threadId);
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const { prompt, fileIds = [] } = args;
     const userId = await requireUserId(ctx);
+    if (args.threadId) await authorizeThread(ctx, args.threadId);
+    await spendMessage(ctx, userId);
+    const threadId =
+      args.threadId ?? (await createThread(ctx, components.agent, { userId }));
 
     const text = prompt.trim();
     // A photo on its own is a real question — "what is this?" — so text is
@@ -380,7 +392,7 @@ export const sendMessage = mutation({
         threadId,
       });
     }
-    return null;
+    return threadId;
   },
 });
 
@@ -405,6 +417,9 @@ export const incognitoReply = action({
   returns: v.object({ text: v.string(), crisisFlagged: v.boolean() }),
   handler: async (ctx, { messages }) => {
     const userId = await requireUserId(ctx);
+    // Before the model call, not after: an incognito turn costs exactly what a
+    // saved one does, it just can't be attributed to a thread.
+    await ctx.runMutation(internal.usage.spend, { userId });
     const crisisFlagged = messages.some(
       (m) => m.role === "user" && detectsCrisis(m.text),
     );
@@ -581,6 +596,7 @@ export const regenerate = mutation({
       throw new Error("There's no reply to try again yet.");
     }
     await assertNoActiveReply(ctx, threadId, turn.after);
+    await spendMessage(ctx, userId);
 
     await clearMarksFor(ctx, threadId, turn.after);
     await revokeSharesTouching(ctx, threadId, turn.after);
@@ -626,6 +642,7 @@ export const editAndResend = mutation({
 
     const discarded = await messagesFrom(ctx, threadId, target._id);
     await assertNoActiveReply(ctx, threadId, discarded);
+    await spendMessage(ctx, userId);
 
     const marks = await clearMarksFor(ctx, threadId, discarded);
     await revokeSharesTouching(ctx, threadId, discarded);

@@ -11,8 +11,14 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { planForProfile, traditionLimit } from "./lib/plan";
-import { isCorpusLensName } from "./agents/dhee";
+import {
+  keepWithinTraditionLimit,
+  planFor,
+  planValidator,
+  tooManyTraditions,
+  traditionLimit,
+} from "./lib/plan";
+import { clearTodaysUsage } from "./usage";
 
 /** The signed-in person's app-side user id, or null if there is no valid
  *  identity on the request.
@@ -286,7 +292,6 @@ export const setTraditions = mutation({
   returns: v.null(),
   handler: async (ctx, { traditions }) => {
     const userId = await requireUserId(ctx);
-    const profile = await getProfile(ctx, userId);
 
     const cleaned: string[] = [];
     for (const raw of traditions) {
@@ -301,18 +306,11 @@ export const setTraditions = mutation({
     }
 
     // Enforced here, not only in the UI: a client that sends three lenses on a
-    // free plan gets an error rather than three lenses.
-    //
-    // Madhyasth Darshan is not counted. The quota exists because each framing
-    // lens is more text in the system prompt, but the corpus lens is a
-    // capability rather than a framing — it is what opens the books Dhee
-    // actually holds. Counting it meant someone who had already named Stoicism
-    // could not reach study mode at all without giving up the lens they came
-    // with, which made the one tradition that answers "replies feel thin"
-    // the hardest one to switch on.
-    const limit = traditionLimit(planForProfile(profile));
-    const counted = cleaned.filter((t) => !isCorpusLensName(t));
-    if (counted.length > limit) {
+    // free plan gets an error rather than three lenses. The rule itself lives
+    // in lib/plan.ts, so the settings screen can explain exactly this.
+    const plan = planFor(await ctx.db.get(userId));
+    if (tooManyTraditions(cleaned, plan)) {
+      const limit = traditionLimit(plan);
       throw new Error(
         limit === 1
           ? "The free plan includes one tradition lens."
@@ -393,6 +391,40 @@ export const accountSummary = query({
         ? await ctx.storage.getUrl(profile.avatarId)
         : null,
     };
+  },
+});
+
+// The manual fulfillment lever while upgrades are handled by hand:
+// `npx convex run users:setPlan '{"email":"…","plan":"unlimited"}'`.
+// Internal only — there is no client path to changing your own plan.
+export const setPlan = internalMutation({
+  args: { email: v.string(), plan: planValidator },
+  returns: v.null(),
+  handler: async (ctx, { email, plan }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+    if (!user) throw new Error(`No user with email ${email}.`);
+    const had = planFor(user);
+    await ctx.db.patch(user._id, { plan });
+
+    // The free day starts when the free plan does. Only on the change itself —
+    // setting free on someone already free must not refill them.
+    if (had === "unlimited" && plan === "free") {
+      await clearTodaysUsage(ctx, user._id);
+    }
+
+    // A revoked plan takes back what it granted. Without this the cap only
+    // governs adding, and someone downgraded keeps lenses the free plan would
+    // never have let them pick.
+    const profile = await getProfile(ctx, user._id);
+    const traditions = profile?.traditions ?? [];
+    const kept = keepWithinTraditionLimit(traditions, plan);
+    if (profile && kept.length !== traditions.length) {
+      await ctx.db.patch(profile._id, { traditions: kept });
+    }
+    return null;
   },
 });
 

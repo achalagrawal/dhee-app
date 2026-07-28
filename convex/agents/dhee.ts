@@ -2,6 +2,7 @@ import { Agent, stepCountIs } from "@convex-dev/agent";
 import { components } from "../_generated/api";
 import { mdTools } from "../tools/md";
 import { defaultAgentConfig } from "./config";
+import { isCorpusLens } from "../lib/lens";
 
 // The vocabulary the plain-language preference names. Exported and interpolated
 // rather than written inline, because convex/evals/checks.ts has to detect
@@ -126,19 +127,6 @@ export type PromptInputs = {
 // one we hold the books for. Naming it opens study mode — see Decision 2 in
 // docs/build/specs/personalization.md.
 //
-// A list of spellings rather than one string, because `traditions` is free text:
-// the picker offers "Madhyasth Darshan" but people type what they type. A miss
-// fails safe — they get the framing lens and no study mode, which is the
-// behaviour everyone had before this existed.
-export const CORPUS_LENS_ALIASES = [
-  "madhyasth darshan",
-  "madhyastha darshan",
-  "madhyasth-darshan",
-  "मध्यस्थ दर्शन",
-  "jeevan vidya",
-  "जीवन विद्या",
-] as const;
-
 /**
  * Step budget for a study-mode turn. The ordinary path keeps the Agent's 5.
  *
@@ -150,16 +138,6 @@ export const CORPUS_LENS_ALIASES = [
  * changed in passing — but the number to beat is 3, not 12.
  */
 export const STUDY_STEPS = 12;
-
-/** Whether one entry names the corpus, under any of its spellings. */
-export function isCorpusLensName(tradition: string): boolean {
-  const name = tradition.trim().toLowerCase();
-  return CORPUS_LENS_ALIASES.some((alias) => alias === name);
-}
-
-export function isCorpusLens(traditions: string[] | undefined): boolean {
-  return (traditions ?? []).some(isCorpusLensName);
-}
 
 function clean(value: string | undefined): string {
   return (value ?? "").trim();

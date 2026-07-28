@@ -1,4 +1,4 @@
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +14,10 @@ import {
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
+import {
+  FailureCard,
+  failureFrom,
+} from "../../../src/components/chat/FailureCard";
 import { Markdown } from "../../../src/components/chat/Markdown";
 import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
@@ -44,6 +48,11 @@ export default function IncognitoChat() {
   const params = useLocalSearchParams<{ prompt?: string }>();
   const listRef = useRef<FlatList<Msg>>(null);
 
+  // An incognito turn costs the same model call, so it draws on the same
+  // allowance — the exchange just isn't attributed to a thread.
+  const usage = useQuery(api.chat.usage);
+  const outOfMessages = usage?.remaining === 0;
+
   const reply = useAction(api.chat.incognitoReply);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
@@ -68,7 +77,14 @@ export default function IncognitoChat() {
           ...prev,
           { id: `a-${Date.now()}`, role: "assistant", text: result.text },
         ]);
-      } catch {
+      } catch (e) {
+        // A spent allowance is not something Dhee said, so it never becomes a
+        // reply bubble. The card comes from the live usage query below.
+        if (failureFrom(e) === "limit") {
+          setMessages((prev) => prev.slice(0, -1));
+          setDraft(history[history.length - 1]?.text ?? "");
+          return;
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -88,6 +104,12 @@ export default function IncognitoChat() {
     (text: string) => {
       const prompt = text.trim();
       if (!prompt || busy) return;
+      // Keep what they wrote — this includes the prompt handed over from home,
+      // which has no other copy.
+      if (outOfMessages) {
+        setDraft(prompt);
+        return;
+      }
       const userMsg: Msg = {
         id: `u-${Date.now()}`,
         role: "user",
@@ -100,7 +122,7 @@ export default function IncognitoChat() {
         return next;
       });
     },
-    [busy, runTurn],
+    [busy, runTurn, outOfMessages],
   );
 
   // Turning incognito off (via the header toggle or the banner's "Turn off")
@@ -177,6 +199,7 @@ export default function IncognitoChat() {
 
         <View style={styles.dock}>
           <View style={styles.dockInner}>
+            {outOfMessages ? <FailureCard reason="limit" /> : null}
             <Composer
               value={draft}
               onChangeText={setDraft}
@@ -253,6 +276,6 @@ function makeStyles(colors: Colors) {
       paddingBottom: Platform.OS === "ios" ? 8 : 12,
       backgroundColor: colors.bg,
     },
-    dockInner: readableColumn,
+    dockInner: { ...readableColumn, gap: 10 },
   });
 }

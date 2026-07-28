@@ -19,6 +19,11 @@ import {
 import { api } from "../../../convex/_generated/api";
 import { AppShell } from "../../../src/components/AppShell";
 import { DheeAvatar } from "../../../src/components/chat/DheeAvatar";
+import {
+  FailureCard,
+  type FailureReason,
+  failureFrom,
+} from "../../../src/components/chat/FailureCard";
 import { Markdown } from "../../../src/components/chat/Markdown";
 import { ThinkingTrail } from "../../../src/components/chat/ThinkingTrail";
 import { Composer } from "../../../src/components/Composer";
@@ -48,21 +53,12 @@ const FOLLOW_THRESHOLD = 240;
 
 const keyExtractor = (m: UIMessage) => m.key;
 
-type FailureReason = "error" | "rate";
-
 // A failure carries what to retry: the composer draft is empty after a failed
 // regenerate or edit, so re-running `send` would silently do nothing.
 type RetryTarget =
   "send" | "regenerate" | { messageId: string; prompt: string };
 
 type Failure = { reason: FailureReason; retry: RetryTarget } | null;
-
-// Rate limiting arrives as a message, not a code, so this is best-effort.
-// Misreading it costs nothing worse than the generic wording.
-function failureFrom(error: unknown): FailureReason {
-  const text = String(error).toLowerCase();
-  return text.includes("rate") || text.includes("too many") ? "rate" : "error";
-}
 
 export default function Chat() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
@@ -84,6 +80,11 @@ export default function Chat() {
     prompt: string;
   } | null>(null);
   const photos = useAttachments(lang);
+
+  // Known before the send, so an ordinary "out of messages" never has to
+  // travel as a server error. The server still refuses either way.
+  const usage = useQuery(api.chat.usage);
+  const outOfMessages = usage?.remaining === 0;
 
   const sendMessage = useMutation(api.chat.sendMessage);
   const stopGeneration = useMutation(api.chat.stopGeneration);
@@ -209,6 +210,10 @@ export default function Chat() {
     if ((!prompt && fileIds.length === 0) || photos.uploading || !threadId) {
       return;
     }
+    if (outOfMessages) {
+      setFailure({ reason: "limit", retry: "send" });
+      return;
+    }
     setDraft("");
     setFailure(null);
     try {
@@ -221,7 +226,7 @@ export default function Chat() {
       setDraft(prompt);
       setFailure({ reason: failureFrom(e), retry: "send" });
     }
-  }, [draft, threadId, sendMessage, photos]);
+  }, [draft, threadId, sendMessage, photos, outOfMessages]);
 
   const stop = useCallback(async () => {
     if (!threadId) return;
@@ -434,31 +439,16 @@ export default function Chat() {
                   <ThinkingTrail activities={activities} lang={lang} />
                 ) : null}
                 {activeFailure ? (
-                  <View style={styles.errorCard}>
-                    <View style={styles.errorBody}>
-                      <Text style={styles.errorTitle}>
-                        {t(
-                          lang,
-                          activeFailure.reason === "rate"
-                            ? "rateErrorTitle"
-                            : "modelErrorTitle",
-                        )}
-                      </Text>
-                      <Text style={styles.errorText}>
-                        {t(
-                          lang,
-                          activeFailure.reason === "rate"
-                            ? "rateErrorBody"
-                            : "modelErrorBody",
-                        )}
-                      </Text>
-                    </View>
-                    <Pressable onPress={retryFailure} style={styles.retryBtn}>
-                      <Text style={styles.retryText}>
-                        {t(lang, "tryAgain")}
-                      </Text>
-                    </Pressable>
-                  </View>
+                  <FailureCard
+                    reason={activeFailure.reason}
+                    // Retrying a spent allowance can only fail again — the way
+                    // past it is the upgrade request (#10), not this button.
+                    onRetry={
+                      activeFailure.reason === "limit"
+                        ? undefined
+                        : retryFailure
+                    }
+                  />
                 ) : null}
               </>
             }
@@ -899,39 +889,6 @@ function makeStyles(colors: Colors) {
     },
     copyLabel: { color: colors.textFaint, fontSize: 12.5, ...font.regular },
     actionBtn: { padding: 8, borderRadius: 8 },
-    // Error
-    errorCard: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 13,
-      backgroundColor: colors.surface2,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      padding: 14,
-    },
-    errorBody: { flex: 1, gap: 4 },
-    errorTitle: {
-      color: colors.text,
-      fontSize: 14.5,
-      ...font.semibold,
-    },
-    errorText: {
-      color: colors.textSoft,
-      fontSize: 14,
-      lineHeight: 21,
-      ...font.regular,
-    },
-    retryBtn: {
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
-      backgroundColor: colors.surface,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: radius.pill,
-    },
-    retryText: { color: colors.text, fontSize: 13.5, ...font.medium },
     // Scroll to latest
     scrollBtnWrap: {
       position: "absolute",

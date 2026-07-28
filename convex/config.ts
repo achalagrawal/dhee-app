@@ -49,7 +49,7 @@ export const MEMORY_EXTRACTION_IDLE_MS = 3 * 60 * 1000;
 
 // Messages a free account can send per UTC day. The design's demo number;
 // confirm the real one before launch.
-export const FREE_DAILY_MESSAGE_LIMIT = 5;
+export const FREE_DAILY_MESSAGE_LIMIT = 15;
 
 // Where to reach the MD corpus MCP server. Override with the MD_MCP_URL
 // Convex env var if this endpoint moves.

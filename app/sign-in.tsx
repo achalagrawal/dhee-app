@@ -227,13 +227,14 @@ export default function SignIn() {
 // in breathes instead: a swell, a longer settle, and a degree of sway, on a
 // cycle near a resting breath.
 //
-// Calibrated by eye rather than by taste: the first pass moved 5% over 9.6s,
-// which measured as motion but didn't read as any — on a 64px mark that is two
-// pixels, slower than the eye tracks without being told to look. These numbers
-// are roughly twice that, which is the point where you notice it without
-// watching for it, and still nothing like a pulse.
-const INHALE_MS = 3600;
-const EXHALE_MS = 4600;
+// Calibrated by eye rather than by taste, over two passes. 5% across 9.6s
+// measured as motion but did not read as any: two pixels on a 64px mark, slower
+// than the eye follows unless told to look — you had to zoom in to catch it.
+// Doubling that was still under-read. These are roughly triple the original:
+// ten pixels of travel on a six-second cycle, plainly moving from across a
+// desk, and still slow enough that it never reads as a pulse or a spinner.
+const INHALE_MS = 2800;
+const EXHALE_MS = 3600;
 
 function BreathingMark({ size, color }: { size: number; color: string }) {
   const breath = useRef(new Animated.Value(0)).current;
@@ -271,10 +272,10 @@ function BreathingMark({ size, color }: { size: number; color: string }) {
       // notification badge, and a starburst turning a degree against its own
       // rays reads as something settling, not something pinging.
       style={{
-        opacity: over([0.75, 1]),
+        opacity: over([0.65, 1]),
         transform: [
-          { scale: over([1, 1.09]) },
-          { rotate: over(["-2.2deg", "2.2deg"]) },
+          { scale: over([1, 1.16]) },
+          { rotate: over(["-3.5deg", "3.5deg"]) },
         ],
       }}
     >

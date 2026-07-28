@@ -54,14 +54,12 @@ expo-env.d.ts
 # Local Vercel CLI link (project id / OIDC token)
 .vercel
 
-# public/ is what `expo export` copies verbatim into dist/, and most of it is
+# public/ is what `expo export` copies verbatim into dist/, and all of it is
 # generated: the legal pages by `pnpm build:legal` from docs/legal/*.md, the
-# Home Screen icons by `pnpm icons` from the DheeMark geometry. The two files
-# below are written by hand — index.html is the HTML shell Expo fills in for
-# the single-page build, and there is no source they could be derived from.
-public/*
-!public/index.html
-!public/manifest.webmanifest
+# HTML shell and the web manifest by `pnpm build:shell`, the Home Screen icons
+# by `pnpm icons` and the link-preview card by `pnpm og`, both from the
+# DheeMark geometry. Nothing in here is hand-written; the sources are.
+public/
 
 # Saved eval runs and their HTML reports (`pnpm eval`). Every run costs money
 # and captures full model replies, so these are local artefacts, not history.

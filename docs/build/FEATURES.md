@@ -197,11 +197,12 @@ far richer than today's flat screen.
 
 Spec: `specs/sharing.md`. Closes #98 and #65.
 
-| Feature                                | Status | Notes                                                                            |
-| -------------------------------------- | ------ | -------------------------------------------------------------------------------- |
-| Share conversation modal (link + body) | ✅     | `ShareSheet`; header button + ⋯ row. No "share as card" (that's an image export) |
-| Shared/public thread view              | ✅     | `convex/share.ts` (snapshot + revocation) → `app/s/[slug].tsx`, no auth gate     |
-| Per-share link previews (OG tags)      | ⬜     | Out of scope for the above — needs an HTTP route, `output: "single"` can't do it |
+| Feature                                | Status | Notes                                                                                                                                            |
+| -------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Share conversation modal (link + body) | ✅     | `ShareSheet`; header button + ⋯ row. No "share as card" (that's an image export)                                                                 |
+| Shared/public thread view              | ✅     | `convex/share.ts` (snapshot + revocation) → `app/s/[slug].tsx`, no auth gate                                                                     |
+| Site-wide link previews (OG tags)      | ✅     | `scripts/build-shell.mjs` overrides the Expo shell; card art from `pnpm og`                                                                      |
+| Per-share link previews (OG tags)      | ⬜     | The row above gives every `/s/…` the same card. Per-conversation titles need HTML per request — an HTTP route, which `output: "single"` can't do |
 
 ## Epic 16 — Safety
 

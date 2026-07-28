@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      viewport-fit=cover lets env(safe-area-inset-*) resolve to real numbers,
+      which is what react-native-safe-area-context reads on web. Without it a
+      standalone window reports zero insets and the app draws under the notch.
+      No user-scalable=no: pinch-zoom is an accessibility feature, and a
+      standalone window does not rubber-band anyway.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+    />
+    <title>%WEB_TITLE%</title>
+    <meta
+      name="description"
+      content="An AI companion for questions about life. Dhee helps you see your situation from a bigger vantage point than the one you're asking from."
+    />
+
+    <!--
+      Added to the Home Screen, this is what makes Dhee open as an app rather
+      than a page in a browser frame. iOS keys off apple-mobile-web-app-capable
+      (17.4+ reads the manifest's display mode too, older versions do not), and
+      it needs an apple-touch-icon of its own: with no PNG to find it screenshots
+      the page and uses that as the icon. Every path here is absolute because
+      the app is a single-page build — /threads and /s/<slug> are served the same
+      index.html, and a relative icon href would resolve against those.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Dhee" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!--
+      The status bar in a standalone window takes its colour from here, so it
+      follows the system theme the way the app does. The manifest can only carry
+      one theme_color, which is why these live in the markup: `default` above
+      keeps content below the status bar, and this keeps the bar the same paper
+      as the screen under it. Light and dark are `bg` from src/lib/theme.ts.
+    -->
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#fdfaf4"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#16120e"
+    />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* The paper the app is about to paint, so the launch is not a white
+         flash first. The theme has a manual override; this only has the system
+         setting to go on, and is replaced the moment React mounts. */
+      html,
+      body {
+        background-color: #fdfaf4;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background-color: #16120e;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

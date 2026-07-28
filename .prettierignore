@@ -4,6 +4,12 @@ dist/
 .expo/
 .vercel/
 convex/_generated/
+# Convex agent skills, installed by `npx convex ai-files update`. Formatting them
+# starts a tug-of-war: the CLI rewrites `agents/openai.yaml` with a wrapped
+# `short_description`, Prettier collapses it back, and the next install dirties
+# the tree again. Only the convex* dirs are vendored; our own skills stay formatted.
+.agents/skills/convex*/
+.claude/skills/convex*/
 # Local backend state (`convex deployment create local`). Git already ignores it
 # via .convex/.gitignore, but Prettier doesn't read that, so `pnpm format:check`
 # fails for anyone developing against a local deployment.

@@ -1,6 +1,13 @@
-import { useEffect, useId, useRef } from "react";
+import { type ComponentRef, forwardRef, useEffect, useId, useRef } from "react";
 import { Animated, Easing } from "react-native";
-import Svg, { Circle, G, Line, Mask } from "react-native-svg";
+import Svg, {
+  Circle,
+  type CircleProps,
+  G,
+  type GProps,
+  Line,
+  Mask,
+} from "react-native-svg";
 
 // The Dhee mark: forty rays around an open centre. The numbers below are
 // measured off the source artwork (a 440x440 animated PNG), which is why they
@@ -61,8 +68,25 @@ function cut(rays: number, stroke: number) {
 const FULL = cut(40, 10.05);
 const SMALL = cut(20, 15);
 
-const AnimatedG = Animated.createAnimatedComponent(G);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// Animated adds `collapsable={false}` to whatever it wraps — an Android hint
+// that the view must not be flattened away, since the native driver needs
+// something to point at. react-native-svg's web shapes forward props they don't
+// recognise straight to the DOM, so on web it lands on <circle>/<g> as an
+// unknown boolean attribute and React logs an error for each one, which Expo
+// then puts on screen as a dev overlay. Drop it here, where the meaning is
+// clear: these are SVG nodes, not Views, so there is no flattening either way.
+type Collapsable = { collapsable?: boolean };
+
+const SvgCircle = forwardRef<
+  ComponentRef<typeof Circle>,
+  CircleProps & Collapsable
+>(({ collapsable, ...props }, ref) => <Circle ref={ref} {...props} />);
+const SvgG = forwardRef<ComponentRef<typeof G>, GProps & Collapsable>(
+  ({ collapsable, ...props }, ref) => <G ref={ref} {...props} />,
+);
+
+const AnimatedG = Animated.createAnimatedComponent(SvgG);
+const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
 
 export function DheeMark({
   size = 32,

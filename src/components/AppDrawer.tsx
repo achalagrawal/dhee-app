@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { USE_NATIVE_DRIVER } from "../lib/motion";
 import { useShell } from "../lib/shell";
 import { useTheme } from "../lib/ThemeContext";
 import { SidebarContent } from "./SidebarContent";
@@ -35,12 +36,12 @@ export function AppDrawer() {
         Animated.timing(translate, {
           toValue: 0,
           duration: 240,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(scrim, {
           toValue: 1,
           duration: 240,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]).start();
     } else if (mounted) {
@@ -48,12 +49,12 @@ export function AppDrawer() {
         Animated.timing(translate, {
           toValue: -width,
           duration: 220,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(scrim, {
           toValue: 0,
           duration: 220,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]).start(({ finished }) => {
         if (finished) setMounted(false);

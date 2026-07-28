@@ -1,18 +1,15 @@
 // Where a shared conversation lives: <site>/s/<slug>.
 //
-// The canonical site is the same one the legal pages use (see legal.ts), but
+// The canonical site is the same one the legal pages use (see site.ts), but
 // the web build prefers whatever origin it is actually being served from. A
 // Vercel preview answers on a per-branch hostname that `EXPO_PUBLIC_SITE_URL`
 // cannot name, and a link minted there has to open on that deployment rather
 // than on production, where the share row does not exist.
-
-const fallbackSite = (
-  process.env.EXPO_PUBLIC_SITE_URL ?? "https://dhee.app"
-).replace(/\/$/, "");
+import { site } from "./site";
 
 /** Pure half, so the origin rules are testable without a browser. */
 export function shareUrl(slug: string, origin?: string | null): string {
-  const base = (origin ?? fallbackSite).replace(/\/$/, "");
+  const base = (origin ?? site).replace(/\/$/, "");
   return `${base}/s/${slug}`;
 }
 

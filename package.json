@@ -12,6 +12,7 @@
   },
   "main": "expo-router/entry",
   "scripts": {
+    "dev": "node scripts/worktree-dev.mjs",
     "start": "expo start",
     "web": "pnpm build:shell && pnpm icons && expo start --web",
     "ios": "expo start --ios",

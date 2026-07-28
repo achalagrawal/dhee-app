@@ -42,6 +42,12 @@ yarn-error.log*
 !.vscode/settings.json
 !.vscode/extensions.json
 
+# Written per checkout by scripts/worktree-setup.mjs, because the port differs
+# between the main checkout and each worktree. .claude/launch.example.json is
+# the committed reference. worktree-ports.json is which worktree owns which.
+.claude/launch.json
+.claude/worktree-ports.json
+
 # TypeScript
 *.tsbuildinfo
 

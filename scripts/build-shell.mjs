@@ -124,29 +124,54 @@ ${previewTags({
 </html>
 `;
 
-// What Android's install prompt reads, and iOS 17.4+ alongside the meta tags.
-// The icons are cut by scripts/render-icons.mjs; `any maskable` lets a launcher
-// mask them, which is safe because that cut keeps the mark inside the central
-// safe zone. Only one background_color is allowed, so a dark-mode launch
-// flashes light paper before the app paints — the media-scoped theme-colors in
-// the shell above are the part that can follow the system theme.
+// What Android reads to decide the app is installable, and what iOS 17.4+
+// reads alongside the meta tags. Chrome's required set is name (or short_name),
+// icons at 192 and 512, start_url, display, and prefer_related_applications
+// absent or false — over HTTPS. Everything past that is how good the installed
+// app looks rather than whether it installs at all.
+//
+// `id` is fixed separately from `start_url` on purpose: it is the app's
+// identity to the launcher, so pinning it means a later change of landing page
+// updates the installed app instead of registering a second one.
+//
+// Only one background_color is allowed, so a dark-mode launch flashes light
+// paper before the app paints — the media-scoped theme-colors in the shell
+// above are the part that can follow the system theme.
 const manifest = {
   id: "/",
   name: siteMeta.name,
   short_name: siteMeta.name,
   description: siteMeta.description,
+  lang: "en",
+  dir: "ltr",
   start_url: "/",
   scope: "/",
   display: "standalone",
+  // Chrome walks this in order and takes the first mode it supports, so a
+  // browser without standalone lands on minimal-ui rather than falling all the
+  // way back to a normal tab. `display` above stays for readers of the older
+  // field.
+  display_override: ["standalone", "minimal-ui"],
   orientation: "portrait",
   background_color: PAPER,
   theme_color: PAPER,
-  icons: [192, 512].map((size) => ({
-    src: `/icon-${size}.png`,
-    sizes: `${size}x${size}`,
-    type: "image/png",
-    purpose: "any maskable",
-  })),
+  // One entry per purpose, deliberately not one file marked `any maskable`.
+  // See scripts/render-icons.mjs for why that shortcut costs one surface or
+  // the other.
+  icons: [
+    ...[192, 512].map((size) => ({
+      src: `/icon-${size}.png`,
+      sizes: `${size}x${size}`,
+      type: "image/png",
+      purpose: "any",
+    })),
+    ...[192, 512].map((size) => ({
+      src: `/icon-maskable-${size}.png`,
+      sizes: `${size}x${size}`,
+      type: "image/png",
+      purpose: "maskable",
+    })),
+  ],
 };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");

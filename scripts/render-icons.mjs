@@ -1,10 +1,13 @@
 // Renders the Dhee mark into every raster the web build needs:
 //
-//   assets/favicon.png       the source Expo turns into dist/favicon.ico
-//                            (16, 32 and 48px) during `expo export -p web`
-//   public/icon-180.png      apple-touch-icon — the Home Screen icon iOS uses
-//   public/icon-192.png      the web manifest's icons, for Android and for
-//   public/icon-512.png      iOS 17.4+, which reads the manifest too
+//   assets/favicon.png            the source Expo turns into dist/favicon.ico
+//                                 (16, 32, 48px) during `expo export -p web`
+//   public/icon-180.png           apple-touch-icon — what iOS puts on the
+//                                 Home Screen, and the only one it reads
+//   public/icon-{192,512}.png     the manifest's `any` icons: Android's splash
+//                                 and task switcher, which mask nothing
+//   public/icon-maskable-*.png    the manifest's `maskable` icons: the Android
+//                                 launcher, which crops them to its own shape
 //
 // Why a raster at all, when the mark is vectors everywhere else: Expo's
 // favicon step runs the source through @expo/image-utils, which only reads SVG
@@ -55,6 +58,14 @@ const FAVICON = { rays: 20, stroke: 22, margin: 0.02, ground: null };
 // clears both. Opaque, because iOS composites any transparency against black.
 const HOME_SCREEN = { rays: 40, stroke: 10.05, margin: 0.18, ground: PAPER };
 
+// The same mark for the manifest's `any` purpose, cut closer. `any` icons are
+// drawn as they are — the splash screen and the task switcher do no masking —
+// so the safe-zone margin that the maskable cut needs would just render as a
+// small mark adrift in paper. Declaring one file `any maskable`, which is the
+// easy mistake, forces exactly that trade: padded everywhere, or cropped where
+// it is masked. Two cuts cost two files and get both surfaces right.
+const APP_ICON = { rays: 40, stroke: 10.05, margin: 0.08, ground: PAPER };
+
 function render({ size, rays, stroke, margin, ground }) {
   const mark = markCoverage({
     rays,
@@ -102,9 +113,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const OUTPUTS = [
   { path: ["assets", "favicon.png"], size: 512, ...FAVICON },
+  // iOS masks the corners itself and reads only this one.
   { path: ["public", "icon-180.png"], size: 180, ...HOME_SCREEN },
-  { path: ["public", "icon-192.png"], size: 192, ...HOME_SCREEN },
-  { path: ["public", "icon-512.png"], size: 512, ...HOME_SCREEN },
+  // Android reads both, one per manifest purpose. Unprefixed is the plain
+  // icon; the safe-zone cut is the one that says so in its name.
+  { path: ["public", "icon-192.png"], size: 192, ...APP_ICON },
+  { path: ["public", "icon-512.png"], size: 512, ...APP_ICON },
+  { path: ["public", "icon-maskable-192.png"], size: 192, ...HOME_SCREEN },
+  { path: ["public", "icon-maskable-512.png"], size: 512, ...HOME_SCREEN },
 ];
 
 for (const { path, ...cut } of OUTPUTS) {

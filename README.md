@@ -65,12 +65,19 @@ without the cast the plugin array degrades and `authClient` silently loses
 
 ## Adding it to a Home Screen
 
-The web build installs: **Share → Add to Home Screen** on iOS, or the install
-prompt on Android, and Dhee opens in its own window with the mark as its icon
+The web build installs: **Share → Add to Home Screen** on iOS, **⋮ → Install
+app** on Android, and Dhee opens in its own window with the mark as its icon
 and no browser chrome. Worth knowing before you test it there — iOS gives an
 installed web app **its own storage container**, separate from Safari's, so a
 session signed in through the browser does not carry across. Sign in again
 inside the installed app once.
+
+**Android is menu-install only.** Chrome's automatic prompt — the banner it
+raises by itself — additionally wants a service worker with a `fetch` handler,
+and there isn't one here. Installing from the menu has not needed one since
+Chrome 108, so the app installs and runs standalone; nobody is offered it
+unprompted. An empty handler added to buy the prompt would not work either:
+Chrome ignores those precisely because sites used them to game the check.
 
 What makes that work is `public/index.html`, the HTML shell Expo fills in for
 the single-page build, plus `public/manifest.webmanifest` beside it. Neither is
@@ -84,6 +91,10 @@ to lose and neither fails loudly:
   silently ignored.
 - **The `apple-touch-icon` is not optional.** With no PNG to find, iOS
   screenshots the page and makes the icon out of that.
+- **`any` and `maskable` are two cuts, not one file with both purposes.**
+  Android masks the launcher icon and leaves the splash and task switcher
+  alone, so a single file has to be either padded everywhere or cropped where
+  it is masked. `pnpm icons` writes both.
 
 The same shell carries the [link-preview tags](scripts/lib/meta.mjs), for the
 same reason: a crawler runs no JavaScript either.

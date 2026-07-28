@@ -6,8 +6,9 @@ import { useTheme } from "../lib/ThemeContext";
 import { type Colors, font, spacing } from "../lib/theme";
 
 // What someone looks at between handing Google their consent and Convex
-// agreeing they're signed in. It wears the sign-in screen's own wordmark and
-// tagline on purpose: the alternative — the sign-in *form*, or a bare spinner —
+// agreeing they're signed in. It wears the sign-in screen's own mark, wordmark
+// and tagline on purpose: the alternative — the sign-in *form*, or a bare
+// spinner —
 // reads as "that didn't work", which is the whole complaint this answers.
 //
 // Sign-in happens before anyone has picked a language, so this is English-only
@@ -18,12 +19,14 @@ export function SigningIn() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
-        <Text style={styles.wordmark}>{t("en", "appName")}</Text>
-        <Text style={styles.tagline}>{t("en", "tagline")}</Text>
-        <View style={styles.status}>
-          <Loading size={22} />
-          <Text style={styles.label}>{t("en", "signingIn")}</Text>
+        <View style={styles.header}>
+          {/* The sign-in screen's own mark, turning. One mark on the screen, so
+              it does the waiting rather than a second spinner below. */}
+          <Loading size={64} />
+          <Text style={styles.wordmark}>{t("en", "appName")}</Text>
+          <Text style={styles.tagline}>{t("en", "tagline")}</Text>
         </View>
+        <Text style={styles.label}>{t("en", "signingIn")}</Text>
       </View>
     </SafeAreaView>
   );
@@ -40,10 +43,13 @@ function makeStyles(colors: Colors) {
       width: "100%",
       alignSelf: "center",
     },
+    header: { alignItems: "center" },
     wordmark: {
+      marginTop: spacing.md,
       fontSize: 44,
       color: colors.text,
       letterSpacing: 1,
+      textAlign: "center",
       ...font.medium,
     },
     tagline: {
@@ -51,14 +57,15 @@ function makeStyles(colors: Colors) {
       fontSize: 17,
       lineHeight: 25,
       color: colors.textSoft,
+      textAlign: "center",
       ...font.regular,
     },
-    status: {
+    label: {
       marginTop: spacing.xl * 1.5,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
+      fontSize: 15,
+      color: colors.textSoft,
+      textAlign: "center",
+      ...font.regular,
     },
-    label: { fontSize: 15, color: colors.textSoft, ...font.regular },
   });
 }

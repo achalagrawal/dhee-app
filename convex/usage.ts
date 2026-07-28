@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
   type MutationCtx,
@@ -6,7 +6,7 @@ import {
   internalMutation,
 } from "./_generated/server";
 import { FREE_DAILY_MESSAGE_LIMIT } from "./config";
-import { type Plan, planFor, planValidator } from "./lib/plan";
+import { planFor, planValidator } from "./lib/plan";
 
 // The free tier's daily message allowance. Enforced here rather than at each
 // call site so no path that schedules a model call can miss it.
@@ -24,13 +24,7 @@ export const usageValidator = v.object({
   resetsAt: v.number(),
 });
 
-type Usage = {
-  plan: Plan;
-  used: number;
-  limit: number | null;
-  remaining: number | null;
-  resetsAt: number;
-};
+type Usage = Infer<typeof usageValidator>;
 
 async function todayFor(ctx: QueryCtx, userId: Id<"users">) {
   const at = Date.now();
@@ -42,14 +36,19 @@ async function todayFor(ctx: QueryCtx, userId: Id<"users">) {
       .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", day))
       .unique(),
   ]);
-  return { at, day, row, plan: planFor(user) };
+  return {
+    day,
+    row,
+    plan: planFor(user),
+    resetsAt: Math.floor(at / DAY_MS) * DAY_MS + DAY_MS,
+  };
 }
 
 export async function usageFor(
   ctx: QueryCtx,
   userId: Id<"users">,
 ): Promise<Usage> {
-  const { at, row, plan } = await todayFor(ctx, userId);
+  const { row, plan, resetsAt } = await todayFor(ctx, userId);
   const used = row?.messages ?? 0;
   const limit = plan === "unlimited" ? null : FREE_DAILY_MESSAGE_LIMIT;
   return {
@@ -57,7 +56,7 @@ export async function usageFor(
     used,
     limit,
     remaining: limit === null ? null : Math.max(0, limit - used),
-    resetsAt: Math.floor(at / DAY_MS) * DAY_MS + DAY_MS,
+    resetsAt,
   };
 }
 
@@ -69,13 +68,10 @@ export async function spendMessage(
   ctx: MutationCtx,
   userId: Id<"users">,
 ): Promise<void> {
-  const { at, day, row, plan } = await todayFor(ctx, userId);
+  const { day, row, plan, resetsAt } = await todayFor(ctx, userId);
   const used = row?.messages ?? 0;
   if (plan !== "unlimited" && used >= FREE_DAILY_MESSAGE_LIMIT) {
-    throw new ConvexError({
-      code: "LIMIT_REACHED",
-      resetsAt: Math.floor(at / DAY_MS) * DAY_MS + DAY_MS,
-    });
+    throw new ConvexError({ code: "LIMIT_REACHED", resetsAt });
   }
   if (row) {
     await ctx.db.patch(row._id, { messages: used + 1 });

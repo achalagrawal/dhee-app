@@ -309,8 +309,7 @@ export const setTraditions = mutation({
     // free plan gets an error rather than three lenses. The rule itself lives
     // in lib/plan.ts, so the settings screen can explain exactly this.
     const plan = planFor(await ctx.db.get(userId));
-    const previous = (await getProfile(ctx, userId))?.traditions ?? [];
-    if (tooManyTraditions(cleaned, previous, plan)) {
+    if (tooManyTraditions(cleaned, plan)) {
       const limit = traditionLimit(plan);
       throw new Error(
         limit === 1

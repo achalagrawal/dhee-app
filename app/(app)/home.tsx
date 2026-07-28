@@ -40,6 +40,9 @@ export default function Home() {
   const [failed, setFailed] = useState<FailureReason | null>(null);
 
   const outOfMessages = usage?.remaining === 0;
+  // Shown before anyone types, not just after a refused send — knowing the day
+  // is spent is the point of the card.
+  const notice = failed ?? (outOfMessages ? "limit" : null);
 
   const send = async () => {
     const prompt = draft.trim();
@@ -94,11 +97,7 @@ export default function Home() {
             minHeight={48}
           />
 
-          {/* Shown before anyone types, not just after a refused send —
-              knowing the day is spent is the point of the card. */}
-          {(failed ?? (outOfMessages ? "limit" : null)) ? (
-            <FailureCard reason={failed ?? "limit"} />
-          ) : null}
+          {notice ? <FailureCard reason={notice} /> : null}
 
           {incognito ? (
             <View style={styles.incognitoNote}>

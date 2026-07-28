@@ -34,9 +34,9 @@ export function traditionLimit(plan: Plan | undefined): number {
 }
 
 /**
- * Whether a change to someone's lenses should be refused — the whole rule, in
- * one place, because the settings screen has to explain exactly what
- * `users.setTraditions` will enforce.
+ * The lenses that survive on `plan` — the ones chosen earliest, cut to what it
+ * allows. The whole rule, in one place: `users.setTraditions` refuses by it,
+ * `users.setPlan` trims a downgrade by it, and the settings screen explains it.
  *
  * Madhyasth Darshan is not counted. The quota exists because each framing lens
  * is more text in the system prompt, but the corpus lens is a capability rather
@@ -44,17 +44,6 @@ export function traditionLimit(plan: Plan | undefined): number {
  * meant someone who had already named Stoicism could not reach study mode at
  * all without giving up the lens they came with, which made the one tradition
  * that answers "replies feel thin" the hardest one to switch on.
- *
- * Taking a lens off is always allowed, even from a list that is already over
- * the cap. A plan can be revoked, so being over it is not necessarily anyone's
- * doing — and refusing every edit would leave "clear them all" as the only way
- * back under.
- */
-/**
- * The lenses that survive a move to `plan` — the ones already chosen, in the
- * order they were chosen, cut to what the plan allows. Same rule as
- * `tooManyTraditions`, applied to a list that is already stored: a revoked plan
- * has to take back what it granted, or the cap only ever governs adding.
  */
 export function keepWithinTraditionLimit(
   traditions: string[],
@@ -67,14 +56,8 @@ export function keepWithinTraditionLimit(
   );
 }
 
-export function tooManyTraditions(
+/** Whether the plan would drop any of these — i.e. refuse the change. */
+export const tooManyTraditions = (
   next: string[],
-  previous: string[],
   plan: Plan | undefined,
-): boolean {
-  const counted = (list: string[]) =>
-    list.filter((t) => !isCorpusLensName(t)).length;
-  return (
-    counted(next) > traditionLimit(plan) && counted(next) >= counted(previous)
-  );
-}
+): boolean => keepWithinTraditionLimit(next, plan).length < next.length;

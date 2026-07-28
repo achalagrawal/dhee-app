@@ -127,7 +127,7 @@ export default function Settings() {
   const addLens = (raw: string) => {
     const name = raw.trim();
     if (!name || has(name)) return;
-    if (tooManyTraditions([...lenses, name], lenses, usage?.plan)) {
+    if (tooManyTraditions([...lenses, name], usage?.plan)) {
       // The upgrade popup is #10; until it exists, say plainly why rather than
       // failing silently or letting the mutation reject.
       setLensError(true);

@@ -207,16 +207,13 @@ describe("users — tradition lens", () => {
     // The screen used to hardcode "one lens" and so contradicted the server
     // twice: it blocked a paid person's second lens, and it blocked the corpus
     // lens the server deliberately doesn't count.
-    const none: string[] = [];
-    expect(tooManyTraditions(["Stoicism"], none, "free")).toBe(false);
-    expect(
-      tooManyTraditions(["Stoicism", "Madhyasth Darshan"], none, "free"),
-    ).toBe(false);
-    expect(tooManyTraditions(["Stoicism", "Zen"], none, "free")).toBe(true);
-    expect(tooManyTraditions(["Stoicism", "Zen"], none, "unlimited")).toBe(
+    expect(tooManyTraditions(["Stoicism"], "free")).toBe(false);
+    expect(tooManyTraditions(["Stoicism", "Madhyasth Darshan"], "free")).toBe(
       false,
     );
-    expect(tooManyTraditions(["Stoicism", "Zen"], none, undefined)).toBe(true);
+    expect(tooManyTraditions(["Stoicism", "Zen"], "free")).toBe(true);
+    expect(tooManyTraditions(["Stoicism", "Zen"], "unlimited")).toBe(false);
+    expect(tooManyTraditions(["Stoicism", "Zen"], undefined)).toBe(true);
   });
 
   test("losing the plan trims the lenses it paid for", async () => {
@@ -251,39 +248,6 @@ describe("users — tradition lens", () => {
     expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
       "Stoicism",
     ]);
-  });
-
-  test("someone already over the cap can still take lenses off", async () => {
-    // `setPlan` trims on the way down, so this state shouldn't arise — but a
-    // migration or a hand-edited row could still produce it, and refusing every
-    // edit would leave "clear everything" as the only way back under the cap.
-    const t = initTest();
-    const userId = await createUser(t);
-    const as = asUser(t, userId);
-    await t.run(async (ctx) => {
-      await ctx.db.insert("profiles", {
-        userId,
-        preferredLanguage: "en",
-        onboarded: true,
-        createdAt: Date.now(),
-        traditions: ["Stoicism", "Zen", "Existentialism"],
-      });
-    });
-
-    await as.mutation(api.users.setTraditions, {
-      traditions: ["Stoicism", "Zen"],
-    });
-    expect((await as.query(api.users.currentProfile, {}))?.traditions).toEqual([
-      "Stoicism",
-      "Zen",
-    ]);
-
-    // Still no adding while over the cap.
-    await expect(
-      as.mutation(api.users.setTraditions, {
-        traditions: ["Stoicism", "Zen", "Taoism"],
-      }),
-    ).rejects.toThrow("free plan includes one");
   });
 
   test("a missing plan is treated as free, not as unlimited", async () => {

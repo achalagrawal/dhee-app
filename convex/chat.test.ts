@@ -5,6 +5,7 @@ import { api, components } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import { REPLY_CONTEXT_OPTIONS, replyOptionsFor } from "./chat";
+import { DEFAULT_MODEL_TIER } from "./agents/models";
 import {
   asUser,
   attachPhoto,
@@ -1213,6 +1214,42 @@ describe("chat — per-turn model options", () => {
     expect(replyOptionsFor(["Stoicism"])).not.toHaveProperty("stopWhen");
     expect(replyOptionsFor([])).not.toHaveProperty("stopWhen");
     expect(replyOptionsFor(undefined)).not.toHaveProperty("stopWhen");
+  });
+
+  test("the chosen tier is named on every turn, not left to the shared Agent", () => {
+    // One Agent instance serves everyone, so its constructor model is the
+    // default rather than this person's choice. If the per-call `model` ever
+    // went missing, every reply would silently fall back to the default tier
+    // and the picker would look like it worked while changing nothing.
+    for (const stored of ["quick", "reflective", undefined, "nonsense"]) {
+      expect(replyOptionsFor([], stored), String(stored)).toHaveProperty(
+        "model",
+      );
+    }
+  });
+
+  test("the two tiers actually resolve to different models", () => {
+    expect(replyOptionsFor([], "quick").model).not.toBe(
+      replyOptionsFor([], "reflective").model,
+    );
+  });
+
+  test("an unreadable stored preference still answers, on the default tier", () => {
+    // A preference from an older build must cost the preference, not the reply.
+    expect(replyOptionsFor([], "deep").model).toBe(
+      replyOptionsFor([], DEFAULT_MODEL_TIER).model,
+    );
+    expect(replyOptionsFor([], undefined).model).toBe(
+      replyOptionsFor([], DEFAULT_MODEL_TIER).model,
+    );
+  });
+
+  test("the step budget and the tier are independent choices", () => {
+    // Study mode is a lens setting; the tier is a speed setting. Someone on the
+    // corpus lens who picked Quick keeps the raised budget.
+    const quickStudy = replyOptionsFor(["Madhyasth Darshan"], "quick");
+    expect(quickStudy).toHaveProperty("stopWhen");
+    expect(quickStudy.model).toBe(replyOptionsFor([], "quick").model);
   });
 
   test("replies are built on a bounded window that excludes tool traffic", () => {

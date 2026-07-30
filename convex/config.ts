@@ -1,13 +1,23 @@
 // Central knobs for the Dhee agent. Swap models here as they evolve.
 //
-// CHAT_MODEL is an OpenRouter slug (provider/model). Routing through
-// OpenRouter means switching providers — including to open-weight models
-// later — is a one-line change here, with no application code touched.
-// Browse slugs at https://openrouter.ai/models.
+// Model slugs are OpenRouter slugs (provider/model). Routing through OpenRouter
+// means switching providers — including to open-weight models later — is a
+// one-line change, with no application code touched. Browse slugs at
+// https://openrouter.ai/models.
 //
 // Keep this file free of secrets — those live in Convex env vars.
 
-export const CHAT_MODEL = "anthropic/claude-sonnet-5";
+import { MODEL_SLUGS, DEFAULT_MODEL_TIER } from "./agents/models";
+
+/**
+ * The model someone gets without choosing — the `quick` tier.
+ *
+ * Re-exported from the tier registry rather than written out again, so there is
+ * one place a slug lives. This is what `pnpm eval` and `pnpm smoke` measure, so
+ * note that both now report on the *default* tier: to check the other one, run
+ * against it explicitly rather than assuming the last run covered it.
+ */
+export const CHAT_MODEL = MODEL_SLUGS[DEFAULT_MODEL_TIER];
 
 // Background work that nobody reads as a reply — conversation titles and
 // memory extraction. Roughly a third of the chat model's price.

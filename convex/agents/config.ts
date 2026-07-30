@@ -1,7 +1,13 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { Config } from "@convex-dev/agent";
 import { internal } from "../_generated/api";
-import { BACKGROUND_MODEL, CHAT_MODEL } from "../config";
+import { BACKGROUND_MODEL } from "../config";
+import {
+  DEFAULT_MODEL_TIER,
+  MODEL_SLUGS,
+  resolveModelTier,
+  type ModelTier,
+} from "./models";
 import { asUserId, classifyAgentCall, toUsageRecord } from "../usage";
 
 // Models are reached through OpenRouter so the provider can change without
@@ -58,10 +64,40 @@ const shared = { usage: { include: true } } as const;
 // intra-turn one. Note Anthropic only caches a prefix above a minimum length
 // (1,024 tokens on Sonnet 5), so a shorter prompt silently caches nothing
 // rather than erroring — watch `cachedTokens` rather than assuming.
-export const languageModel = openrouter.chat(CHAT_MODEL, {
+// The `reflective` tier. `cache_control` is Anthropic's mechanism and is only
+// set on the model that goes to Anthropic — see the note above.
+export const reflectiveModel = openrouter.chat(MODEL_SLUGS.reflective, {
   ...shared,
   cache_control: { type: "ephemeral" },
 });
+
+// The `quick` tier, and the default. Deliberately no `cache_control`: it is an
+// Anthropic parameter, and this tier does not route there. DeepSeek caches
+// context on its own terms rather than on a breakpoint we set, so there is
+// nothing to mark — and passing the parameter anyway would either be dropped
+// upstream or rejected, both of which are worse than not sending it.
+//
+// The consequence worth knowing: the cost shape of this tier is not the one
+// documented above. Prompt caching is what makes the large system prompt cheap
+// on the reflective tier, and none of that reasoning transfers here. Read the
+// `llmUsage` ledger for what this tier actually costs rather than assuming it
+// is simply cheaper because the per-token price is lower.
+export const quickModel = openrouter.chat(MODEL_SLUGS.quick, shared);
+
+/** The model each tier answers with. */
+export const MODEL_BY_TIER = {
+  quick: quickModel,
+  reflective: reflectiveModel,
+} as const satisfies Record<ModelTier, unknown>;
+
+/** The model for a stored preference, falling back to the default tier. */
+export function languageModelFor(stored: string | undefined) {
+  return MODEL_BY_TIER[resolveModelTier(stored)];
+}
+
+// What the Agent is constructed with, and what every call that doesn't name a
+// model gets. Kept pointing at the default tier so the two cannot drift.
+export const languageModel = MODEL_BY_TIER[DEFAULT_MODEL_TIER];
 
 // Titling and other background work. A third of Sonnet's price, and neither
 // job needs Sonnet's judgement. No `cache_control` here on purpose: Haiku's

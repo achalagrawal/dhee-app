@@ -13,6 +13,7 @@ import {
 } from "./_generated/server";
 import { planForProfile, traditionLimit } from "./lib/plan";
 import { isCorpusLensName } from "./agents/dhee";
+import { resolveModelTier } from "./agents/models";
 
 /** The signed-in person's app-side user id, or null if there is no valid
  *  identity on the request.
@@ -335,6 +336,9 @@ export const personalizationForUser = internalQuery({
     occupation: v.optional(v.string()),
     aboutYou: v.optional(v.string()),
     traditions: v.array(v.string()),
+    // Which tier answers them. Not a prompt input — it picks the model, and is
+    // returned here so a reply needs one profile read rather than two.
+    preferredModel: v.optional(v.string()),
   }),
   handler: async (ctx, { userId }) => {
     const profile = await getProfile(ctx, userId);
@@ -343,6 +347,7 @@ export const personalizationForUser = internalQuery({
       occupation: profile?.occupation,
       aboutYou: profile?.aboutYou,
       traditions: profile?.traditions ?? [],
+      preferredModel: profile?.preferredModel,
     };
   },
 });
@@ -402,6 +407,38 @@ export const setLanguage = mutation({
   handler: async (ctx, { preferredLanguage }) => {
     const userId = await requireUserId(ctx);
     await patchProfile(ctx, userId, { preferredLanguage });
+    return null;
+  },
+});
+
+// Just the model tier, for the composer's picker.
+//
+// Its own query rather than a field on `accountSummary`: the composer is on
+// screen the whole time someone is writing, and `accountSummary` collects three
+// whole tables to count them. Subscribing the composer to that would re-run all
+// of it every time an observation is extracted.
+export const modelPreference = query({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    const profile = await getProfile(ctx, userId);
+    return resolveModelTier(profile?.preferredModel);
+  },
+});
+
+// Which model tier answers this person. Validated as a union at the boundary
+// even though the column is a plain string: what a client may *write* should be
+// exactly the tiers that exist today, while what the database may *hold* has to
+// tolerate a value written by an older build. See the note on the column.
+export const setPreferredModel = mutation({
+  args: {
+    preferredModel: v.union(v.literal("quick"), v.literal("reflective")),
+  },
+  returns: v.null(),
+  handler: async (ctx, { preferredModel }) => {
+    const userId = await requireUserId(ctx);
+    await patchProfile(ctx, userId, { preferredModel });
     return null;
   },
 });

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { callMcpTool } from "./lib/mcp";
+import { capPassages } from "./lib/passages";
 
 // Retrieval layer over the MD corpus MCP server. These are internal-only:
 // the client never touches the corpus directly, it reaches it through the
@@ -41,16 +42,21 @@ export const semanticSearch = internalAction({
   },
   returns: v.string(),
   handler: async (_ctx, { query, topK, page, bookIds }) => {
-    return await callMcpTool("semantic_search", {
-      query,
-      // Six distinct sources. This was briefly raised to compensate for the
-      // server spending slots on repeats of one page; that defect is fixed at
-      // the source, so six again means six.
-      topK: topK ?? 6,
-      rerank: true,
-      ...(page === undefined ? {} : { page }),
-      ...bookIdParam(bookIds),
-    });
+    // Breadth stays; depth is capped. Six distinct sources is what makes a
+    // search worth running, so the count is untouched — `capPassages` shortens
+    // each passage instead, which is the half `readPage` can restore on demand.
+    return capPassages(
+      await callMcpTool("semantic_search", {
+        query,
+        // Six distinct sources. This was briefly raised to compensate for the
+        // server spending slots on repeats of one page; that defect is fixed at
+        // the source, so six again means six.
+        topK: topK ?? 6,
+        rerank: true,
+        ...(page === undefined ? {} : { page }),
+        ...bookIdParam(bookIds),
+      }),
+    );
   },
 });
 
@@ -62,11 +68,15 @@ export const lexicalSearch = internalAction({
   },
   returns: v.string(),
   handler: async (_ctx, { query, page, bookIds }) => {
-    return await callMcpTool("lexical_search_books", {
-      query,
-      page: page ?? 1,
-      ...bookIdParam(bookIds),
-    });
+    // Same treatment as the semantic search: this returns passages too, and its
+    // long tail is the wider of the two.
+    return capPassages(
+      await callMcpTool("lexical_search_books", {
+        query,
+        page: page ?? 1,
+        ...bookIdParam(bookIds),
+      }),
+    );
   },
 });
 

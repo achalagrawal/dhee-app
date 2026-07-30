@@ -1,6 +1,8 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { Config } from "@convex-dev/agent";
+import { internal } from "../_generated/api";
 import { BACKGROUND_MODEL, CHAT_MODEL } from "../config";
+import { asUserId, classifyAgentCall, toUsageRecord } from "../usage";
 
 // Models are reached through OpenRouter so the provider can change without
 // touching application code — including a move to open-weight models later.
@@ -28,13 +30,29 @@ const shared = { usage: { include: true } } as const;
 // Prompt caching. Measured against the live endpoint on a 1,847-token prefix:
 // an uncached turn cost $0.00373, the cache write cost $0.00465 (the expected
 // ~25% premium), and every read after that cost $0.00043 — an 88% saving on
-// the prompt, paid back on the second turn of any thread.
+// the prompt.
 //
-// This is the largest cost lever in the pipeline, because the system prompt is
-// large, stable per person, and re-sent on every single turn. Note Anthropic
-// only caches a prefix above a minimum length (1,024 tokens on Sonnet 5), so
-// a shorter prompt silently caches nothing rather than erroring — watch
-// `cachedTokens` rather than assuming.
+// Correction to what this comment used to claim. It said the write was "paid
+// back on the second turn of any thread". That is only true if the second turn
+// arrives while the cache is still alive: `ephemeral` means a five-minute TTL,
+// so the payback is real inside a single sitting and absent across any longer
+// pause. What the saving actually buys, most of the time, is the tool loop —
+// every step of a multi-step turn re-sends the whole prompt seconds apart, and
+// those reads land inside the window reliably. Cross-turn caching is a bonus
+// that depends entirely on how fast someone is typing.
+//
+// Do not "fix" this by reaching for Anthropic's one-hour TTL. That doubles the
+// write premium (1.25x -> 2x base) on every turn that writes the cache, to
+// rescue only the turns that both follow a gap longer than five minutes and
+// precede one shorter than an hour. Unless conversations are far burstier at
+// that scale than they are here, the extra premium costs more than the rescued
+// reads save. Measure against the `llmUsage` ledger before changing it.
+//
+// The system prompt is still large, stable per person, and re-sent on every
+// single call, so this remains the cheapest lever available — it is simply an
+// intra-turn one. Note Anthropic only caches a prefix above a minimum length
+// (1,024 tokens on Sonnet 5), so a shorter prompt silently caches nothing
+// rather than erroring — watch `cachedTokens` rather than assuming.
 export const languageModel = openrouter.chat(CHAT_MODEL, {
   ...shared,
   cache_control: { type: "ephemeral" },
@@ -56,4 +74,34 @@ export const backgroundModel = openrouter.chat(BACKGROUND_MODEL, shared);
 // non-default ones outright. Steering tone is the system prompt's job.
 export const defaultAgentConfig = {
   languageModel,
+
+  // Every agent call, written to `llmUsage`. Configured here rather than at
+  // each call site because it must not be possible to add a call site and
+  // forget it — the whole reason this exists is that some spend was invisible.
+  //
+  // Wrapped so a failure here can never cost a reply. A dropped accounting row
+  // is a gap in a chart; an exception thrown out of this callback would abort
+  // the generation that was about to answer someone.
+  usageHandler: async (ctx, args) => {
+    try {
+      await ctx.runMutation(internal.usage.record, {
+        ...toUsageRecord({
+          kind: classifyAgentCall({
+            model: args.model,
+            threadId: args.threadId,
+            backgroundModel: BACKGROUND_MODEL,
+          }),
+          model: args.model,
+          provider: args.provider,
+          agentName: args.agentName,
+          usage: args.usage,
+          providerMetadata: args.providerMetadata,
+        }),
+        ...(args.threadId ? { threadId: args.threadId } : {}),
+        ...(asUserId(args.userId) ? { userId: asUserId(args.userId) } : {}),
+      });
+    } catch (error) {
+      console.error("usage ledger write failed", error);
+    }
+  },
 } satisfies Config;

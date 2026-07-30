@@ -48,14 +48,20 @@ import { detectReplyScript, replyScriptInstruction } from "../lib/script";
 // Note these still describe a prompt with no script line appended: the per-turn
 // script assertion is keyed off the message being answered, and a persona has
 // no message. `buildSystemPrompt` with no `replyScript` is what these pin.
+// Re-recorded a fourth time, adding "How to address someone" to the language
+// section: Dhee says आप, never तुम or तू, and uses the verb forms that go with
+// it. Prompted by a real reply that opened "नहीं भाई" and went on to "देखो" and
+// "तुम्हारे" — familiarity nobody offered, on a question about suffering, to a
+// readership much of which is older than that voice. Every length rose by
+// exactly 1,129, so once again the language section is all that moved.
 const PROMPT_FINGERPRINTS: Record<PersonaId, string> = {
-  bare: "6e176364-13292",
-  stoic: "b7f2326b-13961",
-  advaita: "76a94cdf-13968",
-  corpus: "1a38877e-15788",
-  personalized: "5ac490b9-13594",
-  remembered: "cd348e93-14177",
-  full: "40cdee8e-16975",
+  bare: "adff579f-14421",
+  stoic: "a5bbebca-15090",
+  advaita: "d0489f88-15097",
+  corpus: "770e75ed-16917",
+  personalized: "5eeb9b0e-14723",
+  remembered: "29dbb64a-15306",
+  full: "178820db-18104",
 };
 
 // The section separator `buildSystemPrompt` joins with.
@@ -179,6 +185,20 @@ describe("persona prompts — structure", () => {
     const priorReply = probe.priorTurns?.find((t) => t.role === "assistant");
     expect(detectReplyScript(priorReply?.text ?? "")).toBe("devanagari");
     expect(replyScriptInstruction("latin")).toContain("answer in English");
+  });
+
+  test("the base prompt tells Dhee to address people as आप", () => {
+    // A model reaches for तुम in Hindi on its own, and the result reads as
+    // presumption rather than warmth. Pinned in the base prompt rather than
+    // per-turn because it is a standing rule about how Dhee speaks, and pinned
+    // here because the failure is invisible to anyone who doesn't read Hindi.
+    const base = sectionsFor("bare")[0] as string;
+    expect(base).toContain("आप");
+    expect(base).toContain("तुम");
+    expect(base).toMatch(/देखिए/);
+    // Respect is not the same as formality, and the prompt has to say so or it
+    // trades one bad register for another.
+    expect(base).toContain("सौम्य");
   });
 
   test("every term Rule 1 names survives interpolation into the prompt", () => {

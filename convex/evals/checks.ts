@@ -500,20 +500,24 @@ export function runChecks(r: ReplyUnderTest, e: Expectations): Check[] {
   }
 
   const script = scriptOf(r.reply);
-  if (e.script === "hinglish") {
-    // Share rather than `scriptOf`, for the same reason the quoting branch
-    // below uses one: under the corpus lens a Hinglish answer may legitimately
-    // carry a Devanagari line from the source, which drags `scriptOf` to
-    // "mixed" and would fail a reply that is doing exactly what it was asked.
-    // The rule being checked is "the reply is written in Roman letters", not
-    // "no Devanagari character appears anywhere".
-    const latinShare = scriptShare(r.reply).latin;
+
+  // Hinglish output is never wanted, whatever was asked. Someone writing Hindi
+  // in Roman letters gets Hindi in Devanagari back, so a reply that is itself
+  // romanised Hindi is a failure on every case rather than a per-case
+  // expectation — which is why this sits outside the branch below.
+  //
+  // Guarded on the reply being predominantly Roman, so a Devanagari answer that
+  // happens to contain romanised terms isn't caught by the marker list.
+  if (scriptShare(r.reply).latin >= 0.6 && looksHinglish(r.reply)) {
     checks.push({
-      id: "hinglish (heuristic)",
-      ok: latinShare >= 0.6 && looksHinglish(r.reply),
-      detail: `${Math.round(latinShare * 100)}% latin, hinglish markers ${looksHinglish(r.reply) ? "present" : "absent"}`,
+      id: "not hinglish (heuristic)",
+      ok: false,
+      detail:
+        "reply is romanised Hindi; Hinglish questions are answered in Devanagari",
     });
-  } else if (e.verbatimQuote === "allowed" || e.verbatimQuote === "required") {
+  }
+
+  if (e.verbatimQuote === "allowed" || e.verbatimQuote === "required") {
     // Study mode is told to "give the original line and then say what it means"
     // — so a correct answer to an English question is English prose carrying a
     // Devanagari quote, which `scriptOf` rightly calls mixed. Here the rule is

@@ -12,7 +12,11 @@ describe("detectReplyScript", () => {
     );
   });
 
-  it("reads romanised Hindi as Roman — the case this exists for", () => {
+  it("reads romanised Hindi as Roman script, which is all this decides", () => {
+    // Detection is of script, not language. What a Roman-script message gets
+    // back — English for English, Devanagari for Hinglish — is settled by the
+    // instruction, because telling those two apart from two words of romanised
+    // Hindi is not something a marker list can do reliably.
     expect(detectReplyScript("manav ki upyogita kisme hai")).toBe("latin");
     expect(detectReplyScript("putri ke sath sambandh kaise theek karien")).toBe(
       "latin",
@@ -66,10 +70,29 @@ describe("detectReplyScript", () => {
 });
 
 describe("replyScriptInstruction", () => {
-  it("names the Hinglish failure explicitly for Roman script", () => {
+  it("splits Roman script into its two languages rather than treating it as one", () => {
+    // The bug this exists for: English and Hinglish are the same script, so an
+    // instruction about *script* alone says the same thing for both. It has to
+    // name each language and what each gets back.
     const line = replyScriptInstruction("latin");
-    expect(line).toContain("Roman letters");
-    expect(line).toContain("Do not answer in Devanagari");
+    expect(line).toContain("English");
+    expect(line).toContain("Hinglish");
+    expect(line).toContain("Devanagari");
+  });
+
+  it("sends romanised Hindi back as Devanagari, not as Hinglish", () => {
+    const line = replyScriptInstruction("latin");
+    expect(line).toMatch(/Hindi in \*\*Devanagari\*\*|Hindi in Devanagari/);
+    expect(line).toContain("Do not answer in romanised Hindi");
+  });
+
+  it("tells it to judge from this message, not from its own last reply", () => {
+    // Without this, one Hinglish turn pins the rest of the thread: the model
+    // matches its own previous answer and a later English question still comes
+    // back in Hindi. This is the sentence that breaks that loop.
+    const line = replyScriptInstruction("latin");
+    expect(line).toContain("not from what you said last turn");
+    expect(line).toContain("answer in English");
   });
 
   it("tells other scripts not to be romanised", () => {
@@ -78,5 +101,17 @@ describe("replyScriptInstruction", () => {
     for (const script of ["devanagari", "gujarati", "tamil"] as const) {
       expect(replyScriptInstruction(script)).toContain("romanising");
     }
+  });
+
+  it("gives an English turn and a Hinglish turn the same instruction", () => {
+    // Both are Latin script, so they must be — which is exactly why the
+    // instruction has to carry the language rule rather than a script rule.
+    // A detector that tried to tell them apart would fail on "manav lakshya":
+    // two romanised Hindi words with no function words to match on.
+    expect(detectReplyScript("what is the human goal")).toBe("latin");
+    expect(detectReplyScript("manav lakshya")).toBe("latin");
+    expect(replyScriptInstruction("latin")).toBe(
+      replyScriptInstruction(detectReplyScript("manav lakshya")!),
+    );
   });
 });

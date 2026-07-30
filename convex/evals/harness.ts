@@ -2,6 +2,7 @@ import type { ProviderMetadata } from "ai";
 import { v } from "convex/values";
 import { internalAction, type ActionCtx } from "../_generated/server";
 import { buildSystemPrompt, dhee, isCorpusLens } from "../agents/dhee";
+import { detectReplyScript } from "../lib/script";
 import { replyOptionsFor } from "../chat";
 import { CHAT_MODEL } from "../config";
 import { fingerprint, runChecks, type Check } from "./checks";
@@ -142,8 +143,19 @@ async function runOnce(
 ): Promise<EvalResult> {
   const persona = PERSONAS[evalCase.persona];
   const probe = PROBES[evalCase.probe];
-  const system = buildSystemPrompt(persona.inputs);
   const traditions = persona.inputs.traditions ?? [];
+
+  // The same prompt a real turn gets, including the per-turn script line that
+  // `streamReply` appends. Without this the suite would be measuring a prompt
+  // nobody receives — and it would measure it precisely where the difference
+  // matters, since the language rule's whole mechanism is that instruction
+  // being restated after the conversation history rather than only sitting in
+  // the base prompt.
+  const replyScript = detectReplyScript(probe.text);
+  const system = buildSystemPrompt({
+    ...persona.inputs,
+    ...(replyScript ? { replyScript } : {}),
+  });
 
   const base: EvalResult = {
     caseId: evalCase.id,

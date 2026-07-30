@@ -1,8 +1,10 @@
 import { describe, expect, test } from "vitest";
 import {
   citationsIn,
+  familiarAddressIn,
   fingerprint,
   looksHinglish,
+  usesFamiliarAddress,
   recitesMemory,
   referencesThePast,
   runChecks,
@@ -60,6 +62,51 @@ describe("looksHinglish", () => {
         "Nothing is wrong with you. What you are describing happens to almost everyone who reaches something they have been running toward.",
       ),
     ).toBe(false);
+  });
+});
+
+describe("familiarAddressIn", () => {
+  test("catches the register that prompted this check", () => {
+    // Taken from a real reply. Every one of these is the model reaching for a
+    // familiarity the person never offered.
+    const reply =
+      "नहीं भाई, दुनिया दुख नहीं देती। देखो, मानव व्यवहार दर्शन में स्पष्ट कहा गया है। तो तुम्हारे सवाल का जवाब यह है।";
+    const found = familiarAddressIn(reply);
+    expect(found).toContain("देखो");
+    expect(found).toContain("तुम्हारे");
+    expect(usesFamiliarAddress(reply)).toBe(true);
+  });
+
+  test("passes the same thought written respectfully", () => {
+    const reply =
+      "नहीं, दुनिया दुख नहीं देती। देखिए, मानव व्यवहार दर्शन में स्पष्ट कहा गया है। तो आपके सवाल का जवाब यह है।";
+    expect(familiarAddressIn(reply)).toEqual([]);
+    expect(usesFamiliarAddress(reply)).toBe(false);
+  });
+
+  test("catches तू forms too", () => {
+    expect(usesFamiliarAddress("तेरा प्रश्न सही है")).toBe(true);
+    expect(usesFamiliarAddress("तुझे यह समझना होगा")).toBe(true);
+  });
+
+  test("does not fire on an honest answer about siblings", () => {
+    // भाई is deliberately not in the list: it is the clearest tell in a
+    // greeting, and also half of भाई-बहन, which the prompt names as one of the
+    // relationships people bring. Matching it would fail a correct reply.
+    expect(
+      usesFamiliarAddress("भाई-बहन का संबंध पहले से है, उसे पहचानना है।"),
+    ).toBe(false);
+  });
+
+  test("does not fire on Devanagari words that merely contain a form", () => {
+    // No word boundary exists for `\b` to find in Devanagari, so the guards
+    // are explicit — and this is what proves they work.
+    expect(usesFamiliarAddress("यह वस्तु सोचोपरांतिक नहीं है")).toBe(false);
+    expect(usesFamiliarAddress("करोड़ों लोग")).toBe(false);
+  });
+
+  test("says nothing about an English reply", () => {
+    expect(usesFamiliarAddress("You might look at it this way.")).toBe(false);
   });
 });
 

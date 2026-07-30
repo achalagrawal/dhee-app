@@ -44,17 +44,17 @@ keys are pure UI plumbing (`route`, `screen`, `draft`, `activeId`, `threads`,
 
 ## Epic 2 — Composer
 
-| Feature                                                          | Status | Where                        | Notes                                                                                                                                             |
-| ---------------------------------------------------------------- | ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Text send                                                        | ✅     | `chat.sendMessage`           |                                                                                                                                                   |
-| Enter sends / Shift+Enter newline                                | ✅     | `lib/keyboard.ts`            | Keyboard devices only; IME-safe; spec: [`specs/enter-to-send.md`](./specs/enter-to-send.md)                                                       |
-| Attachments (files/photos) + drag-drop                           | 🟡     | `Composer`, `useAttachments` | Photos work end to end ([spec](./specs/photo-attachments.md)). Still stubbed: documents (IMG only today), drag-drop (`state.dragOver`), incognito |
-| Model picker: **Dhee Quick / Reflective (default) / Deep (pro)** | 🟡     | Composer stub                | `state.model` + `fastAnswers/higherIntel` quick-toggles; see `MODELS` (Deep is plan-gated)                                                        |
-| Web search toggle                                                | 🟡     | Composer stub                | `state.webSearchOn` (distinct from `md.ts`)                                                                                                       |
-| Dictation (mic)                                                  | ⬜     | —                            | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                                                                                |
-| Voice mode                                                       | ⬜     | —                            | `state.speakingId`; button hidden until Epic 12 (#97)                                                                                             |
-| Typeahead suggestions                                            | ⬜     | —                            |                                                                                                                                                   |
-| Token bar / limit-reached card                                   | ⬜     | —                            | Needs billing (Epic 14)                                                                                                                           |
+| Feature                                             | Status | Where                          | Notes                                                                                                                                                      |
+| --------------------------------------------------- | ------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text send                                           | ✅     | `chat.sendMessage`             |                                                                                                                                                            |
+| Enter sends / Shift+Enter newline                   | ✅     | `lib/keyboard.ts`              | Keyboard devices only; IME-safe; spec: [`specs/enter-to-send.md`](./specs/enter-to-send.md)                                                                |
+| Attachments (files/photos) + drag-drop              | 🟡     | `Composer`, `useAttachments`   | Photos work end to end ([spec](./specs/photo-attachments.md)). Still stubbed: documents (IMG only today), drag-drop (`state.dragOver`), incognito          |
+| Model picker: **Dhee Quick (default) / Reflective** | ✅     | `Composer`, `agents/models.ts` | Two tiers wired end to end; Quick is the default. `Deep` deliberately unclaimed for the paid tier (Epic 14). `fastAnswers/higherIntel` toggles still stubs |
+| Web search toggle                                   | 🟡     | Composer stub                  | `state.webSearchOn` (distinct from `md.ts`)                                                                                                                |
+| Dictation (mic)                                     | ⬜     | —                              | `state.dictating/dictationPref`; button hidden until Epic 12 (#97)                                                                                         |
+| Voice mode                                          | ⬜     | —                              | `state.speakingId`; button hidden until Epic 12 (#97)                                                                                                      |
+| Typeahead suggestions                               | ⬜     | —                              |                                                                                                                                                            |
+| Token bar / limit-reached card                      | ⬜     | —                              | Needs billing (Epic 14)                                                                                                                                    |
 
 ## Epic 3 — Chat & messages
 
@@ -178,10 +178,10 @@ far richer than today's flat screen.
 
 ## Epic 13 — Model selection & web search
 
-| Feature                       | Status | Notes                                       |
-| ----------------------------- | ------ | ------------------------------------------- |
-| Model registry + picker wired | ⬜     | Fast / Balanced / Higher intelligence tiers |
-| Web search tool               | ⬜     | Distinct from MD corpus search (`md.ts`)    |
+| Feature                       | Status | Notes                                                                                                                                                          |
+| ----------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Model registry + picker wired | ✅     | `convex/agents/models.ts` — two tiers, per-person preference on `profiles.preferredModel`, resolved per turn in `replyOptionsFor`. Third tier waits on billing |
+| Web search tool               | ⬜     | Distinct from MD corpus search (`md.ts`)                                                                                                                       |
 
 ## Epic 14 — Billing / plans
 

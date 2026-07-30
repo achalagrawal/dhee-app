@@ -70,6 +70,17 @@ export default defineSchema({
     // comma-joined string because the free/paid distinction is a *count*, and
     // a string would make counting a parsing problem.
     traditions: v.optional(v.array(v.string())),
+
+    // Which model tier answers them — see convex/agents/models.ts.
+    //
+    // A plain string rather than a union of the tier names on purpose. A tier
+    // that is renamed or retired would otherwise make every profile holding the
+    // old value fail validation on read, and someone's stored preference is not
+    // worth an unreadable profile. `resolveModelTier` narrows it on the way out
+    // and falls back to the default, so an unknown value costs the preference
+    // and nothing else. Absent means the default, which is what everyone had
+    // before this existed.
+    preferredModel: v.optional(v.string()),
   }).index("by_user", ["userId"]),
 
   // The life questions a person is sitting with — the heart of the product.

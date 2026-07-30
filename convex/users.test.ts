@@ -4,7 +4,8 @@ import {
   buildSystemPrompt,
   isCorpusLens,
 } from "./agents/dhee";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import { DEFAULT_MODEL_TIER } from "./agents/models";
 import { PAID_TRADITION_LIMIT, traditionLimit } from "./lib/plan";
 import { DEFAULT_TRADITION } from "../src/lib/traditions";
 import { asUser, createUser, initTest } from "./test.setup";
@@ -77,6 +78,68 @@ describe("users — personalization fields", () => {
     expect((await as.query(api.users.currentProfile, {}))?.nickname).toBe(
       "Kabir",
     );
+  });
+});
+
+describe("users — model tier", () => {
+  test("everyone starts on the default tier without having chosen", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+    expect(await as.query(api.users.modelPreference, {})).toBe(
+      DEFAULT_MODEL_TIER,
+    );
+  });
+
+  test("a choice round-trips and reaches the reply path", async () => {
+    const t = initTest();
+    const userId = await createUser(t);
+    const as = asUser(t, userId);
+
+    await as.mutation(api.users.setPreferredModel, {
+      preferredModel: "reflective",
+    });
+
+    expect(await as.query(api.users.modelPreference, {})).toBe("reflective");
+    // The picker is only real if the reply path reads the same value. This is
+    // the seam where a working-looking picker could change nothing at all.
+    const forReply = await t.query(internal.users.personalizationForUser, {
+      userId,
+    });
+    expect(forReply.preferredModel).toBe("reflective");
+  });
+
+  test("switching back is possible", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+    await as.mutation(api.users.setPreferredModel, {
+      preferredModel: "reflective",
+    });
+    await as.mutation(api.users.setPreferredModel, { preferredModel: "quick" });
+    expect(await as.query(api.users.modelPreference, {})).toBe("quick");
+  });
+
+  test("a tier written by an older build reads as the default", async () => {
+    // The column is a plain string precisely so this cannot make a profile
+    // unreadable. What it costs is the preference, never the reply.
+    const t = initTest();
+    const userId = await createUser(t);
+    const as = asUser(t, userId);
+    await as.mutation(api.users.setPreferredModel, { preferredModel: "quick" });
+    await t.run(async (ctx) => {
+      const profile = await ctx.db
+        .query("profiles")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .unique();
+      await ctx.db.patch(profile!._id, { preferredModel: "deep" });
+    });
+    expect(await as.query(api.users.modelPreference, {})).toBe(
+      DEFAULT_MODEL_TIER,
+    );
+  });
+
+  test("signing out means no tier to read", async () => {
+    const t = initTest();
+    await expect(t.query(api.users.modelPreference, {})).rejects.toThrow();
   });
 });
 

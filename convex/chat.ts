@@ -33,7 +33,7 @@ import {
   dhee,
   isCorpusLens,
 } from "./agents/dhee";
-import { backgroundModel } from "./agents/config";
+import { backgroundModel, languageModelFor } from "./agents/config";
 import {
   MEMORY_EXTRACTION_IDLE_MS,
   MEMORY_EXTRACTION_INTERVAL_TURNS,
@@ -56,13 +56,17 @@ import { requireUserId } from "./users";
 //
 // Loop conventions are written down once in docs/build/specs/chat-loop.md.
 
-// What the prompt builder needs about a person, as `users.personalizationForUser`
-// returns it. Deliberately narrower than `PromptInputs`: no `contextBlock`.
+// What a reply needs about a person, as `users.personalizationForUser` returns
+// it. Deliberately narrower than `PromptInputs`: no `contextBlock`.
+//
+// `preferredModel` is in here but is not a prompt input — it selects the model,
+// and rides along so generating a reply costs one profile read rather than two.
 type Personalization = {
   nickname?: string;
   occupation?: string;
   aboutYou?: string;
   traditions: string[];
+  preferredModel?: string;
 };
 
 const STOP_REASON = "Stopped by the person.";
@@ -439,7 +443,10 @@ export const incognitoReply = action({
         }),
         messages: messages.map((m) => ({ role: m.role, content: m.text })),
         // Study mode is a setting, and settings apply in incognito.
-        ...replyOptionsFor(personalization.traditions),
+        ...replyOptionsFor(
+          personalization.traditions,
+          personalization.preferredModel,
+        ),
       },
       {
         // Persist nothing, and pull in no prior context — a userId is required
@@ -479,8 +486,15 @@ export const REPLY_CONTEXT_OPTIONS = {
  * — the spec asks for this to be checked on the arguments rather than by
  * running the model.
  */
-export function replyOptionsFor(traditions: string[] | undefined) {
+export function replyOptionsFor(
+  traditions: string[] | undefined,
+  preferredModel?: string,
+) {
   return {
+    // The tier this person chose. Named per call rather than left to the
+    // Agent's constructor default, because the choice is per person and the
+    // Agent is one shared instance.
+    model: languageModelFor(preferredModel),
     // A study question spends steps before it can answer: find the book,
     // read the page, look up the terms it turns on. The Agent's own budget is
     // sized for "search, look up a term, maybe read a page, reply", and a
@@ -517,7 +531,10 @@ export const streamReply = internalAction({
             ...personalization,
             ...(replyScript ? { replyScript } : {}),
           }),
-          ...replyOptionsFor(personalization.traditions),
+          ...replyOptionsFor(
+            personalization.traditions,
+            personalization.preferredModel,
+          ),
         },
         {
           saveStreamDeltas: { chunking: "word", throttleMs: 100 },

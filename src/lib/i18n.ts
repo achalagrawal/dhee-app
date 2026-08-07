@@ -115,6 +115,11 @@ const strings = {
     modeEveryday: "Something small",
     comingSoon: "Coming soon",
     chooseModel: "Choose model",
+    // Model tiers. Names stay abstract; the descriptions carry the trade.
+    modelQuickName: "Dhee Quick",
+    modelQuickDesc: "Fast answers for your quick questions.",
+    modelReflectiveName: "Dhee Reflective",
+    modelReflectiveDesc: "Takes longer, sees further.",
     voiceMode: "Voice mode",
     dictate: "Dictate",
     addFiles: "Add files, photos, web search",
@@ -359,6 +364,12 @@ const strings = {
     modeEveryday: "कुछ छोटा सा",
     comingSoon: "जल्द आ रहा है",
     chooseModel: "मॉडल चुनें",
+    // Names stay in Roman script — they read as product names, the way "Dhee"
+    // itself does — while the descriptions are written in Hindi.
+    modelQuickName: "Dhee Quick",
+    modelQuickDesc: "छोटे सवालों के तेज़ जवाब।",
+    modelReflectiveName: "Dhee Reflective",
+    modelReflectiveDesc: "समय लेता है, दूर तक देखता है।",
     voiceMode: "वॉइस मोड",
     dictate: "बोलकर लिखें",
     addFiles: "फ़ाइल, फ़ोटो, वेब खोज जोड़ें",

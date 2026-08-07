@@ -68,18 +68,31 @@ your contacts, your location, or your browsing outside Dhee.
 Dhee is not a closed box. Answering you means sending your words to other
 services. Here is all of it:
 
-| What                                                                                         | Goes to                                                                                                | Why                                                                  |
-| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| Your messages, conversation history, profile, and everything Dhee has learned about you      | **Convex** — our application database and file storage                                                 | Storing and serving the app                                          |
-| The text of your messages, and the plain-language summary of what Dhee understands about you | **OpenRouter**, which routes it to the model that writes Dhee's replies (currently Anthropic's Claude) | Generating each reply                                                |
-| A short search query derived from what you asked                                             | The **corpus service at `md-mcp.achal.xyz`**                                                           | Looking up perspective from the source texts Dhee is grounded in     |
-| Recent messages from a conversation                                                          | The same model provider, in a separate background request                                              | Working out what to remember about you, and titling the conversation |
-| Your email address, and a six-digit code                                                     | **Amazon SES**                                                                                         | Sending your sign-in code                                            |
-| Your Google account details, if you use Google sign-in                                       | **Google**                                                                                             | Signing you in                                                       |
-| The web app itself                                                                           | **Vercel**                                                                                             | Hosting the website and app bundle                                   |
+| What                                                                                         | Goes to                                                                                                                        | Why                                                                  |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Your messages, conversation history, profile, and everything Dhee has learned about you      | **Convex** — our application database and file storage                                                                         | Storing and serving the app                                          |
+| The text of your messages, and the plain-language summary of what Dhee understands about you | **OpenRouter**, which routes it to the model that writes Dhee's replies (currently DeepSeek or Anthropic's Claude — see below) | Generating each reply                                                |
+| A short search query derived from what you asked                                             | The **corpus service at `md-mcp.achal.xyz`**                                                                                   | Looking up perspective from the source texts Dhee is grounded in     |
+| Recent messages from a conversation                                                          | The same model provider, in a separate background request                                                                      | Working out what to remember about you, and titling the conversation |
+| Your email address, and a six-digit code                                                     | **Amazon SES**                                                                                                                 | Sending your sign-in code                                            |
+| Your Google account details, if you use Google sign-in                                       | **Google**                                                                                                                     | Signing you in                                                       |
+| The web app itself                                                                           | **Vercel**                                                                                                                     | Hosting the website and app bundle                                   |
+
+**Which model, and where it runs.** Dhee offers two settings, and the one you
+pick decides which company's model reads your message. **Dhee Reflective**, the
+default, uses **Claude**, from Anthropic, an American company. **Dhee Quick**
+uses a model from **DeepSeek**, a Chinese one. You can switch between them at
+any time from the message box, and the choice applies to everything you send
+afterwards. Background work — working out what to remember about you, and
+titling a conversation — always goes to Anthropic, whichever setting you are on.
+
+We say this plainly because "an AI model" is not a meaningful disclosure: these
+are different companies, under different governments, with different rules about
+what they may be compelled to hand over. If that distinction matters to you, the
+setting is yours to make.
 
 We do not attach your name, email address, or account identifier to the
-requests we send to the model provider or to the corpus service. What those
+requests we send to either model provider or to the corpus service. What those
 requests do contain is the text you wrote — so if you type your own name or
 someone else's into a message, it goes with it.
 

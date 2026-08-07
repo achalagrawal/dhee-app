@@ -39,20 +39,25 @@ const shared = { usage: { include: true } } as const;
 // the prompt.
 //
 // Correction to what this comment used to claim. It said the write was "paid
-// back on the second turn of any thread". That is only true if the second turn
-// arrives while the cache is still alive: `ephemeral` means a five-minute TTL,
-// so the payback is real inside a single sitting and absent across any longer
-// pause. What the saving actually buys, most of the time, is the tool loop —
-// every step of a multi-step turn re-sends the whole prompt seconds apart, and
-// those reads land inside the window reliably. Cross-turn caching is a bonus
-// that depends entirely on how fast someone is typing.
+// back on the second turn of any thread". In production it almost never is —
+// and not because of the five-minute TTL. Measured on the 2026-08-07 snapshot:
+// 87% of turn-opening calls read zero cached tokens, including most follow-up
+// turns sent well inside the TTL, while mid-turn steps hit 98% of the time.
+// The cause is structural. A turn's steps each extend the previous request, so
+// every step reads the one before it. The *next* turn rebuilds history with
+// `excludeToolMessages: true` (see REPLY_CONTEXT_OPTIONS in convex/chat.ts),
+// so after any turn that used tools — most of them — its prompt is no longer
+// an extension of anything this directive cached, and it misses from token
+// zero. What the saving reliably buys today is the tool loop within a turn.
 //
-// Do not "fix" this by reaching for Anthropic's one-hour TTL. That doubles the
-// write premium (1.25x -> 2x base) on every turn that writes the cache, to
-// rescue only the turns that both follow a gap longer than five minutes and
-// precede one shorter than an hour. Unless conversations are far burstier at
-// that scale than they are here, the extra premium costs more than the rescued
-// reads save. Measure against the `llmUsage` ledger before changing it.
+// The fix, when it lands, is an explicit `cache_control` breakpoint on the
+// system message: that prefix (instructions + context block, the largest and
+// most stable part of every prompt) survives both the tool-message exclusion
+// and the sliding history window. Until then, do not "fix" the miss rate by
+// reaching for Anthropic's one-hour TTL — a longer-lived cache entry that the
+// next turn's prompt cannot match is the same miss at double the write premium
+// (1.25x -> 2x base). Re-run that math against the `llmUsage` ledger after the
+// breakpoint change, not before.
 //
 // The system prompt is still large, stable per person, and re-sent on every
 // single call, so this remains the cheapest lever available — it is simply an

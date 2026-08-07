@@ -1,4 +1,5 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { wrapLanguageModel, type LanguageModelMiddleware } from "ai";
 import type { Config } from "@convex-dev/agent";
 import { internal } from "../_generated/api";
 import { BACKGROUND_MODEL } from "../config";
@@ -33,52 +34,83 @@ const openrouter = createOpenRouter({
 // no way to tell whether caching is working.
 const shared = { usage: { include: true } } as const;
 
-// Prompt caching. Measured against the live endpoint on a 1,847-token prefix:
-// an uncached turn cost $0.00373, the cache write cost $0.00465 (the expected
-// ~25% premium), and every read after that cost $0.00043 — an 88% saving on
-// the prompt.
+// Prompt caching, in two directives that cover different misses. Measured
+// against the live endpoint on a 1,847-token prefix: an uncached turn cost
+// $0.00373, the cache write cost $0.00465 (the expected ~25% premium), and
+// every read after that cost $0.00043 — an 88% saving on the prompt.
 //
-// Correction to what this comment used to claim. It said the write was "paid
-// back on the second turn of any thread". In production it almost never is —
-// and not because of the five-minute TTL. Measured on the 2026-08-07 snapshot:
-// 87% of turn-opening calls read zero cached tokens, including most follow-up
-// turns sent well inside the TTL, while mid-turn steps hit 98% of the time.
-// The cause is structural. A turn's steps each extend the previous request, so
-// every step reads the one before it. The *next* turn rebuilds history with
-// `excludeToolMessages: true` (see REPLY_CONTEXT_OPTIONS in convex/chat.ts),
-// so after any turn that used tools — most of them — its prompt is no longer
-// an extension of anything this directive cached, and it misses from token
-// zero. What the saving reliably buys today is the tool loop within a turn.
+// The top-level `cache_control` in the model settings is OpenRouter's
+// automatic caching. Within a turn every step extends the previous request
+// exactly, so the tool loop reads it reliably — mid-turn steps hit 98% on the
+// 2026-08-07 prod snapshot. It was also all the caching there was, and it is
+// why turn *openings* missed 87% of the time, even inside the TTL: the next
+// turn rebuilds history with `excludeToolMessages: true` (REPLY_CONTEXT_OPTIONS
+// in convex/chat.ts), so after any turn that used tools — most of them — its
+// prompt no longer extends anything the automatic mode cached, and it missed
+// from token zero.
 //
-// The fix, when it lands, is an explicit `cache_control` breakpoint on the
-// system message: that prefix (instructions + context block, the largest and
-// most stable part of every prompt) survives both the tool-message exclusion
-// and the sliding history window. Until then, do not "fix" the miss rate by
-// reaching for Anthropic's one-hour TTL — a longer-lived cache entry that the
-// next turn's prompt cannot match is the same miss at double the write premium
-// (1.25x -> 2x base). Re-run that math against the `llmUsage` ledger after the
-// breakpoint change, not before.
+// `systemCacheBreakpoint` closes that gap: an explicit breakpoint on the
+// system message, the one large prefix every call for a person shares —
+// instructions plus context block, identical across turns and threads until
+// an extraction rewrites it. It survives both the tool-message exclusion and
+// the sliding history window, so a turn-opening call reads it even though
+// everything after it changed. Verified against the live endpoint, 2026-08-07,
+// on the Amazon Bedrock route (where all of production's traffic goes): one
+// request carrying both directives is accepted, and with the breakpoint a
+// second call with the same 3.5k-token system message but a different tail
+// read the whole system prefix from cache — 3,553 of 3,572 prompt tokens
+// cached, $0.0008 against the $0.0090 the control pair paid twice. Watch
+// `cachedTokens` in the `llmUsage` ledger rather than assuming — and note
+// Anthropic only caches a prefix above a minimum length (1,024 tokens on
+// Sonnet 5); DHEE_INSTRUCTIONS alone is several times that, so every real
+// prompt qualifies.
 //
-// The system prompt is still large, stable per person, and re-sent on every
-// single call, so this remains the cheapest lever available — it is simply an
-// intra-turn one. Note Anthropic only caches a prefix above a minimum length
-// (1,024 tokens on Sonnet 5), so a shorter prompt silently caches nothing
-// rather than erroring — watch `cachedTokens` rather than assuming.
-//
+// `ephemeral` means the five-minute TTL. The one-hour question is worth
+// re-opening now that turn openings can actually hit — re-run that math
+// against the ledger once this has a week of data.
+const systemCacheBreakpoint: LanguageModelMiddleware = {
+  specificationVersion: "v3",
+  transformParams: async ({ params }) => ({
+    ...params,
+    prompt: params.prompt.map((message) =>
+      message.role === "system"
+        ? {
+            ...message,
+            providerOptions: {
+              ...message.providerOptions,
+              openrouter: {
+                ...message.providerOptions?.openrouter,
+                cacheControl: { type: "ephemeral" },
+              },
+            },
+          }
+        : message,
+    ),
+  }),
+};
+
+// Exported for the test that pins what the middleware emits — the provider
+// only turns `openrouter.cacheControl` on a message into a `cache_control`
+// block, so the exact shape is load-bearing and must not drift silently.
+export const cacheMiddlewareForTest = systemCacheBreakpoint;
+
 // The `reflective` tier, and the default. `cache_control` is Anthropic's
 // mechanism and is only set on the model that goes to Anthropic — see the
 // note above.
-export const reflectiveModel = openrouter.chat(MODEL_SLUGS.reflective, {
-  ...shared,
-  cache_control: { type: "ephemeral" },
+export const reflectiveModel = wrapLanguageModel({
+  model: openrouter.chat(MODEL_SLUGS.reflective, {
+    ...shared,
+    cache_control: { type: "ephemeral" },
+  }),
+  middleware: systemCacheBreakpoint,
 });
 
 // The `quick` tier, opt-in from the composer's picker. Deliberately no
-// `cache_control`: it is an Anthropic parameter, and this tier does not route
-// there. DeepSeek caches
-// context on its own terms rather than on a breakpoint we set, so there is
-// nothing to mark — and passing the parameter anyway would either be dropped
-// upstream or rejected, both of which are worse than not sending it.
+// `cache_control` and no breakpoint middleware: both are Anthropic mechanisms,
+// and this tier does not route there. DeepSeek caches context on its own terms
+// rather than on a breakpoint we set, so there is nothing to mark — and
+// passing the parameter anyway would either be dropped upstream or rejected,
+// both of which are worse than not sending it.
 //
 // The consequence worth knowing: the cost shape of this tier is not the one
 // documented above. Prompt caching is what makes the large system prompt cheap

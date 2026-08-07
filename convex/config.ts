@@ -10,7 +10,7 @@
 import { MODEL_SLUGS, DEFAULT_MODEL_TIER } from "./agents/models";
 
 /**
- * The model someone gets without choosing — the `quick` tier.
+ * The model someone gets without choosing — the default tier.
  *
  * Re-exported from the tier registry rather than written out again, so there is
  * one place a slug lives. This is what `pnpm eval` and `pnpm smoke` measure, so

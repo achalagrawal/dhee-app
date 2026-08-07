@@ -22,8 +22,11 @@ describe("the tier registry", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it("defaults to quick", () => {
-    expect(DEFAULT_MODEL_TIER).toBe("quick");
+  it("defaults to reflective until quick has earned the flip", () => {
+    // The default flip is gated on an eval run and opt-in usage data — see
+    // the DEFAULT_MODEL_TIER comment. This test is here so the flip arrives
+    // as its own reviewed change, not as a side effect.
+    expect(DEFAULT_MODEL_TIER).toBe("reflective");
   });
 
   it("keeps CHAT_MODEL and the default tier the same model", () => {

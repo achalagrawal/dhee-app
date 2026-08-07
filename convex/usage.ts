@@ -135,7 +135,12 @@ export function classifyAgentCall(args: {
 
 export const record = internalMutation({
   args: {
-    userId: v.optional(v.id("users")),
+    // A string, not v.id("users"): the agent hands over whatever userId it was
+    // given, and the eval harness deliberately runs under an opaque one
+    // ("eval-harness"). The cast-and-hope version of this made every eval call
+    // log a validation error — the ledger must not be the thing that throws,
+    // so the narrowing happens here, where the db can actually decide.
+    userId: v.optional(v.string()),
     threadId: v.optional(v.string()),
     kind: usageKind,
     model: v.string(),
@@ -149,7 +154,14 @@ export const record = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.insert("llmUsage", { ...args, createdAt: Date.now() });
+    const userId = args.userId
+      ? (ctx.db.normalizeId("users", args.userId) ?? undefined)
+      : undefined;
+    await ctx.db.insert("llmUsage", {
+      ...args,
+      userId,
+      createdAt: Date.now(),
+    });
     return null;
   },
 });
@@ -157,11 +169,10 @@ export const record = internalMutation({
 /**
  * Resolve a userId string from the agent into one this app's tables accept.
  *
- * The agent stores whatever string it was handed. Everywhere in this app that
- * is a `users` id, but the ledger must not be the thing that throws if some
- * future caller passes something else — accounting is not worth failing a
- * reply over.
+ * A pass-through with the narrowing left to `record`'s normalizeId — only the
+ * db can tell a real users id from an arbitrary string, and the ledger must
+ * not be the thing that throws. Accounting is not worth failing a reply over.
  */
-export function asUserId(userId: string | undefined): Id<"users"> | undefined {
-  return userId ? (userId as Id<"users">) : undefined;
+export function asUserId(userId: string | undefined): string | undefined {
+  return userId || undefined;
 }

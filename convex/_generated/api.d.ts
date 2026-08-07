@@ -24,6 +24,7 @@ import type * as evals_extraction from "../evals/extraction.js";
 import type * as evals_harness from "../evals/harness.js";
 import type * as evals_judge from "../evals/judge.js";
 import type * as evals_scenarios from "../evals/scenarios.js";
+import type * as evals_variants from "../evals/variants.js";
 import type * as http from "../http.js";
 import type * as lib_backend from "../lib/backend.js";
 import type * as lib_crisis from "../lib/crisis.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   "evals/harness": typeof evals_harness;
   "evals/judge": typeof evals_judge;
   "evals/scenarios": typeof evals_scenarios;
+  "evals/variants": typeof evals_variants;
   http: typeof http;
   "lib/backend": typeof lib_backend;
   "lib/crisis": typeof lib_crisis;

@@ -2,9 +2,11 @@ import type { ProviderMetadata } from "ai";
 import { v } from "convex/values";
 import { internalAction, type ActionCtx } from "../_generated/server";
 import { buildSystemPrompt, dhee, isCorpusLens } from "../agents/dhee";
+import { evalModelFor, evalModelSlugFor } from "../agents/config";
 import { detectReplyScript } from "../lib/script";
 import { replyOptionsFor } from "../chat";
 import { CHAT_MODEL } from "../config";
+import { baseInstructionsFor } from "./variants";
 import { fingerprint, runChecks, type Check } from "./checks";
 import { judgeReply, JUDGE_MODEL, type JudgeScores } from "./judge";
 import {
@@ -84,6 +86,8 @@ export type EvalRun = {
   label: string;
   startedAt: number;
   model: string;
+  /** Prompt variant id, when the run measured one (convex/evals/variants.ts). */
+  variant?: string;
   /** Absent when the run was not judged. */
   judgeModel?: string;
   repeats: number;
@@ -135,11 +139,19 @@ function withTimeout<T>(promise: Promise<T>, ms: number, what: string) {
   ]);
 }
 
+type RunOptions = {
+  judge: boolean;
+  /** Base instructions — DHEE_INSTRUCTIONS or a variant's transform of it. */
+  baseInstructions: string;
+  /** Model override; absent means the default tier, same as production. */
+  model?: ReturnType<typeof evalModelFor>;
+};
+
 async function runOnce(
   ctx: ActionCtx,
   evalCase: EvalCase,
   repeat: number,
-  judge: boolean,
+  { judge, baseInstructions, model }: RunOptions,
 ): Promise<EvalResult> {
   const persona = PERSONAS[evalCase.persona];
   const probe = PROBES[evalCase.probe];
@@ -152,10 +164,13 @@ async function runOnce(
   // being restated after the conversation history rather than only sitting in
   // the base prompt.
   const replyScript = detectReplyScript(probe.text);
-  const system = buildSystemPrompt({
-    ...persona.inputs,
-    ...(replyScript ? { replyScript } : {}),
-  });
+  const system = buildSystemPrompt(
+    {
+      ...persona.inputs,
+      ...(replyScript ? { replyScript } : {}),
+    },
+    baseInstructions,
+  );
 
   const base: EvalResult = {
     caseId: evalCase.id,
@@ -193,8 +208,11 @@ async function runOnce(
               }
             : { prompt: probe.text }),
           // The same per-turn options a real reply gets, so the step budget
-          // under test is the one the app actually uses.
+          // under test is the one the app actually uses. The model override
+          // comes after, because replyOptionsFor names the default tier's
+          // model and the whole point of `--model` is to beat it.
           ...replyOptionsFor(traditions),
+          ...(model ? { model } : {}),
         },
         {
           storageOptions: { saveMessages: "none" },
@@ -311,6 +329,14 @@ export const run = internalAction({
     judge: v.optional(v.boolean()),
     /** Build every prompt and enumerate the matrix without calling the model. */
     dryRun: v.optional(v.boolean()),
+    /**
+     * "quick", "reflective", or a raw OpenRouter slug. Replies only — the
+     * judge stays on the default tier's model whatever this says, so scores
+     * from runs with different models remain comparable.
+     */
+    model: v.optional(v.string()),
+    /** A prompt variant id from convex/evals/variants.ts. */
+    variant: v.optional(v.string()),
   },
   // The summary is validated so a bare `convex run` in a terminal is readable;
   // the detail rides along as one JSON string. Fifteen heterogeneous case
@@ -322,6 +348,7 @@ export const run = internalAction({
   returns: v.object({
     label: v.string(),
     model: v.string(),
+    variant: v.optional(v.string()),
     startedAt: v.number(),
     ms: v.number(),
     cases: v.number(),
@@ -342,12 +369,16 @@ export const run = internalAction({
 
     // Throws on a selector that matches nothing, rather than running zero cases
     // and reporting green — the worst possible outcome for a tool whose only
-    // job is to be believed.
+    // job is to be believed. The variant resolves here for the same reason: an
+    // unknown id or a stale anchor must kill the run before money is spent.
     const cases = selectCases(args.only);
+    const base = baseInstructionsFor(args.variant);
+    const model = args.model ? evalModelFor(args.model) : undefined;
+    const modelSlug = args.model ? evalModelSlugFor(args.model) : CHAT_MODEL;
 
     const prompts: EvalRun["prompts"] = {};
     for (const personaId of new Set(cases.map((c) => c.persona))) {
-      const text = buildSystemPrompt(PERSONAS[personaId].inputs);
+      const text = buildSystemPrompt(PERSONAS[personaId].inputs, base);
       prompts[personaId] = { text, fingerprint: fingerprint(text) };
     }
 
@@ -360,7 +391,13 @@ export const run = internalAction({
           await pooled(cases, concurrency, async (evalCase) => {
             const runs: EvalResult[] = [];
             for (let repeat = 0; repeat < repeats; repeat++) {
-              runs.push(await runOnce(ctx, evalCase, repeat, judge));
+              runs.push(
+                await runOnce(ctx, evalCase, repeat, {
+                  judge,
+                  baseInstructions: base,
+                  model,
+                }),
+              );
             }
             return runs;
           })
@@ -369,7 +406,8 @@ export const run = internalAction({
     const payload: EvalRun = {
       label,
       startedAt,
-      model: CHAT_MODEL,
+      model: modelSlug,
+      ...(args.variant ? { variant: args.variant } : {}),
       ...(judge ? { judgeModel: JUDGE_MODEL } : {}),
       repeats,
       dryRun,
@@ -386,7 +424,8 @@ export const run = internalAction({
 
     return {
       label,
-      model: CHAT_MODEL,
+      model: modelSlug,
+      ...(args.variant ? { variant: args.variant } : {}),
       startedAt,
       ms: Date.now() - startedAt,
       cases: cases.length,

@@ -10,7 +10,9 @@ import {
   internalQuery,
 } from "./_generated/server";
 import { backgroundModel } from "./agents/config";
+import { BACKGROUND_MODEL } from "./config";
 import { observationKind } from "./schema";
+import { toUsageRecord } from "./usage";
 
 export const workflow = new WorkflowManager(components.workflow);
 
@@ -285,12 +287,34 @@ export const extractFromThread = internalAction({
     const transcript = buildTranscript(window);
     if (!transcript.trim()) return null;
 
-    const { object } = await generateObject({
+    const { object, usage, providerMetadata } = await generateObject({
       model: backgroundModel,
       schema: extractionSchema,
       system: EXTRACTION_SYSTEM,
       prompt: extractionPrompt(transcript, known),
     });
+
+    // This is the one model call in the app that doesn't go through the agent,
+    // so the agent's usageHandler never sees it and it has to report itself.
+    // Extraction runs on its own schedule rather than per reply, which makes it
+    // the easiest spend in the system to be wrong about — and the reason the
+    // ledger exists at all. Failing to record must not lose an extraction that
+    // already succeeded, hence the catch.
+    try {
+      await ctx.runMutation(internal.usage.record, {
+        userId,
+        threadId,
+        ...toUsageRecord({
+          kind: "extraction",
+          model: BACKGROUND_MODEL,
+          provider: "openrouter",
+          usage,
+          providerMetadata,
+        }),
+      });
+    } catch (error) {
+      console.error("usage ledger write failed", error);
+    }
 
     await ctx.runMutation(internal.memory.applyExtraction, {
       userId,

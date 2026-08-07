@@ -168,6 +168,56 @@ export default defineSchema({
     .index("by_thread", ["threadId"])
     .index("by_user", ["userId"]),
 
+  // One row per billed model call, written by the agent's `usageHandler` and by
+  // the two call sites that reach the model without going through the agent.
+  //
+  // This is not a duplicate of what the agent component already stores. The
+  // component records usage on the message a call produced — which means the
+  // calls that deliberately produce no message record nothing at all. Titling
+  // and incognito both pass `saveMessages: "none"`, and memory extraction calls
+  // the model directly, so all three are invisible in the component's tables
+  // and their spend cannot be told apart from zero.
+  //
+  // Two further reasons this is its own table rather than a query over the
+  // component's: it survives thread deletion, so a person clearing their
+  // history doesn't erase the record of what serving them cost; and it is
+  // indexed by time, which the component's tables are not, so "what did last
+  // week cost" is a range scan rather than a full read.
+  //
+  // No message text, no prompt, no reply — only counts, and `userId` so cost
+  // can be attributed. Nothing here says anything about what was discussed.
+  llmUsage: defineTable({
+    // Null for calls made outside a user's turn, should any ever exist.
+    userId: v.optional(v.id("users")),
+    threadId: v.optional(v.string()),
+    // What the call was for. Named rather than derived, because the whole point
+    // is telling apart the work a person sees from the work they don't.
+    kind: v.union(
+      v.literal("chat"),
+      v.literal("title"),
+      v.literal("extraction"),
+      v.literal("incognito"),
+    ),
+    model: v.string(),
+    provider: v.optional(v.string()),
+    agentName: v.optional(v.string()),
+    promptTokens: v.number(),
+    completionTokens: v.number(),
+    // Present only when the provider reports it. Absent and zero mean different
+    // things — "not told" versus "nothing was cached" — and the cache hit rate
+    // is only honest if they stay distinguishable.
+    cachedInputTokens: v.optional(v.number()),
+    reasoningTokens: v.optional(v.number()),
+    // Real money, as billed, when the provider returns it. Never estimated
+    // from a price table here: a figure derived from a stale table that looks
+    // like a measurement is worse than an absent one.
+    costUsd: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_kind", ["kind", "createdAt"]),
+
   // Thumbs up/down on an assistant message. One row per (user, message);
   // messageId is the agent UIMessage key. Cleared when its thread is deleted.
   messageFeedback: defineTable({

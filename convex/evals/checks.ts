@@ -501,10 +501,17 @@ export function runChecks(r: ReplyUnderTest, e: Expectations): Check[] {
 
   const script = scriptOf(r.reply);
   if (e.script === "hinglish") {
+    // Share rather than `scriptOf`, for the same reason the quoting branch
+    // below uses one: under the corpus lens a Hinglish answer may legitimately
+    // carry a Devanagari line from the source, which drags `scriptOf` to
+    // "mixed" and would fail a reply that is doing exactly what it was asked.
+    // The rule being checked is "the reply is written in Roman letters", not
+    // "no Devanagari character appears anywhere".
+    const latinShare = scriptShare(r.reply).latin;
     checks.push({
       id: "hinglish (heuristic)",
-      ok: script === "latin" && looksHinglish(r.reply),
-      detail: `script ${script}, hinglish markers ${looksHinglish(r.reply) ? "present" : "absent"}`,
+      ok: latinShare >= 0.6 && looksHinglish(r.reply),
+      detail: `${Math.round(latinShare * 100)}% latin, hinglish markers ${looksHinglish(r.reply) ? "present" : "absent"}`,
     });
   } else if (e.verbatimQuote === "allowed" || e.verbatimQuote === "required") {
     // Study mode is told to "give the original line and then say what it means"

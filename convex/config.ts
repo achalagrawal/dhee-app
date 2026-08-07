@@ -45,7 +45,22 @@ export const MEMORY_EXTRACTION_INTERVAL_TURNS = 2;
 // enough that closing the app and coming back tomorrow finds Dhee already
 // caught up. Each new turn cancels the pending flush and schedules a fresh
 // one, so an active conversation only ever has one queued.
-export const MEMORY_EXTRACTION_IDLE_MS = 3 * 60 * 1000;
+//
+// Raised from three minutes. At three, the flush was firing on nearly every
+// conversation rather than on the ones the turn counter had stranded: people
+// think for longer than three minutes between messages, so an ordinary pause
+// read as "this conversation is over" and paid for an extraction that the very
+// next turn made stale. Ten minutes keeps the guarantee the flush exists for —
+// a short conversation still leaves a trace, and the counter above is untouched
+// so long conversations are still caught while running — while letting a
+// thinking pause stay part of the same conversation.
+//
+// The trade if this goes too high: someone who closes the app mid-thought and
+// returns within the window finds Dhee has not yet caught up. Ten minutes is
+// chosen against how long people actually pause, so check the ledger's
+// `extraction` rows against turn count before moving it again rather than
+// guessing in either direction.
+export const MEMORY_EXTRACTION_IDLE_MS = 10 * 60 * 1000;
 
 // Where to reach the MD corpus MCP server. Override with the MD_MCP_URL
 // Convex env var if this endpoint moves.

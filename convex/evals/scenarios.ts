@@ -368,6 +368,28 @@ export const CASES: EvalCase[] = [
     expect: { ...ORDINARY, retrieval: "required", script: "hinglish" },
   },
   {
+    id: "corpus/hinglish",
+    persona: "corpus",
+    probe: "hinglish",
+    tags: ["script"],
+    // `bare/hinglish` above tests the rule in isolation. This tests it where it
+    // actually has to hold: onboarding preselects the corpus lens, so almost
+    // every real person carries it, and it is the lens that opens study mode —
+    // which lifts the brevity ceiling, permits verbatim quotation, and fills
+    // the context with Devanagari source text before the reply is written.
+    // Every one of those pulls the answer toward the script the person did not
+    // use, which is exactly the pressure the rule has to survive.
+    why: '"Hinglish stays Hinglish" under the lens almost everyone has. Study mode may quote the source in Devanagari, but the reply around it still belongs to the person who wrote in Roman letters.',
+    expect: {
+      ...ORDINARY,
+      retrieval: "required",
+      script: "hinglish",
+      termsOfArt: "allowed",
+      citations: "allowed",
+      verbatimQuote: "allowed",
+    },
+  },
+  {
     id: "bare/provenance",
     persona: "bare",
     probe: "provenance",

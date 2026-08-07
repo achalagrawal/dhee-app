@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { buildSystemPrompt, isCorpusLens } from "../agents/dhee";
 import { fingerprint } from "./checks";
-import { PERSONAS, type PersonaId } from "./scenarios";
+import { PERSONAS, PROBES, type PersonaId } from "./scenarios";
+import { detectReplyScript, replyScriptInstruction } from "../lib/script";
 
 // The deterministic half of the eval harness.
 //
@@ -36,17 +37,31 @@ import { PERSONAS, type PersonaId } from "./scenarios";
 // length rose by exactly 994, so the language section is the only thing that
 // changed and no persona picked up anything the others didn't.
 //
+// Re-recorded a third time when the language rule reversed on one point:
+// romanised Hindi is now answered in Hindi in Devanagari rather than in Roman
+// letters, because half-transliterated Hindi reads worse than either language
+// written properly. The same edit added the instruction to judge each message
+// on its own rather than by the previous reply, which is what stops one
+// Hinglish turn pinning an entire thread. Every length rose by exactly 172, so
+// again the language section is the only thing that moved.
+//
 // Note these still describe a prompt with no script line appended: the per-turn
 // script assertion is keyed off the message being answered, and a persona has
 // no message. `buildSystemPrompt` with no `replyScript` is what these pin.
+// Re-recorded a fourth time, adding "How to address someone" to the language
+// section: Dhee says आप, never तुम or तू, and uses the verb forms that go with
+// it. Prompted by a real reply that opened "नहीं भाई" and went on to "देखो" and
+// "तुम्हारे" — familiarity nobody offered, on a question about suffering, to a
+// readership much of which is older than that voice. Every length rose by
+// exactly 1,129, so once again the language section is all that moved.
 const PROMPT_FINGERPRINTS: Record<PersonaId, string> = {
-  bare: "34633216-13120",
-  stoic: "e9a9375d-13789",
-  advaita: "8f27d751-13796",
-  corpus: "3d2a4c44-15616",
-  personalized: "76b8b1ef-13422",
-  remembered: "7cc4dfc1-14005",
-  full: "029635a4-16803",
+  bare: "adff579f-14421",
+  stoic: "a5bbebca-15090",
+  advaita: "d0489f88-15097",
+  corpus: "770e75ed-16917",
+  personalized: "5eeb9b0e-14723",
+  remembered: "29dbb64a-15306",
+  full: "178820db-18104",
 };
 
 // The section separator `buildSystemPrompt` joins with.
@@ -141,6 +156,49 @@ describe("persona prompts — structure", () => {
     expect(buildSystemPrompt(PERSONAS.full.inputs)).toBe(
       buildSystemPrompt({ ...PERSONAS.full.inputs, replyScript: undefined }),
     );
+  });
+
+  test("the suite measures the prompt a real turn gets, script line included", () => {
+    // The harness composes `buildSystemPrompt(persona.inputs + replyScript)`,
+    // exactly as `streamReply` does. This reproduces that composition per probe
+    // so the suite cannot quietly go back to measuring the base prompt alone —
+    // which it did, and which would have left the language rule's actual
+    // mechanism untested while the cases still looked like they covered it.
+    for (const probe of Object.values(PROBES)) {
+      const script = detectReplyScript(probe.text);
+      expect(script, probe.id).toBeDefined();
+      const prompt = buildSystemPrompt({
+        ...PERSONAS.bare.inputs,
+        ...(script ? { replyScript: script } : {}),
+      });
+      expect(prompt.split(RULE).length, probe.id).toBeGreaterThan(1);
+    }
+  });
+
+  test("the language-switch probe carries an English question after a Hindi reply", () => {
+    // The case exists to reproduce a real failure: one Hinglish turn used to
+    // pin the thread. If the probe's own history stopped being Hindi, or its
+    // question stopped being English, the case would pass without testing
+    // anything.
+    const probe = PROBES["language-switch"];
+    expect(detectReplyScript(probe.text)).toBe("latin");
+    const priorReply = probe.priorTurns?.find((t) => t.role === "assistant");
+    expect(detectReplyScript(priorReply?.text ?? "")).toBe("devanagari");
+    expect(replyScriptInstruction("latin")).toContain("answer in English");
+  });
+
+  test("the base prompt tells Dhee to address people as आप", () => {
+    // A model reaches for तुम in Hindi on its own, and the result reads as
+    // presumption rather than warmth. Pinned in the base prompt rather than
+    // per-turn because it is a standing rule about how Dhee speaks, and pinned
+    // here because the failure is invisible to anyone who doesn't read Hindi.
+    const base = sectionsFor("bare")[0] as string;
+    expect(base).toContain("आप");
+    expect(base).toContain("तुम");
+    expect(base).toMatch(/देखिए/);
+    // Respect is not the same as formality, and the prompt has to say so or it
+    // trades one bad register for another.
+    expect(base).toContain("सौम्य");
   });
 
   test("every term Rule 1 names survives interpolation into the prompt", () => {

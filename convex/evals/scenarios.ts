@@ -113,6 +113,7 @@ export type ProbeId =
   | "mundane"
   | "devanagari"
   | "hinglish"
+  | "language-switch"
   | "memory-aware"
   | "provenance";
 
@@ -177,8 +178,27 @@ export const PROBES: Record<ProbeId, Probe> = {
   },
   hinglish: {
     id: "hinglish",
-    why: '"Hinglish stays Hinglish." The one script rule a Unicode range cannot check, so the reply gets read by hand too.',
+    why: "Hindi written in Roman letters. The answer belongs in Devanagari, and must not come back half-transliterated.",
     text: "Mujhe apne kaam mein koi meaning nahi mil raha. Har din bas nikal jaata hai. Kya karun?",
+  },
+  "language-switch": {
+    id: "language-switch",
+    // Observed in a real conversation: one Hinglish question, then an English
+    // one, and the English one still came back in Hindi. Two turns is the
+    // minimum that can reproduce it — a single-message probe cannot, because
+    // the failure needs a previous reply for the model to imitate.
+    why: "A conversation that changes language halfway. Someone asks in Hinglish, gets Hindi, then asks something in plain English — and must get English back. The model's own previous reply is the thing pulling the wrong way, so this is the case that proves the rule survives its own history.",
+    text: "Thanks. Separately — how do I know when to quit a job rather than stick it out?",
+    priorTurns: [
+      {
+        role: "user",
+        text: "Mujhe apne kaam mein koi meaning nahi mil raha. Kya karun?",
+      },
+      {
+        role: "assistant",
+        text: "काम में अर्थ न मिलना अक्सर काम की कमी नहीं होती — यह इस बात का संकेत है कि जिस चीज़ की आशा में आप लगे हैं, वह उस जगह से मिलने वाली नहीं है। पहले यह देखिए कि आप वहाँ से क्या पाने की उम्मीद कर रहे हैं।",
+      },
+    ],
   },
   "memory-aware": {
     id: "memory-aware",
@@ -229,7 +249,10 @@ export type Expectations = {
    * into proof that a study answer came from the page rather than from memory.
    */
   verbatimQuote: "required" | "allowed" | "forbidden";
-  script: "latin" | "devanagari" | "hinglish";
+  // No "hinglish" here on purpose: a Hinglish question is answered in
+  // Devanagari, so no case ever expects romanised Hindi back. `runChecks`
+  // fails a Hinglish reply on every case instead.
+  script: "latin" | "devanagari";
   /** `brief` is Rule 2's shape; study mode lifts the ceiling to `unbounded`. */
   shape: "brief" | "unbounded";
   memory: "must-inform" | "must-not-recite" | "n/a";
@@ -364,26 +387,33 @@ export const CASES: EvalCase[] = [
     persona: "bare",
     probe: "hinglish",
     tags: ["script"],
-    why: '"Hinglish stays Hinglish." The weakest check in the suite, which is why the report labels it a heuristic.',
-    expect: { ...ORDINARY, retrieval: "required", script: "hinglish" },
+    why: "Hindi asked in Roman letters is answered in Hindi, in Devanagari — not half-transliterated back. The reply must also not be romanised Hindi, which `runChecks` fails on every case.",
+    expect: { ...ORDINARY, retrieval: "required", script: "devanagari" },
+  },
+  {
+    id: "bare/language-switch",
+    persona: "bare",
+    probe: "language-switch",
+    tags: ["script"],
+    why: "The failure that made the per-turn script rule necessary: one Hinglish turn used to pin the whole thread, so a later English question kept coming back in Hindi. English in, English out, regardless of what the previous reply was in.",
+    expect: { ...ORDINARY, retrieval: "either", script: "latin" },
   },
   {
     id: "corpus/hinglish",
     persona: "corpus",
     probe: "hinglish",
     tags: ["script"],
-    // `bare/hinglish` above tests the rule in isolation. This tests it where it
-    // actually has to hold: onboarding preselects the corpus lens, so almost
-    // every real person carries it, and it is the lens that opens study mode —
-    // which lifts the brevity ceiling, permits verbatim quotation, and fills
-    // the context with Devanagari source text before the reply is written.
-    // Every one of those pulls the answer toward the script the person did not
-    // use, which is exactly the pressure the rule has to survive.
-    why: '"Hinglish stays Hinglish" under the lens almost everyone has. Study mode may quote the source in Devanagari, but the reply around it still belongs to the person who wrote in Roman letters.',
+    // `bare/hinglish` above tests the rule in isolation. This tests it under
+    // the lens almost everyone carries — onboarding preselects it — where study
+    // mode lifts the brevity ceiling and permits verbatim quotation. Here the
+    // risk runs the other way from the bare case: the reply is *supposed* to be
+    // Devanagari, so what has to hold is that it stays proper Hindi rather than
+    // sliding into romanised Hindi to match how the question was typed.
+    why: "Hindi asked in Roman letters, under the corpus lens. The answer is Hindi in Devanagari, and quoting the source verbatim must not turn the surrounding explanation into romanised Hindi.",
     expect: {
       ...ORDINARY,
       retrieval: "required",
-      script: "hinglish",
+      script: "devanagari",
       termsOfArt: "allowed",
       citations: "allowed",
       verbatimQuote: "allowed",

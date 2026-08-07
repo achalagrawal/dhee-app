@@ -74,6 +74,74 @@ export function scriptOf(
   return "mixed";
 }
 
+// ---------------------------------------------------------------------------
+// Register
+// ---------------------------------------------------------------------------
+
+// Second-person forms that mark the familiar register in Hindi. Dhee addresses
+// everyone as आप, so any of these in a reply is a failure.
+//
+// The list is oblique and possessive forms plus a few unambiguous imperatives,
+// rather than the bare pronouns. `तुम` and `तू` on their own turn up inside
+// quoted source text and in sentences *about* the words; these forms only occur
+// when the reply is actually addressing the reader that way.
+//
+// Deliberately absent: भाई. It is the clearest tell in a greeting — "नहीं भाई"
+// — but it is also half of भाई-बहन, one of the relationships the prompt names,
+// so matching it would fail any honest answer about siblings. The forms below
+// carry the same signal without that cost.
+const FAMILIAR_FORMS = [
+  "तुम्हें",
+  "तुम्हारा",
+  "तुम्हारी",
+  "तुम्हारे",
+  "तुमको",
+  "तुमने",
+  "तुमसे",
+  "तुझे",
+  "तुझको",
+  "तुझसे",
+  "तेरा",
+  "तेरी",
+  "तेरे",
+  "तूने",
+  "देखो",
+  "सुनो",
+  "समझो",
+  "करो",
+  "बताओ",
+  "सोचो",
+  "जानो",
+  "कहो",
+  "रखो",
+];
+
+// Devanagari has no word boundary `\b` can see, so the guards are explicit.
+const FAMILIAR_RE = new RegExp(
+  `(?<![\\u0900-\\u097F])(?:${FAMILIAR_FORMS.join("|")})(?![\\u0900-\\u097F])`,
+  "u",
+);
+
+/**
+ * The familiar-register forms a reply used, if any.
+ *
+ * Dhee speaks to everyone as आप — respectful and सौम्य, which is not the same
+ * as formal. Someone bringing a question about grief or a failing relationship
+ * is not owed familiarity they did not offer, and much of the readership is
+ * older than the voice a model reaches for by default.
+ */
+export function familiarAddressIn(text: string): string[] {
+  return FAMILIAR_FORMS.filter((form) =>
+    new RegExp(`(?<![\\u0900-\\u097F])${form}(?![\\u0900-\\u097F])`, "u").test(
+      text,
+    ),
+  );
+}
+
+export function usesFamiliarAddress(text: string): boolean {
+  return FAMILIAR_RE.test(text);
+}
+
 // Hinglish function words. Content words vary endlessly; these do not, and
 // they almost never appear in English prose.
 const HINGLISH_MARKERS = [
@@ -500,20 +568,36 @@ export function runChecks(r: ReplyUnderTest, e: Expectations): Check[] {
   }
 
   const script = scriptOf(r.reply);
-  if (e.script === "hinglish") {
-    // Share rather than `scriptOf`, for the same reason the quoting branch
-    // below uses one: under the corpus lens a Hinglish answer may legitimately
-    // carry a Devanagari line from the source, which drags `scriptOf` to
-    // "mixed" and would fail a reply that is doing exactly what it was asked.
-    // The rule being checked is "the reply is written in Roman letters", not
-    // "no Devanagari character appears anywhere".
-    const latinShare = scriptShare(r.reply).latin;
+
+  // Hinglish output is never wanted, whatever was asked. Someone writing Hindi
+  // in Roman letters gets Hindi in Devanagari back, so a reply that is itself
+  // romanised Hindi is a failure on every case rather than a per-case
+  // expectation — which is why this sits outside the branch below.
+  //
+  // Guarded on the reply being predominantly Roman, so a Devanagari answer that
+  // happens to contain romanised terms isn't caught by the marker list.
+  if (scriptShare(r.reply).latin >= 0.6 && looksHinglish(r.reply)) {
     checks.push({
-      id: "hinglish (heuristic)",
-      ok: latinShare >= 0.6 && looksHinglish(r.reply),
-      detail: `${Math.round(latinShare * 100)}% latin, hinglish markers ${looksHinglish(r.reply) ? "present" : "absent"}`,
+      id: "not hinglish (heuristic)",
+      ok: false,
+      detail:
+        "reply is romanised Hindi; Hinglish questions are answered in Devanagari",
     });
-  } else if (e.verbatimQuote === "allowed" || e.verbatimQuote === "required") {
+  }
+
+  // Register, on every case that produced Devanagari. Addressing someone as
+  // तुम is not warmth, and it is the kind of thing that reads fine to whoever
+  // shipped it and badly to the person receiving it.
+  const familiar = familiarAddressIn(r.reply);
+  if (familiar.length > 0) {
+    checks.push({
+      id: "respectful address (आप)",
+      ok: false,
+      detail: `familiar register: ${familiar.slice(0, 4).join(", ")}`,
+    });
+  }
+
+  if (e.verbatimQuote === "allowed" || e.verbatimQuote === "required") {
     // Study mode is told to "give the original line and then say what it means"
     // — so a correct answer to an English question is English prose carrying a
     // Devanagari quote, which `scriptOf` rightly calls mixed. Here the rule is

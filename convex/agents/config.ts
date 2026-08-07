@@ -64,15 +64,18 @@ const shared = { usage: { include: true } } as const;
 // intra-turn one. Note Anthropic only caches a prefix above a minimum length
 // (1,024 tokens on Sonnet 5), so a shorter prompt silently caches nothing
 // rather than erroring — watch `cachedTokens` rather than assuming.
-// The `reflective` tier. `cache_control` is Anthropic's mechanism and is only
-// set on the model that goes to Anthropic — see the note above.
+//
+// The `reflective` tier, and the default. `cache_control` is Anthropic's
+// mechanism and is only set on the model that goes to Anthropic — see the
+// note above.
 export const reflectiveModel = openrouter.chat(MODEL_SLUGS.reflective, {
   ...shared,
   cache_control: { type: "ephemeral" },
 });
 
-// The `quick` tier, and the default. Deliberately no `cache_control`: it is an
-// Anthropic parameter, and this tier does not route there. DeepSeek caches
+// The `quick` tier, opt-in from the composer's picker. Deliberately no
+// `cache_control`: it is an Anthropic parameter, and this tier does not route
+// there. DeepSeek caches
 // context on its own terms rather than on a breakpoint we set, so there is
 // nothing to mark — and passing the parameter anyway would either be dropped
 // upstream or rejected, both of which are worse than not sending it.

@@ -130,6 +130,34 @@ export function languageModelFor(stored: string | undefined) {
   return MODEL_BY_TIER[resolveModelTier(stored)];
 }
 
+/**
+ * A model for the eval harness, from a tier name or a raw OpenRouter slug.
+ *
+ * Tier names get the exact production model, wrapper and all — an eval of
+ * "reflective" that skipped the cache middleware would measure a cost profile
+ * nobody pays. A raw slug is for models the app doesn't ship yet (an Opus
+ * comparison, a candidate upgrade): anthropic/* slugs get the same caching
+ * treatment as the reflective tier so the comparison is fair on cost, and
+ * everything else is reached bare, the way the quick tier is.
+ */
+export function evalModelFor(spec: string) {
+  if (spec === "quick" || spec === "reflective") return MODEL_BY_TIER[spec];
+  if (spec.startsWith("anthropic/"))
+    return wrapLanguageModel({
+      model: openrouter.chat(spec, {
+        ...shared,
+        cache_control: { type: "ephemeral" },
+      }),
+      middleware: systemCacheBreakpoint,
+    });
+  return openrouter.chat(spec, shared);
+}
+
+/** The slug a spec resolves to — what the run payload records as `model`. */
+export function evalModelSlugFor(spec: string): string {
+  return spec === "quick" || spec === "reflective" ? MODEL_SLUGS[spec] : spec;
+}
+
 // What the Agent is constructed with, and what every call that doesn't name a
 // model gets. Kept pointing at the default tier so the two cannot drift.
 export const languageModel = MODEL_BY_TIER[DEFAULT_MODEL_TIER];

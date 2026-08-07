@@ -33,10 +33,25 @@ const OUT_DIR = join(root, ".evals", "runs");
 
 const USAGE = `pnpm eval [--label <name>] [--only <id|tag> ...] [--repeats <n>]
                 [--concurrency <n>] [--no-judge] [--dry-run]
+                [--model quick|reflective|<openrouter-slug>] [--variant <id>]
+                [--quick]
 pnpm eval --suite extraction [--model chat|background] [--repeats <n>]
 
   answers    (default) persona × probe replies, scored against the prompt's rules
-  extraction plants excluded material in a transcript and checks it is refused`;
+  extraction plants excluded material in a transcript and checks it is refused
+
+  --model    which model writes the replies. A tier name gets the production
+             config for that tier; a raw slug (e.g. anthropic/claude-opus-5)
+             evaluates a model the app doesn't ship. The judge always stays on
+             the default tier, so scores stay comparable across runs.
+  --variant  a prompt variant from convex/evals/variants.ts — ablations and
+             expansions of DHEE_INSTRUCTIONS, for attributing behaviour to
+             prompt sections.
+  --quick    the five-case smoke subset, no judge: a fast read for the
+             prompt-editing loop, not a verdict.
+
+Compare runs side by side (2 or more files):
+  pnpm eval:report .evals/runs/<a>.json <b>.json [<c>.json ...]`;
 
 // Which Convex function each suite lives behind.
 const SUITES = {
@@ -78,6 +93,15 @@ function parseArgs(argv) {
       case "--model":
         args.model = value();
         break;
+      case "--variant":
+        args.variant = value();
+        break;
+      case "--quick":
+        // The prompt-editing loop: five cases, one sample, no judge. A label
+        // is still worth passing when the run is one you plan to keep.
+        args.only.push("quick");
+        args.judge = false;
+        break;
       case "--no-judge":
         // The pure checks still run. This drops only the second model call —
         // roughly half the cost, and all of the extra noise.
@@ -117,7 +141,9 @@ function report(summary, run) {
   }
 
   console.log(`\n${bar(78)}`);
-  console.log(`${run.label}   ${run.model}   ${run.repeats}× per case`);
+  console.log(
+    `${run.label}   ${run.model}${run.variant ? `   variant:${run.variant}` : ""}   ${run.repeats}× per case`,
+  );
   console.log(bar(78));
 
   for (const [caseId, runs] of byCase) {

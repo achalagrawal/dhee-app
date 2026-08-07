@@ -244,6 +244,91 @@ function replyPanel(runs, label) {
 // Page
 // ---------------------------------------------------------------------------
 
+const STYLE = `<style>
+  /* Tokens mirror src/lib/theme.ts, same as scripts/build-legal.mjs. */
+  :root {
+    --bg:#fdfaf4; --surface:#fff; --border:#e2ddd5; --text:#302720;
+    --text-soft:#60564e; --accent:#9f5021;
+    --ok:#2f6f43; --bad:#a3341f; --part:#8a6d1f;
+    --ok-bg:#e8f2eb; --bad-bg:#faeae6; --part-bg:#f7f0dd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#16120e; --surface:#201b16; --border:#39312b; --text:#ece7df;
+      --text-soft:#aaa39b; --accent:#e7b280;
+      --ok:#8ed0a3; --bad:#f0a08c; --part:#e0c377;
+      --ok-bg:#1b2c21; --bad-bg:#32201b; --part-bg:#2c2617;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+  .page { max-width:78rem; margin:0 auto; padding:2.5rem 1.25rem 5rem; }
+  h1 { font-size:1.6rem; margin:0 0 .4rem; }
+  h2 { font-size:1.15rem; margin:3rem 0 .75rem; padding-bottom:.4rem;
+       border-bottom:1px solid var(--border); }
+  h3 { font-size:1rem; margin:0 0 .3rem; font-family:ui-monospace,monospace; }
+  h5 { font-size:.75rem; margin:0 0 .5rem; color:var(--text-soft);
+       text-transform:uppercase; letter-spacing:.04em; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .muted { color:var(--text-soft); }
+  .why { color:var(--text-soft); font-size:.85rem; margin:0 0 .9rem; }
+  .lede { color:var(--text-soft); margin:0 0 1.5rem; }
+  .lede span { margin-right:1.25rem; white-space:nowrap; }
+  table { border-collapse:collapse; width:100%; font-size:.85rem; }
+  th, td { border:1px solid var(--border); padding:.4rem .6rem; text-align:left;
+           vertical-align:top; }
+  th { background:var(--surface); }
+  .num { text-align:right; white-space:nowrap; }
+  .up { color:var(--ok); } .down { color:var(--bad); }
+  .chip { display:inline-block; font-size:.72rem; padding:.1rem .45rem;
+          border-radius:.7rem; margin:0 .3rem .3rem 0; white-space:nowrap; }
+  .chip.ok { background:var(--ok-bg); color:var(--ok); }
+  .chip.bad { background:var(--bad-bg); color:var(--bad); }
+  .chip.part { background:var(--part-bg); color:var(--part); }
+  .case { background:var(--surface); border:1px solid var(--border);
+          border-radius:.5rem; padding:1rem 1.1rem; margin:1rem 0; }
+  .case.moved { border-color:var(--part); }
+  .cols.two { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  .cols.two .col { min-width:0; }
+  .cols.two .col + .col { border-left:1px solid var(--border); padding-left:1.25rem; }
+  @media (max-width:60rem) {
+    .cols.two { grid-template-columns:1fr; }
+    .cols.two .col + .col { border-left:0; padding-left:0;
+      border-top:1px solid var(--border); padding-top:1.25rem; }
+  }
+  .metrics { margin:.5rem 0; font-size:.78rem; color:var(--text-soft); }
+  .metrics span { margin-right:.9rem; white-space:nowrap; }
+  .tools { margin:.5rem 0 1rem; }
+  .tools code { font-size:.75rem; word-break:break-word; }
+  .reply { border-top:1px dashed var(--border); padding-top:.75rem; margin-top:.75rem; }
+  .reply p:first-of-type { margin-top:0; }
+  .reply blockquote { margin:.75rem 0; padding:.4rem .9rem;
+    border-left:3px solid var(--border); color:var(--text-soft); }
+  .err { color:var(--bad); }
+  details.judge { margin:.5rem 0; font-size:.85rem; }
+  details.judge summary { cursor:pointer; }
+  details.judge table { width:auto; min-width:16rem; margin:.5rem 0; }
+  details.judge td { border:0; padding:.15rem .5rem .15rem 0; }
+  .rationales { margin:.25rem 0 0; padding-left:1.1rem; color:var(--text-soft);
+    font-size:.8rem; }
+  details.persona { background:var(--surface); border:1px solid var(--border);
+    border-radius:.5rem; padding:.6rem .9rem; margin:.5rem 0; }
+  details.persona summary { cursor:pointer; }
+  details.persona pre { white-space:pre-wrap; font-size:.75rem;
+    max-height:28rem; overflow:auto; color:var(--text-soft); }
+  .diff { font-size:.75rem; margin-top:.75rem; overflow-x:auto; }
+  .diff > div { white-space:pre-wrap; padding:.1rem .4rem; }
+  .d-sign { display:inline-block; width:1rem; opacity:.6; }
+  .d-add { background:var(--ok-bg); color:var(--ok); }
+  .d-del { background:var(--bad-bg); color:var(--bad); }
+  .d-same { color:var(--text-soft); }
+  .d-skip { color:var(--text-soft); text-align:center; opacity:.5; }
+  .note { background:var(--surface); border:1px solid var(--border);
+    border-left:3px solid var(--part); border-radius:.4rem;
+    padding:.7rem 1rem; font-size:.85rem; color:var(--text-soft); }
+</style>`;
+
 function render(a, b) {
   const A = index(a);
   const B = b ? index(b) : null;
@@ -375,90 +460,7 @@ function render(a, b) {
 <html lang="en"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(a.label)}${compare ? ` vs ${esc(b.label)}` : ""} — Dhee eval</title>
-<style>
-  /* Tokens mirror src/lib/theme.ts, same as scripts/build-legal.mjs. */
-  :root {
-    --bg:#fdfaf4; --surface:#fff; --border:#e2ddd5; --text:#302720;
-    --text-soft:#60564e; --accent:#9f5021;
-    --ok:#2f6f43; --bad:#a3341f; --part:#8a6d1f;
-    --ok-bg:#e8f2eb; --bad-bg:#faeae6; --part-bg:#f7f0dd;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:#16120e; --surface:#201b16; --border:#39312b; --text:#ece7df;
-      --text-soft:#aaa39b; --accent:#e7b280;
-      --ok:#8ed0a3; --bad:#f0a08c; --part:#e0c377;
-      --ok-bg:#1b2c21; --bad-bg:#32201b; --part-bg:#2c2617;
-    }
-  }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text);
-    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
-  .page { max-width:78rem; margin:0 auto; padding:2.5rem 1.25rem 5rem; }
-  h1 { font-size:1.6rem; margin:0 0 .4rem; }
-  h2 { font-size:1.15rem; margin:3rem 0 .75rem; padding-bottom:.4rem;
-       border-bottom:1px solid var(--border); }
-  h3 { font-size:1rem; margin:0 0 .3rem; font-family:ui-monospace,monospace; }
-  h5 { font-size:.75rem; margin:0 0 .5rem; color:var(--text-soft);
-       text-transform:uppercase; letter-spacing:.04em; }
-  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
-  .muted { color:var(--text-soft); }
-  .why { color:var(--text-soft); font-size:.85rem; margin:0 0 .9rem; }
-  .lede { color:var(--text-soft); margin:0 0 1.5rem; }
-  .lede span { margin-right:1.25rem; white-space:nowrap; }
-  table { border-collapse:collapse; width:100%; font-size:.85rem; }
-  th, td { border:1px solid var(--border); padding:.4rem .6rem; text-align:left;
-           vertical-align:top; }
-  th { background:var(--surface); }
-  .num { text-align:right; white-space:nowrap; }
-  .up { color:var(--ok); } .down { color:var(--bad); }
-  .chip { display:inline-block; font-size:.72rem; padding:.1rem .45rem;
-          border-radius:.7rem; margin:0 .3rem .3rem 0; white-space:nowrap; }
-  .chip.ok { background:var(--ok-bg); color:var(--ok); }
-  .chip.bad { background:var(--bad-bg); color:var(--bad); }
-  .chip.part { background:var(--part-bg); color:var(--part); }
-  .case { background:var(--surface); border:1px solid var(--border);
-          border-radius:.5rem; padding:1rem 1.1rem; margin:1rem 0; }
-  .case.moved { border-color:var(--part); }
-  .cols.two { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
-  .cols.two .col { min-width:0; }
-  .cols.two .col + .col { border-left:1px solid var(--border); padding-left:1.25rem; }
-  @media (max-width:60rem) {
-    .cols.two { grid-template-columns:1fr; }
-    .cols.two .col + .col { border-left:0; padding-left:0;
-      border-top:1px solid var(--border); padding-top:1.25rem; }
-  }
-  .metrics { margin:.5rem 0; font-size:.78rem; color:var(--text-soft); }
-  .metrics span { margin-right:.9rem; white-space:nowrap; }
-  .tools { margin:.5rem 0 1rem; }
-  .tools code { font-size:.75rem; word-break:break-word; }
-  .reply { border-top:1px dashed var(--border); padding-top:.75rem; margin-top:.75rem; }
-  .reply p:first-of-type { margin-top:0; }
-  .reply blockquote { margin:.75rem 0; padding:.4rem .9rem;
-    border-left:3px solid var(--border); color:var(--text-soft); }
-  .err { color:var(--bad); }
-  details.judge { margin:.5rem 0; font-size:.85rem; }
-  details.judge summary { cursor:pointer; }
-  details.judge table { width:auto; min-width:16rem; margin:.5rem 0; }
-  details.judge td { border:0; padding:.15rem .5rem .15rem 0; }
-  .rationales { margin:.25rem 0 0; padding-left:1.1rem; color:var(--text-soft);
-    font-size:.8rem; }
-  details.persona { background:var(--surface); border:1px solid var(--border);
-    border-radius:.5rem; padding:.6rem .9rem; margin:.5rem 0; }
-  details.persona summary { cursor:pointer; }
-  details.persona pre { white-space:pre-wrap; font-size:.75rem;
-    max-height:28rem; overflow:auto; color:var(--text-soft); }
-  .diff { font-size:.75rem; margin-top:.75rem; overflow-x:auto; }
-  .diff > div { white-space:pre-wrap; padding:.1rem .4rem; }
-  .d-sign { display:inline-block; width:1rem; opacity:.6; }
-  .d-add { background:var(--ok-bg); color:var(--ok); }
-  .d-del { background:var(--bad-bg); color:var(--bad); }
-  .d-same { color:var(--text-soft); }
-  .d-skip { color:var(--text-soft); text-align:center; opacity:.5; }
-  .note { background:var(--surface); border:1px solid var(--border);
-    border-left:3px solid var(--part); border-radius:.4rem;
-    padding:.7rem 1rem; font-size:.85rem; color:var(--text-soft); }
-</style></head>
+${STYLE}</head>
 <body><main class="page">
   <h1>${esc(a.label)}${compare ? ` <span class="muted">vs</span> ${esc(b.label)}` : ""}</h1>
   <p class="lede">
@@ -498,23 +500,185 @@ function render(a, b) {
 
 // ---------------------------------------------------------------------------
 
-const [nowPath, basePath] = process.argv.slice(2);
-if (!nowPath) {
+// ---------------------------------------------------------------------------
+// N-way comparison (3+ runs): parallel columns, no deltas
+// ---------------------------------------------------------------------------
+//
+// The pairwise report answers "did this change regress that baseline" and
+// earns its deltas. Three or more runs answer a different question — "which of
+// these do I want" — so every run is a peer column in the order given, and
+// nothing is coloured as better or worse. Read the replies; that is the point
+// of putting them side by side.
+
+function renderMany(runs) {
+  const indexed = runs.map((run) => ({ run, byCase: index(run) }));
+  const title = runs.map((r) => r.label).join(" vs ");
+
+  // Tally checks only over cases every run actually ran, for the same reason
+  // the pairwise report does: 5 cases next to 15 is not a comparison.
+  const shared = new Set(
+    [...indexed[0].byCase.keys()].filter((id) =>
+      indexed.every(({ byCase }) => byCase.has(id)),
+    ),
+  );
+
+  const allChecks = new Set();
+  for (const { byCase } of indexed)
+    for (const entry of byCase.values())
+      for (const id of entry.checks.keys()) allChecks.add(id);
+
+  const summaryRows = [...allChecks]
+    .sort()
+    .map((id) => {
+      const cells = indexed.map(({ byCase }) => {
+        let passed = 0;
+        let total = 0;
+        for (const [caseId, entry] of byCase.entries()) {
+          if (!shared.has(caseId)) continue;
+          const agg = entry.checks.get(id);
+          if (!agg) continue;
+          passed += agg.passed;
+          total += agg.total;
+        }
+        return total ? `${passed}/${total}` : "—";
+      });
+      return `<tr><td><code>${esc(id)}</code></td>${cells
+        .map((c) => `<td class="num">${c}</td>`)
+        .join("")}</tr>`;
+    })
+    .join("");
+
+  // Prompts per persona: identical fingerprints collapse to one line; a run
+  // whose prompt differs (a variant, or an edit between runs) is diffed
+  // against the first run's, which is the reader's declared reference point.
+  const personas = [
+    ...new Set(indexed.flatMap(({ run }) => Object.keys(run.prompts))),
+  ];
+  const promptPanels = personas
+    .map((personaId) => {
+      const versions = indexed.map(({ run }) => run.prompts[personaId] ?? null);
+      const reference = versions.find(Boolean);
+      const allSame = versions.every(
+        (v) => !v || v.fingerprint === reference.fingerprint,
+      );
+      if (allSame) {
+        return `<details class="persona"><summary><code>${esc(personaId)}</code> <span class="chip ok">identical in all runs</span> <span class="muted">${esc(reference.fingerprint)}</span></summary><pre>${esc(reference.text)}</pre></details>`;
+      }
+      const bodies = versions
+        .map((v, i) => {
+          if (!v)
+            return `<h5>${esc(runs[i].label)}</h5><p class="muted">not in this run</p>`;
+          if (v.fingerprint === versions.find(Boolean).fingerprint && i > 0)
+            return "";
+          const diffFrom = i === 0 ? null : versions[0];
+          return `<h5>${esc(runs[i].label)} <span class="muted">${esc(v.fingerprint)}</span></h5>${
+            diffFrom && diffFrom.fingerprint !== v.fingerprint
+              ? renderDiff(diffFrom.text, v.text)
+              : `<pre>${esc(v.text)}</pre>`
+          }`;
+        })
+        .join("");
+      return `<details class="persona" open><summary><code>${esc(personaId)}</code> <span class="chip bad">differs between runs</span></summary>${bodies}</details>`;
+    })
+    .join("");
+
+  const caseIds = [
+    ...new Set(indexed.flatMap(({ run }) => run.cases.map((c) => c.id))),
+  ];
+  const caseMeta = new Map(
+    indexed.flatMap(({ run }) => run.cases.map((c) => [c.id, c])),
+  );
+  const caseCards = caseIds
+    .map((id) => {
+      const meta = caseMeta.get(id);
+      const columns = indexed
+        .map(({ run, byCase }) => {
+          const entry = byCase.get(id);
+          if (!entry)
+            return `<div class="col"><h5>${esc(run.label)}</h5><p class="muted">not in this run</p></div>`;
+          return `<div class="col">
+            <h5>${esc(run.label)} <span class="muted">${esc(run.model)}${run.variant ? ` · ${esc(run.variant)}` : ""}</span></h5>
+            <div class="chips">${[...entry.checks.entries()]
+              .map(([cid, agg]) => chip(cid, agg, run.repeats))
+              .join("")}</div>
+            ${metricLine(metrics(entry.runs), run.repeats)}
+            ${judgePanel(entry.runs)}
+            ${toolTable(entry.runs)}
+            ${replyPanel(entry.runs, "")}
+          </div>`;
+        })
+        .join("");
+      return `<section class="case" id="${esc(id)}">
+        <h3>${esc(id)}</h3>
+        <p class="why">${esc(meta?.why ?? "")}</p>
+        <div class="cols many" style="grid-template-columns:repeat(${runs.length},minmax(0,1fr))">${columns}</div>
+      </section>`;
+    })
+    .join("");
+
+  const total = (run) => run.results.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+  const lede = runs
+    .map(
+      (r) =>
+        `<span><b>${esc(r.label)}</b> ${esc(r.model)}${r.variant ? ` · ${esc(r.variant)}` : ""} · $${total(r).toFixed(4)}</span>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${esc(title)} — Dhee eval</title>
+${STYLE}
+<style>
+  .cols.many { display:grid; gap:1.25rem; }
+  .cols.many .col { min-width:0; }
+  .cols.many .col + .col { border-left:1px solid var(--border); padding-left:1.25rem; }
+  @media (max-width:70rem) {
+    .cols.many { grid-template-columns:1fr !important; }
+    .cols.many .col + .col { border-left:0; padding-left:0;
+      border-top:1px solid var(--border); padding-top:1.25rem; }
+  }
+</style></head>
+<body><main class="page">
+  <h1>${esc(title)}</h1>
+  <p class="lede">${lede}</p>
+  <p class="lede"><span>${runs[0].judgeModel ? `judged by ${esc(runs[0].judgeModel)}` : "not judged"}</span>
+    <span>over the ${shared.size} case${shared.size === 1 ? "" : "s"} all runs ran</span></p>
+
+  <h2>Checks</h2>
+  <table><thead><tr><th>check</th>${runs
+    .map((r) => `<th class="num">${esc(r.label)}</th>`)
+    .join("")}</tr></thead>
+  <tbody>${summaryRows}</tbody></table>
+
+  <h2>System prompts</h2>
+  ${promptPanels}
+
+  <h2>Cases</h2>
+  ${caseCards}
+</main></body></html>
+`;
+}
+
+// ---------------------------------------------------------------------------
+
+const paths = process.argv.slice(2);
+if (paths.length === 0) {
   console.error(
-    "pnpm eval:report <run.json> [<baseline.json>]\n" +
-      "  The second file is the baseline you are comparing against.",
+    "pnpm eval:report <run.json> [<baseline.json>] [<more.json> ...]\n" +
+      "  Two files: new vs baseline, with deltas.\n" +
+      "  Three or more: parallel columns in the order given, no deltas.",
   );
   process.exit(1);
 }
 
 const load = (p) => JSON.parse(readFileSync(p, "utf8"));
-const a = load(nowPath);
-const b = basePath ? load(basePath) : null;
+const runs = paths.map(load);
 
 mkdirSync(OUT_DIR, { recursive: true });
-const name = basePath
-  ? `${basename(nowPath, ".json")}-vs-${basename(basePath, ".json")}.html`
-  : `${basename(nowPath, ".json")}.html`;
+const name = `${paths.map((p) => basename(p, ".json")).join("-vs-")}.html`;
 const out = join(OUT_DIR, name);
-writeFileSync(out, render(a, b), "utf8");
+const html =
+  runs.length >= 3 ? renderMany(runs) : render(runs[0], runs[1] ?? null);
+writeFileSync(out, html, "utf8");
 console.log(out.replace(`${root}/`, ""));

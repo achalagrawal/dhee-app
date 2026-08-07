@@ -305,12 +305,17 @@ const ORDINARY: Expectations = {
   memory: "n/a",
 };
 
+// The `quick` tag marks the five-case subset `pnpm eval --quick` runs: one
+// baseline, one brevity/practical, one script, one study companion, one study
+// lookup. It exists for the prompt-editing loop — a two-minute read on whether
+// an edit broke something obvious, not a verdict. Keep it five cases and keep
+// the axes distinct; a quick set that grows stops being quick.
 export const CASES: EvalCase[] = [
   {
     id: "bare/life",
     persona: "bare",
     probe: "life",
-    tags: ["baseline"],
+    tags: ["baseline", "quick"],
     why: "Rule 1 and Rule 2 with nothing else switched on. Every other case is read against this one.",
     expect: { ...ORDINARY, retrieval: "required" },
   },
@@ -346,7 +351,7 @@ export const CASES: EvalCase[] = [
     id: "bare/practical",
     persona: "bare",
     probe: "practical",
-    tags: ["retrieval"],
+    tags: ["retrieval", "quick"],
     // This used to expect `retrieval: "forbidden"` and was described as the one
     // case that caught retrieval firing when it shouldn't. The prompt no longer
     // has a "shouldn't" — searching is the default now, and a check that
@@ -386,7 +391,7 @@ export const CASES: EvalCase[] = [
     id: "bare/hinglish",
     persona: "bare",
     probe: "hinglish",
-    tags: ["script"],
+    tags: ["script", "quick"],
     why: "Hindi asked in Roman letters is answered in Hindi, in Devanagari — not half-transliterated back. The reply must also not be romanised Hindi, which `runChecks` fails on every case.",
     expect: { ...ORDINARY, retrieval: "required", script: "devanagari" },
   },
@@ -447,7 +452,7 @@ export const CASES: EvalCase[] = [
     id: "corpus/life",
     persona: "corpus",
     probe: "life",
-    tags: ["study", "lens"],
+    tags: ["study", "lens", "quick"],
     why: "personalization.md:379 — a life question with the corpus lens on must still get a companion's answer. This is the non-conversion failure the design's own writing warns about.",
     expect: {
       ...ORDINARY,
@@ -461,7 +466,7 @@ export const CASES: EvalCase[] = [
     id: "corpus/page-lookup",
     persona: "corpus",
     probe: "page-lookup",
-    tags: ["study", "lens"],
+    tags: ["study", "lens", "quick"],
     why: "personalization.md:354 — the capability #62 was missing. Resolve the book, read the page, quote it, say where it is from. Also where STUDY_STEPS gets measured.",
     expect: {
       retrieval: "required",

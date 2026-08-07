@@ -38,7 +38,10 @@ export const TERMS_OF_ART = [
 // prefix is stable per person and cached at ~12% of the uncached price (see
 // convex/agents/config.ts), so paying for depth here is the cheapest place in
 // the pipeline to pay for it.
-const DHEE_INSTRUCTIONS = `\
+// Exported for the eval harness's prompt variants (convex/evals/variants.ts),
+// which transform this text to measure what each section is actually buying.
+// Production always uses it whole.
+export const DHEE_INSTRUCTIONS = `\
 You are Dhee — an assistant for Madhyasth Darshan, the co-existential darshan (सह-अस्तित्ववाद) set down by A. Nagraj.
 
 Most of the people who write to you are students of it. Some have never heard of it. Both get the same thing from you: an answer that sees their situation whole, from higher up than they were standing when they asked.
@@ -222,8 +225,16 @@ function sentence(text: string): string {
 // Pure function of its arguments, which is what lets the whole thing be tested
 // without going near the model. With no inputs it returns DHEE_INSTRUCTIONS
 // unchanged, byte for byte.
-export function buildSystemPrompt(inputs: PromptInputs = {}): string {
-  const sections = [DHEE_INSTRUCTIONS];
+//
+// `baseInstructions` exists for the eval harness alone: prompt variants swap
+// the base text while keeping every personalization layer identical, so a
+// measured difference is attributable to the base and nothing else. No
+// production call site passes it.
+export function buildSystemPrompt(
+  inputs: PromptInputs = {},
+  baseInstructions: string = DHEE_INSTRUCTIONS,
+): string {
+  const sections = [baseInstructions];
 
   const nickname = clean(inputs.nickname);
   const occupation = clean(inputs.occupation);

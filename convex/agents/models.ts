@@ -27,7 +27,13 @@ export const MODEL_TIERS: readonly ModelTier[] = [
  * default and is the cheapest way to catch one.
  */
 export const MODEL_SLUGS: Record<ModelTier, string> = {
-  quick: "deepseek/deepseek-v4-flash",
+  // The dated build, not `~deepseek/deepseek-v4-flash-latest`. The rolling
+  // alias re-points when DeepSeek ships a new build — a model change with no
+  // deploy, no diff, and no eval run. Upgrading the pin is deliberate: bump
+  // the date here and put an eval run in the PR that does it. (The bare
+  // `deepseek/deepseek-v4-flash` slug is itself a pin in disguise — OpenRouter
+  // resolves it to the older 0423 build at a higher price.)
+  quick: "deepseek/deepseek-v4-flash-0731",
   reflective: "anthropic/claude-sonnet-5",
 };
 
@@ -35,13 +41,15 @@ export const MODEL_SLUGS: Record<ModelTier, string> = {
  * What someone gets before they choose, and what a signed-out or
  * not-yet-migrated profile falls back to.
  *
- * Quick, deliberately. Most of what people bring is answerable without the
- * slower path, and a reply that arrives while someone is still thinking about
- * the question is worth more to them than a marginally better one that arrives
- * after they have moved on. Reflective is one tap away in the composer for the
- * questions that deserve it.
+ * Reflective — what everyone was getting before tiers existed — until Quick
+ * has earned the spot. Two gates, in order: an eval run showing Quick holds up
+ * inside this prompt (corpus grounding, paribhasha precision, the script
+ * rule), and a stretch of `llmUsage` and feedback from people who opted into
+ * Quick themselves. Shipping the picker without moving the default means
+ * nothing changes for anyone who does nothing, and the opt-ins are the canary.
+ * The flip itself is this one line, in its own PR, with the evidence attached.
  */
-export const DEFAULT_MODEL_TIER: ModelTier = "quick";
+export const DEFAULT_MODEL_TIER: ModelTier = "reflective";
 
 /** Narrow an unvalidated string — a stored preference, a client argument. */
 export function isModelTier(value: unknown): value is ModelTier {

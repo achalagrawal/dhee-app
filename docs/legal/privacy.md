@@ -79,9 +79,9 @@ services. Here is all of it:
 | The web app itself                                                                           | **Vercel**                                                                                                                     | Hosting the website and app bundle                                   |
 
 **Which model, and where it runs.** Dhee offers two settings, and the one you
-pick decides which company's model reads your message. **Dhee Quick**, the
-default, uses a model from **DeepSeek**, a Chinese company. **Dhee Reflective**
-uses **Claude**, from Anthropic, an American one. You can switch between them at
+pick decides which company's model reads your message. **Dhee Reflective**, the
+default, uses **Claude**, from Anthropic, an American company. **Dhee Quick**
+uses a model from **DeepSeek**, a Chinese one. You can switch between them at
 any time from the message box, and the choice applies to everything you send
 afterwards. Background work — working out what to remember about you, and
 titling a conversation — always goes to Anthropic, whichever setting you are on.

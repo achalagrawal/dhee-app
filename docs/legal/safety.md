@@ -23,9 +23,18 @@ own site or the responsible ministry:
 that has changed its number is worse than no helpline at all. See
 [README.md](./README.md).
 
+**7 August 2026 — three sections added** from
+[#133](https://github.com/achalagrawal/dhee-app/issues/133), the web counterpart
+of the six disclaimers the app now shows (`docs/build/specs/ai-disclaimers.md`).
+"Reading the books is the study" names the model and says plainly that it was
+not trained on the literature; "It is a trial version" and the new paragraph in
+"It is not a private diary" match the in-app copy. That last one depends on the
+improvement purpose added to the Privacy Policy on the same date — if that
+purpose does not survive review, this paragraph comes out with it.
+
 <!-- internal:end -->
 
-_Last updated 26 July 2026._
+_Last updated 7 August 2026._
 
 ---
 
@@ -68,6 +77,32 @@ tone, state something confidently and be wrong, or reflect the blind spots of
 what it was trained on. Weigh what it says. Disagree with it freely. You know
 your life and it does not.
 
+## Reading the books is the study — this is not
+
+This is the limit that matters most, and it is the easiest one to forget,
+because Dhee is fluent.
+
+Dhee runs on a general-purpose language model — Claude Sonnet 5 at the time of
+writing. **The model was not trained on Madhyasth Darshan.** The literature is
+searched while it answers you and put in front of it, and what comes back is the
+model reading those passages, in its own habits of thought. A different model, or
+a later version of this one, would read the same passages somewhere slightly
+else. So what Dhee gives you is _an_ interpretation, mixed, and never the śāstra
+itself.
+
+Which means the obvious thing: prompting Dhee and reading its answers is not
+śāstrābhyās. It can point you at a page, hold a question open, put a definition
+in front of you — and none of that is the study. **Aadmi aadmi se hi samjhega.**
+Understanding takes place in the human being, in the reading and in conversation
+with people who have done the reading. A tool cannot do that part, and this one
+is at its best when it hands you back to the book and to the people.
+
+## It is a trial version
+
+Dhee is being tested. It will change, sometimes substantially, and it changes on
+the strength of what people report — the thumbs under each reply are the fastest
+route, and **privacy@dhee.app** is the slower, fuller one.
+
 ## It is not a private diary
 
 Your conversations are stored on our servers, not only on your device — that is
@@ -75,6 +110,13 @@ what lets Dhee remember you between sessions. They are not protected health
 information and they are not a confidential professional relationship. What you
 write here does not have the legal protection a conversation with a doctor or a
 lawyer would.
+
+**We also read them.** Questions and replies are looked at by us to judge how
+well Dhee is answering and to improve it. That is not a reason to stop using
+Dhee for what it is for — it is a reason to leave out the specifics: names,
+contact details, health and financial particulars, and anything about another
+person they have not agreed to. An incognito conversation is never stored at
+all, so there is nothing there to read.
 
 What that means in practice, what is stored, who it is sent to, and how to
 delete it are all in the [Privacy Policy](./privacy.md).

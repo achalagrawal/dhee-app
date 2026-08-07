@@ -3,23 +3,36 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { DisclaimerList } from "../src/components/DisclaimerList";
 import { Field } from "../src/components/ui";
 import { api } from "../convex/_generated/api";
 import { type Language, t } from "../src/lib/i18n";
+import { legalUrls } from "../src/lib/legal";
 import { DEFAULT_TRADITION, TRADITIONS } from "../src/lib/traditions";
 import { useTheme } from "../src/lib/ThemeContext";
 import { type Colors, font, radius, spacing } from "../src/lib/theme";
 
+// Two steps. The first asks the three things Dhee needs to speak to someone at
+// all; the second is what Dhee owes them in return — the six disclaimers, and a
+// button that says they read them. They are two steps rather than one scroll
+// because the button under the disclaimers has to be an acknowledgement of the
+// disclaimers, not of a form that happens to sit above them: finishing here is
+// what `completeOnboarding` records as the acknowledgement (#133).
+type Step = "you" | "disclaimers";
+
 export default function Onboarding() {
   const { colors } = useTheme();
+  const [step, setStep] = useState<Step>("you");
   const [lang, setLang] = useState<Language>("en");
   const [name, setName] = useState("");
   // Preselected, not imposed: almost everyone arriving here is studying this,
@@ -42,7 +55,7 @@ export default function Onboarding() {
     setName(profile.name);
   }, [profile?.name]);
 
-  const start = async () => {
+  const finish = async () => {
     if (busy) return;
     setBusy(true);
     await completeOnboarding({
@@ -52,6 +65,54 @@ export default function Onboarding() {
     });
     router.replace("/home");
   };
+
+  if (step === "disclaimers") {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.discContent}>
+          <Pressable
+            onPress={() => setStep("you")}
+            hitSlop={8}
+            accessibilityRole="button"
+            style={styles.backRow}
+          >
+            <Text style={styles.backLabel}>← {t(lang, "back")}</Text>
+          </Pressable>
+
+          <Text style={styles.title}>{t(lang, "disclaimersTitle")}</Text>
+          <Text style={styles.intro}>{t(lang, "disclaimersIntro")}</Text>
+
+          <DisclaimerList lang={lang} />
+
+          {/* The one claim the six points don't make, and the one that has to
+              reach someone before their first hard evening. Sign-in and the
+              legal pages carried it; onboarding didn't. */}
+          <Text style={styles.notMedical}>
+            {t(lang, "notMedical")}{" "}
+            <Text
+              style={styles.notMedicalLink}
+              onPress={() => void Linking.openURL(legalUrls.safety)}
+              accessibilityRole="link"
+            >
+              {t(lang, "safetyAndLimits")}
+            </Text>
+          </Text>
+
+          <Pressable
+            onPress={() => void finish()}
+            disabled={busy}
+            style={({ pressed }) => [
+              styles.button,
+              busy && styles.buttonDisabled,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <Text style={styles.buttonLabel}>{t(lang, "disclaimersAck")}</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -103,8 +164,8 @@ export default function Onboarding() {
               placeholderTextColor={colors.textFaint}
               value={tradition}
               onChangeText={setTradition}
-              onSubmitEditing={start}
-              returnKeyType="go"
+              onSubmitEditing={() => setStep("disclaimers")}
+              returnKeyType="next"
               maxLength={60}
             />
             <View style={styles.chipRow}>
@@ -133,15 +194,13 @@ export default function Onboarding() {
           </View>
 
           <Pressable
-            onPress={start}
-            disabled={busy}
+            onPress={() => setStep("disclaimers")}
             style={({ pressed }) => [
               styles.button,
-              busy && styles.buttonDisabled,
               pressed && styles.buttonPressed,
             ]}
           >
-            <Text style={styles.buttonLabel}>{t(lang, "start")}</Text>
+            <Text style={styles.buttonLabel}>{t(lang, "next")}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -186,6 +245,34 @@ function makeStyles(colors: Colors) {
       alignSelf: "center",
     },
     title: { fontSize: 30, color: colors.text, ...font.medium },
+    // Step two scrolls — six points don't fit a phone — so it sets its own
+    // column instead of the centred, fixed layout step one uses.
+    discContent: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xl,
+      gap: spacing.md,
+      maxWidth: 480,
+      width: "100%",
+      alignSelf: "center",
+    },
+    backRow: { alignSelf: "flex-start", paddingVertical: 4 },
+    backLabel: { fontSize: 15, color: colors.textSoft, ...font.regular },
+    intro: {
+      fontSize: 15.5,
+      lineHeight: 23,
+      color: colors.textSoft,
+      marginBottom: spacing.xs,
+      ...font.regular,
+    },
+    notMedical: {
+      fontSize: 13.5,
+      lineHeight: 20,
+      color: colors.textFaint,
+      marginTop: spacing.xs,
+      ...font.regular,
+    },
+    notMedicalLink: { color: colors.accentStrong, ...font.medium },
     block: { gap: spacing.sm },
     chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     chip: {

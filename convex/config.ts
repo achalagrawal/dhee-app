@@ -7,6 +7,9 @@
 //
 // Keep this file free of secrets — those live in Convex env vars.
 
+// Changing this means changing CHAT_MODEL_NAME in `src/lib/disclaimers.ts`:
+// the first disclaimer names the model out loud, and a disclaimer that names
+// the wrong model is worse than one that names none.
 export const CHAT_MODEL = "anthropic/claude-sonnet-5";
 
 // Background work that nobody reads as a reply — conversation titles and
@@ -50,3 +53,15 @@ export const MEMORY_EXTRACTION_IDLE_MS = 3 * 60 * 1000;
 // Where to reach the MD corpus MCP server. Override with the MD_MCP_URL
 // Convex env var if this endpoint moves.
 export const DEFAULT_MD_MCP_URL = "https://md-mcp.achal.xyz/mcp";
+
+// What Dhee tells people about itself before they start — the six points in
+// docs/build/specs/ai-disclaimers.md. The version lives on the server so that
+// changing what we say can re-ask everyone without shipping a client: the
+// profile stores the version the person acknowledged, and `currentProfile`
+// compares it against this.
+//
+// Bump it when the *substance* changes — a new limitation, a change to how
+// conversations are used. Do not bump it for a typo or a re-wording: every bump
+// puts a full-screen notice in front of every existing account, and a notice
+// people have learned to dismiss is worse than no notice.
+export const DISCLAIMER_VERSION = 1;

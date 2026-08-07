@@ -84,20 +84,34 @@ lives in a row the person can read, edit, and delete.
 `md-mcp.achal.xyz` is a real third-party hop and is in the inventory, including
 the fact that it happens in incognito conversations too.
 
-**No promise not to train.** The drafts originally carried it three times — in
-the short version, in the model section ("there is no training pipeline here"),
-and in the terms' content-licence paragraph. All three are gone, because
-training a model for optimisation is something Dhee may want to do later, and a
-promise you intend to withdraw is worth less than no promise at all. Note what
-the removal does _not_ buy: silence is not permission. Conversations were
-collected to answer the person, and using them to train is a new purpose that
-needs its own basis under both the DPDP Act and Article 6 — consent, given the
-sensitive categories involved. So the model section now says the change would be
-announced before it starts rather than saying nothing, which keeps the option
-open honestly instead of leaving a gap someone later reads as a licence. It is
-also the claim a reader is most likely to have relied on, so it should not
-quietly vanish from a published page — see the change-notification promise in
-both documents.
+**No promise not to train — and, since 7 August 2026, an improvement purpose
+that uses the option.** The drafts originally carried the promise three times —
+in the short version, in the model section ("there is no training pipeline
+here"), and in the terms' content-licence paragraph. All three went, because
+training a model for optimisation was something Dhee might want to do later, and
+a promise you intend to withdraw is worth less than no promise at all. What the
+removal did _not_ buy is permission: conversations were collected to answer the
+person, so the model section said the change would be announced before it
+started, keeping the option open honestly rather than leaving a gap someone
+later reads as a licence.
+
+[#133](https://github.com/achalagrawal/dhee-app/issues/133) is that change. The
+app now tells people not to share private information because their questions are
+read internally to study reply quality and to improve Dhee, so all three
+documents moved together: the policy gained
+[Reading conversations to improve Dhee](./privacy.md#reading-conversations-to-improve-dhee)
+and a fourth lawful basis, the terms' content licence widened past "only to
+operate Dhee for you", and the safety page says it in plain words. Each carries a
+dated internal note.
+
+**Three things that are not engineering's to close.** (1) The announcement:
+both documents promise a material change is told to people in the app before it
+takes effect, and shipping the new pages is not that. (2) The basis: the policy
+claims a legitimate interest, which is thinner ground for special-category
+material — grief, distress, faith, relationships — than for ordinary data, and
+may need to be consent instead, which folds into the consent gap below. (3) The
+Article 21 objection the policy now offers by email has no mechanism behind it;
+somebody has to honour it by hand.
 
 ## Traceability — every claim back to the repo
 
@@ -152,9 +166,22 @@ the documents that is false until someone does it:
   purpose — the web build is `output: "single"`, so an in-app route serves a
   crawler an empty shell, and a privacy policy URL that reads as empty is one
   that fails Google's OAuth review and an app-store submission alike.
-  `app/(app)/settings.tsx` still has no legal links, and the **explicit consent**
-  the GDPR section relies on is still not collected — the footer is notice, not
-  a recorded, withdrawable act. See the gaps below.
+  Settings reaches all three now too, through the row into `/about` added with
+  the disclaimers (#133). The **explicit consent** the GDPR section relies on is
+  still not collected — the footer is notice, not a recorded, withdrawable act.
+  See the gaps below.
+- **The improvement purpose has to be announced in the app, not just published.**
+  Both documents promise that a material change is told to people before it takes
+  effect. Adding
+  [Reading conversations to improve Dhee](./privacy.md#reading-conversations-to-improve-dhee)
+  is a material change, and the disclaimer gate is not it: the gate says
+  conversations are read, but it is not a notice that _this is new_ and it does
+  not go to anyone who acknowledged and moved on. Existing accounts need telling
+  before the purpose starts.
+- **The Article 21 objection needs somebody to honour it.** The GDPR section now
+  offers an objection to the improvement purpose alone, by email. There is no
+  flag on the profile behind it and nothing excludes an objector's conversations
+  from being read, so today it is a promise kept by hand or not at all.
 - **`privacy@dhee.app` must receive mail.** It is the only route for erasure
   requests, grievances, account closure, and now the postal address the contact
   section offers on request. `dhee.app` already has ForwardEmail MX records and

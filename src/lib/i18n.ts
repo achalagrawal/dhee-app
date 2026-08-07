@@ -32,6 +32,7 @@ const strings = {
     namePlaceholder: "Your name (optional)",
     languagePrompt: "Which language feels most like home?",
     start: "Start",
+    next: "Continue",
     conversations: "Conversations",
     newConversation: "New conversation",
     noConversations: "Nothing here yet.",
@@ -132,7 +133,36 @@ const strings = {
     actToc: "Finding the right chapter",
     actWorking: "Looking something up",
     actTakingIn: "Taking in what came back",
-    chatDisclaimer: "Dhee offers perspective, not professional advice.",
+    chatDisclaimer:
+      "Dhee can be wrong. It offers perspective, not professional advice.",
+    // AI disclaimers — six points, in an order that is an argument. Written
+    // once here and rendered by DisclaimerList everywhere they appear:
+    // onboarding, the gate, /about. See docs/build/specs/ai-disclaimers.md.
+    // %s in discModelBody is CHAT_MODEL_NAME from src/lib/disclaimers.ts.
+    disclaimersTitle: "What Dhee is",
+    disclaimersIntro:
+      "Six things worth knowing before you ask Dhee anything. They take a minute, and they change how you read what comes back.",
+    disclaimersAck: "I understand",
+    discModelTitle: "A general model, given the books to read",
+    discModelBody:
+      "Dhee runs on an existing language model (%s today). The model was not trained on Madhyasth Darshan — the literature is searched and put in front of it while it answers you.",
+    discVariesTitle: "Another model would read it differently",
+    discVariesBody:
+      "The reading is partly the model's own. A different model, or a later version of this one, may take the same question somewhere slightly else.",
+    discHumanTitle: "It aids shastrabhyas; it cannot replace it",
+    discHumanBody:
+      "This is one interpretation, and it stands in for neither the books nor a person. Aadmi aadmi se hi samjhega — understanding takes place in the human being, not in the tool.",
+    discWrongTitle: "Dhee can be wrong",
+    discWrongBody:
+      "It can miss the context, mix its own habits into an answer, and say all of it with confidence. Anything that matters, look up in the books yourself.",
+    discTrialTitle: "This is a trial version",
+    discTrialBody:
+      "Dhee is being tested and will keep changing with what people report. The thumbs under every reply are the quickest way to tell us when one reads badly.",
+    discPrivateTitle: "Please don't share private information",
+    discPrivateBody:
+      "We read the questions and replies here, to study how well Dhee answers and to improve it. Leave out anything about you or anyone else that you would not want read.",
+    aboutDhee: "What Dhee is and isn't",
+    aboutDheeReadMore: "Read more",
     copy: "Copy",
     copied: "Copied",
     goodResponse: "Good response",
@@ -268,6 +298,7 @@ const strings = {
     namePlaceholder: "आपका नाम (वैकल्पिक)",
     languagePrompt: "कौन सी भाषा आपको अपनी लगती है?",
     start: "शुरू करें",
+    next: "जारी रखें",
     conversations: "बातचीत",
     newConversation: "नई बातचीत",
     noConversations: "अभी कुछ नहीं है।",
@@ -364,7 +395,32 @@ const strings = {
     actToc: "सही अध्याय ढूँढ रहा है",
     actWorking: "कुछ देख रहा है",
     actTakingIn: "जो मिला उसे समझ रहा है",
-    chatDisclaimer: "धी नज़रिया देता है, पेशेवर सलाह नहीं।",
+    chatDisclaimer:
+      "धी से भूल हो सकती है। यह नज़रिया देता है, पेशेवर सलाह नहीं।",
+    disclaimersTitle: "धी क्या है",
+    disclaimersIntro:
+      "धी से कुछ पूछने से पहले छह बातें जान लेना ठीक रहेगा। इनमें एक मिनट लगता है, और ये बदल देती हैं कि आप उत्तरों को किस तरह पढ़ेंगे।",
+    disclaimersAck: "मैंने समझ लिया",
+    discModelTitle: "एक सामान्य मॉडल, जिसे शास्त्र पढ़ने को दिया गया है",
+    discModelBody:
+      "धी पहले से बने एक भाषा मॉडल पर चलता है (अभी %s)। मॉडल मध्यस्थ दर्शन पर प्रशिक्षित नहीं है — उत्तर देते समय साहित्य में खोजकर उसके सामने रखा जाता है।",
+    discVariesTitle: "कोई और मॉडल इसे कुछ और ढंग से पढ़ेगा",
+    discVariesBody:
+      "व्याख्या में मॉडल का अपना अंश रहता ही है। कोई दूसरा मॉडल, या इसी का अगला संस्करण, उसी प्रश्न को थोड़ा अलग जगह ले जा सकता है।",
+    discHumanTitle: "यह शास्त्राभ्यास में सहायक है, उसका विकल्प नहीं",
+    discHumanBody:
+      "यह एक व्याख्या है — न शास्त्र की जगह ले सकती है, न मानव की। आदमी आदमी से ही समझेगा; समझ मानव में ही होती है, उपकरण में नहीं।",
+    discWrongTitle: "धी से भूल हो सकती है",
+    discWrongBody:
+      "प्रसंग छूट सकता है, उत्तर में उसकी अपनी आदतें मिल सकती हैं, और यह सब वह पूरे विश्वास के साथ कहेगा। जो बात महत्व की हो, उसे शास्त्र में स्वयं देख लें।",
+    discTrialTitle: "यह परीक्षण संस्करण है",
+    discTrialBody:
+      "धी की जाँच चल रही है, और लोगों के बताए अनुसार यह बदलता रहेगा। कोई उत्तर ठीक न लगे तो हमें बताने का सबसे तेज़ तरीक़ा हर उत्तर के नीचे दिए अंगूठे के निशान हैं।",
+    discPrivateTitle: "कृपया निजी जानकारी साझा न करें",
+    discPrivateBody:
+      "यहाँ पूछे गए प्रश्न और मिले उत्तर हम पढ़ते हैं — यह देखने के लिए कि धी कैसा उत्तर दे रहा है, और उसे बेहतर बनाने के लिए। अपने या किसी और के बारे में ऐसी कोई बात न लिखें जो आप पढ़ी जाना न चाहें।",
+    aboutDhee: "धी क्या है और क्या नहीं",
+    aboutDheeReadMore: "और पढ़ें",
     copy: "कॉपी",
     copied: "कॉपी हो गया",
     goodResponse: "अच्छा जवाब",

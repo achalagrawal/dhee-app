@@ -83,9 +83,15 @@ function render({ slug, src, title, description }) {
 
   body = body.replace(/href="([^"]+)"/g, (m, href) => {
     if (href.startsWith("#") || /^(https?:|mailto:|\/)/.test(href)) return m;
-    const mapped = LINK_MAP[href];
+    // A sibling document can be linked at one of its sections — the terms
+    // point into the policy that way. Map the file, keep the fragment. The
+    // fragment itself is unchecked: the dead-anchor pass below only knows the
+    // headings of the document it is rendering.
+    const hash = href.indexOf("#");
+    const path = hash === -1 ? href : href.slice(0, hash);
+    const mapped = LINK_MAP[path];
     if (!mapped) throw new Error(`${src}: unmapped relative link "${href}"`);
-    return `href="${mapped}"`;
+    return `href="${mapped}${hash === -1 ? "" : href.slice(hash)}"`;
   });
 
   // A legal document that links to its own missing section is the kind of

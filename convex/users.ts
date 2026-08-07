@@ -13,6 +13,7 @@ import {
 } from "./_generated/server";
 import { planForProfile, traditionLimit } from "./lib/plan";
 import { isCorpusLensName } from "./agents/dhee";
+import { DISCLAIMER_VERSION } from "./config";
 
 /** The signed-in person's app-side user id, or null if there is no valid
  *  identity on the request.
@@ -110,6 +111,34 @@ function normalize(value: string | undefined, max: number): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+// ---- Disclaimers ----------------------------------------------------------
+//
+// What Dhee is, what it can't do, and that conversations are read internally.
+// Everyone sees it once: new accounts as onboarding's second step, existing
+// ones through the gate mounted on the signed-in group. See
+// docs/build/specs/ai-disclaimers.md.
+
+/** True once this profile has acknowledged the current text. A profile that
+ *  acknowledged an older version is back to un-acknowledged, which is the
+ *  whole point of versioning it. */
+export function hasAckedDisclaimers(profile: Doc<"profiles">): boolean {
+  return (profile.disclaimersAckedVersion ?? 0) >= DISCLAIMER_VERSION;
+}
+
+/** Records that the person has read the current disclaimers. Idempotent —
+ *  the gate can fire it twice without consequence. */
+export const acknowledgeDisclaimers = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    await patchProfile(ctx, userId, {
+      disclaimersAckedVersion: DISCLAIMER_VERSION,
+    });
+    return null;
+  },
+});
+
 export const currentProfile = query({
   args: {},
   handler: async (ctx) => {
@@ -122,12 +151,17 @@ export const currentProfile = query({
         onboarded: false,
         preferredLanguage: "en" as const,
         traditions: [],
+        disclaimersAcked: false,
       };
     }
     return {
       userId,
       onboarded: profile.onboarded,
       preferredLanguage: profile.preferredLanguage,
+      // Resolved here rather than handing the client two numbers to compare:
+      // the version is the server's business, and a client that got the
+      // comparison wrong would either nag people or skip telling them.
+      disclaimersAcked: hasAckedDisclaimers(profile),
       name: profile.name,
       avatarUrl: profile.avatarId
         ? await ctx.storage.getUrl(profile.avatarId)
@@ -235,6 +269,10 @@ export const completeOnboarding = mutation({
       name: normalize(name, NICKNAME_MAX),
       preferredLanguage,
       onboarded: true,
+      // Onboarding's last step *is* the disclaimers, and its button says "I
+      // understand" — so finishing it acknowledges them. Without this, every
+      // new account would be shown the same six points twice in a row.
+      disclaimersAckedVersion: DISCLAIMER_VERSION,
       // One lens, which every plan allows — no cap check needed here.
       ...(lens ? { traditions: [lens] } : {}),
     });

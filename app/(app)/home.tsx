@@ -118,6 +118,19 @@ export default function Home() {
               </Text>
             </View>
           ) : null}
+
+          {/* The same line the chat dock carries, so the caveat is already on
+              screen before the first question rather than after it. */}
+          <Text style={[styles.disclaimer, { color: colors.textFaint }]}>
+            {t(lang, "chatDisclaimer")}{" "}
+            <Text
+              style={[styles.disclaimerLink, { color: colors.textSoft }]}
+              onPress={() => router.push("/about")}
+              accessibilityRole="link"
+            >
+              {t(lang, "aboutDhee")}
+            </Text>
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </AppShell>
@@ -158,4 +171,12 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   incognitoText: { fontSize: 13.5, ...font.regular },
+  disclaimer: {
+    textAlign: "center",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 14,
+    ...font.regular,
+  },
+  disclaimerLink: font.medium,
 });

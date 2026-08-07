@@ -206,12 +206,13 @@ Spec: `specs/sharing.md`. Closes #98 and #65.
 
 ## Epic 16 — Safety
 
-| Feature                                       | Status | Notes                                                                                              |
-| --------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
-| Crisis detection → safety banner              | ✅     | Server-side in `sendMessage`; EN + HI + Hinglish. Banner → `/support`                              |
-| Safety & limitations page (crisis resources)  | ✅     | `docs/legal/safety.md` → `/safety`; linked from terms + sign-in. Numbers need periodic re-checking |
-| Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName`                                                   |
-| "Not a medical or crisis service" disclaimers | 🟡     | Sign-in + legal done; onboarding still missing it                                                  |
+| Feature                                       | Status | Notes                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Crisis detection → safety banner              | ✅     | Server-side in `sendMessage`; EN + HI + Hinglish. Banner → `/support`                                                                                                                                                                                                                     |
+| Safety & limitations page (crisis resources)  | ✅     | `docs/legal/safety.md` → `/safety`; linked from terms + sign-in. Numbers need periodic re-checking                                                                                                                                                                                        |
+| Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName`                                                                                                                                                                                                                                          |
+| "Not a medical or crisis service" disclaimers | ✅     | Sign-in, legal, onboarding step 2, and `/about` — each of them linking to `/safety`                                                                                                                                                                                                       |
+| AI disclaimers — what Dhee is, and isn't      | ✅     | [Spec](./specs/ai-disclaimers.md), closes #133. Six points in EN + HI: onboarding step 2 acknowledges them, `DisclaimerGate` catches accounts predating them, `/about` keeps them, every composer carries a line into it. Server-owned `DISCLAIMER_VERSION` re-asks when the text changes |
 
 ## Epic 17 — Marketing & static site (web)
 

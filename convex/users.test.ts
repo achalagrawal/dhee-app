@@ -5,6 +5,7 @@ import {
   isCorpusLens,
 } from "./agents/dhee";
 import { api } from "./_generated/api";
+import { DISCLAIMER_VERSION } from "./config";
 import { PAID_TRADITION_LIMIT, traditionLimit } from "./lib/plan";
 import { DEFAULT_TRADITION } from "../src/lib/traditions";
 import { asUser, createUser, initTest } from "./test.setup";
@@ -455,5 +456,108 @@ describe("isCorpusLens", () => {
     expect(isCorpusLens(["Advaita Vedanta"])).toBe(false);
     expect(isCorpusLens([])).toBe(false);
     expect(isCorpusLens(undefined)).toBe(false);
+  });
+});
+
+// Disclaimers: what Dhee is, what it can't do, and that conversations are read
+// internally. See docs/build/specs/ai-disclaimers.md. What matters here is that
+// nobody is asked twice and nobody is skipped — the copy itself is UI.
+
+describe("users — disclaimer acknowledgement", () => {
+  /** The version stored on the profile, reading past the API on purpose. */
+  const storedVersion = async (
+    t: ReturnType<typeof initTest>,
+    userId: Awaited<ReturnType<typeof createUser>>,
+  ) =>
+    await t.run(async (ctx) => {
+      const profile = await ctx.db
+        .query("profiles")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .unique();
+      return profile?.disclaimersAckedVersion;
+    });
+
+  test("a fresh account has not acknowledged anything", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+
+    // No profile row exists yet — the answer still has to be "not acked", not
+    // undefined, or the gate would fail open on exactly the people it's for.
+    expect(
+      (await as.query(api.users.currentProfile, {}))?.disclaimersAcked,
+    ).toBe(false);
+  });
+
+  test("finishing onboarding is the acknowledgement", async () => {
+    const t = initTest();
+    const userId = await createUser(t);
+    const as = asUser(t, userId);
+
+    await as.mutation(api.users.completeOnboarding, {
+      name: "Kabir",
+      preferredLanguage: "en",
+    });
+
+    // Otherwise the gate shows the same six points again on the first screen
+    // after onboarding, which is where people learn to dismiss notices.
+    expect(
+      (await as.query(api.users.currentProfile, {}))?.disclaimersAcked,
+    ).toBe(true);
+    expect(await storedVersion(t, userId)).toBe(DISCLAIMER_VERSION);
+  });
+
+  test("an account that predates the disclaimers is asked, then isn't", async () => {
+    const t = initTest();
+    const userId = await createUser(t);
+    const as = asUser(t, userId);
+
+    // Onboarded before any of this existed: a profile with no ack on it.
+    await as.mutation(api.users.setName, { name: "Kabir" });
+    expect(
+      (await as.query(api.users.currentProfile, {}))?.disclaimersAcked,
+    ).toBe(false);
+
+    await as.mutation(api.users.acknowledgeDisclaimers, {});
+    expect(
+      (await as.query(api.users.currentProfile, {}))?.disclaimersAcked,
+    ).toBe(true);
+  });
+
+  test("acknowledging twice is harmless", async () => {
+    const t = initTest();
+    const userId = await createUser(t);
+    const as = asUser(t, userId);
+
+    await as.mutation(api.users.acknowledgeDisclaimers, {});
+    await as.mutation(api.users.acknowledgeDisclaimers, {});
+    expect(await storedVersion(t, userId)).toBe(DISCLAIMER_VERSION);
+  });
+
+  test("a bumped version re-asks someone who acknowledged the old text", async () => {
+    const t = initTest();
+    const userId = await createUser(t);
+    const as = asUser(t, userId);
+
+    await as.mutation(api.users.acknowledgeDisclaimers, {});
+    // Stand in for a future DISCLAIMER_VERSION by ageing the stored ack: the
+    // point of versioning it is that changing what we say asks again.
+    await t.run(async (ctx) => {
+      const profile = await ctx.db
+        .query("profiles")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .unique();
+      await ctx.db.patch(profile!._id, {
+        disclaimersAckedVersion: DISCLAIMER_VERSION - 1,
+      });
+    });
+
+    expect(
+      (await as.query(api.users.currentProfile, {}))?.disclaimersAcked,
+    ).toBe(false);
+
+    await as.mutation(api.users.acknowledgeDisclaimers, {});
+    expect(
+      (await as.query(api.users.currentProfile, {}))?.disclaimersAcked,
+    ).toBe(true);
   });
 });

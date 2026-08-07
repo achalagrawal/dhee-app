@@ -496,7 +496,19 @@ export default function Chat() {
               onPickPhoto={() => void photos.pick()}
               onRemoveAttachment={photos.remove}
             />
-            <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
+            {/* The caveat carries the link rather than standing alone: the
+                line has room for two clauses, and the other four points are
+                one tap away for anyone who wants them. */}
+            <Text style={styles.disclaimer}>
+              {t(lang, "chatDisclaimer")}{" "}
+              <Text
+                style={styles.disclaimerLink}
+                onPress={() => router.push("/about")}
+                accessibilityRole="link"
+              >
+                {t(lang, "aboutDhee")}
+              </Text>
+            </Text>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -966,5 +978,6 @@ function makeStyles(colors: Colors) {
       marginTop: 9,
       ...font.regular,
     },
+    disclaimerLink: { color: colors.textSoft, ...font.medium },
   });
 }

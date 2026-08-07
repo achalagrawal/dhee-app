@@ -3,6 +3,7 @@ import { Redirect, Stack } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { AppDrawer } from "../../src/components/AppDrawer";
 import { AppSidebar } from "../../src/components/AppSidebar";
+import { DisclaimerGate } from "../../src/components/DisclaimerGate";
 import { SearchModal } from "../../src/components/SearchModal";
 import { Loading } from "../../src/components/ui";
 import { ShellProvider } from "../../src/lib/shell";
@@ -46,6 +47,9 @@ export default function AppLayout() {
             </View>
             {isDesktop ? null : <AppDrawer />}
             <SearchModal />
+            {/* Above everything, on every signed-in screen, for anyone who
+                onboarded before the disclaimers existed. */}
+            <DisclaimerGate />
           </View>
         </ShellProvider>
       </Authenticated>

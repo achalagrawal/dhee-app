@@ -8,9 +8,26 @@ publish as written — but it has not been reviewed by a lawyer, and it should
 not go live until it has. See [README.md](./README.md) for the traceability map
 back to the repo and the work that still has to happen outside these documents.
 
+**7 August 2026 — the improvement purpose was added, and it needs sign-off of
+its own.** Until this revision, "Sending your words to a model" promised the
+opposite: that using what people write for anything beyond answering them —
+including to train or tune a model — would be a new purpose announced in
+advance. [#133](https://github.com/achalagrawal/dhee-app/issues/133) asks the
+app to tell people not to share private information _because_ their questions
+are read internally to study reply quality and to improve Dhee. That in-app
+line and the old promise could not both stand, so the purpose is written in
+here plainly and given its own lawful basis. Two things follow, and neither is
+engineering's call: **this is a material change**, so the Changes section's
+own promise means existing users have to be told in the app before it takes
+effect, not just shown the new page; and the DPDP/GDPR consent story for it
+needs a lawyer's eye, since "improving the service" is a thinner basis for
+special-category material than for ordinary data. The GDPR section now offers an
+Article 21 objection to this purpose alone, by email — there is no code behind
+that, so it is an operational commitment someone has to actually honour by hand.
+
 <!-- internal:end -->
 
-_Last updated 26 July 2026._
+_Last updated 7 August 2026._
 
 ---
 
@@ -19,7 +36,7 @@ _Last updated 26 July 2026._
 Dhee is for private reflection, and it is built to hold your trust. We collect
 as little as we can, and we do not sell your data.
 
-Two things are worth knowing before you read further, because they surprise
+Three things are worth knowing before you read further, because they surprise
 people:
 
 1. **Your conversations live on our servers**, not only on your device. That is
@@ -28,6 +45,10 @@ people:
    value, what you are hoping for, what you keep returning to — and keeps them.
    Every one of those conclusions is visible to you, and you can edit or delete
    any of them.
+3. **We read conversations to make Dhee better.** Questions and replies are
+   looked at by us to judge how well Dhee is answering, and used to improve it.
+   That is why the app asks you not to write private details here — see
+   [Reading conversations to improve Dhee](#reading-conversations-to-improve-dhee).
 
 ## Who we are
 
@@ -90,7 +111,7 @@ UK, see [If you are in Europe or the UK](#if-you-are-in-europe-or-the-uk).
 
 ## Why we are allowed to do each of these things
 
-Everything above is done for one of three reasons, and it is worth being
+Everything above is done for one of four reasons, and it is worth being
 precise about which:
 
 **To give you what you asked for.** Holding your account, storing your
@@ -113,6 +134,14 @@ and diagnosing failures. A legitimate interest, and a narrow one: it never
 extends to reading conversations for curiosity, marketing, or profiling you for
 anyone else's benefit.
 
+**To make Dhee better.** Reading questions and replies to judge how well Dhee
+answers, and improving it from what we find — the section
+[Reading conversations to improve Dhee](#reading-conversations-to-improve-dhee)
+sets out what that covers and what it does not. A legitimate interest in
+European terms. It is separate from the three above on purpose, because it is
+the one purpose that is for us rather than for you, and separating it is what
+lets you see it and object to it.
+
 We do not sell your data, we do not share it for advertising, and we make no
 automated decision about you that has a legal or similarly significant effect.
 Dhee does build a picture of you — that is the point of it — and you can read
@@ -128,10 +157,38 @@ requests are then handled under that provider's own terms, which you can read
 for yourself: they are the same terms any developer using them gets, and we
 have no private arrangement that widens them.
 
-If we ever use what you write for anything beyond answering you — including to
-train or tune a model — that is a new purpose, not a quiet extension of this
-one. We will say so in this policy and tell you in the app before it starts,
-as set out in [Changes to this policy](#changes-to-this-policy).
+We do use what you write for one thing beyond answering you, and it has its own
+section immediately below. Anything beyond _that_ — selling it, handing it to an
+advertiser, letting a provider train their general models on it — is a new
+purpose, not a quiet extension of these two. We will say so in this policy and
+tell you in the app before it starts, as set out in
+[Changes to this policy](#changes-to-this-policy).
+
+## Reading conversations to improve Dhee
+
+Dhee is early, and the only way to find out where it answers badly is to read
+where it answered badly. So: **we read questions and replies from this app, to
+judge how well Dhee is doing and to improve it.** That includes tuning the
+instructions Dhee runs on, building test cases out of exchanges that went
+wrong, and improving the models that serve you here.
+
+Some plain limits on that, so it is not a blank cheque:
+
+- **It is us, not an advertiser and not a data broker.** We do not sell your
+  conversations, share them for advertising, or hand them to anyone to train
+  their own general-purpose models.
+- **Incognito conversations are not part of it.** They are never stored, so
+  there is nothing to read. See [Incognito conversations](#incognito-conversations).
+- **Deleting still deletes.** Once you delete a conversation or close your
+  account, it is gone from the store we read — see
+  [How long we keep things](#how-long-we-keep-things). What was already learned
+  from it, in the form of a test case or a change to Dhee's instructions, does
+  not travel back out of Dhee, in the same way a lesson does not un-learn.
+- **We would rather you kept private things private.** The app says this before
+  you start and under every message box, and we mean it: leave out names,
+  contact details, health specifics, financial specifics, and anything about
+  another person that they have not agreed to have written down. Dhee is
+  genuinely useful without them.
 
 ## If you are in Europe or the UK
 
@@ -145,10 +202,12 @@ reach at privacy@dhee.app.
 
 **Why we process, and on what basis.** As set out just above: contract for the
 service itself, your explicit consent for the sensitive things you choose to
-write, and a narrow legitimate interest in keeping the service secure and
-standing up. Giving us your email address is necessary to hold an account —
-without it there is nowhere to send your sign-in code and no account to sign in
-to. Everything else you give us is optional.
+write, a narrow legitimate interest in keeping the service secure and standing
+up, and a legitimate interest in improving Dhee from what people write in it.
+You can object to that last one under Article 21, separately from everything
+else, by writing to privacy@dhee.app. Giving us your email address is necessary
+to hold an account — without it there is nowhere to send your sign-in code and
+no account to sign in to. Everything else you give us is optional.
 
 **Where your data goes.** To India, where Dhee is run, and to the providers
 listed above, which operate in several countries. India has no European

@@ -8,9 +8,17 @@ publish as written — but it has not been reviewed by a lawyer, and it should
 not go live until it has. See [README.md](./README.md) for the traceability map
 back to the repo and the work that still has to happen outside these documents.
 
+**7 August 2026 — "Your content" widened**, to match the improvement purpose
+added to the Privacy Policy on the same date (see its internal note, and
+`docs/build/specs/ai-disclaimers.md`). The licence used to say the permission
+"exists only to operate Dhee for you"; reading conversations to improve Dhee is
+not that, so the sentence had to move rather than be quietly reinterpreted. All
+three documents rise and fall together here — if the improvement purpose does
+not survive review, this paragraph reverts with it.
+
 <!-- internal:end -->
 
-_Last updated 26 July 2026._
+_Last updated 7 August 2026._
 
 ---
 
@@ -93,12 +101,18 @@ you add to your profile.
 
 To run the service, you give us permission to store your content, send it to
 the providers listed in the Privacy Policy so a reply can be generated, and
-derive from it the notes Dhee keeps about you. That permission exists only to
-operate Dhee for you, it is not exclusive, and it ends for any content when you
-delete it.
+derive from it the notes Dhee keeps about you. That permission is not exclusive,
+and it ends for any content when you delete it.
+
+You also give us permission to read your content in order to judge how well Dhee
+is answering and to improve it, as set out in
+[Reading conversations to improve Dhee](./privacy.md#reading-conversations-to-improve-dhee).
+That is the one use beyond operating Dhee for you, and the Privacy Policy is
+where its limits are written down.
 
 You are responsible for what you send — including for not sending other people's
-personal information, or anything you are not free to share.
+personal information, or anything you are not free to share. Please do not put
+private details about yourself or anyone else into a conversation: it is read.
 
 ## Plans, limits, and upgrades
 

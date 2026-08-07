@@ -473,6 +473,15 @@ export default function Settings() {
             danger
             onPress={() => setPending("deleteChats")}
           />
+          {/* Sits under "your data" rather than in an About group of its own:
+              the sixth disclaimer is about what happens to what you write, so
+              this is where someone asking that question is already looking. */}
+          <NavRow
+            colors={colors}
+            icon="sparkle"
+            label={t(lang, "aboutDhee")}
+            onPress={() => router.push("/about")}
+          />
         </Group>
 
         {/* Account */}

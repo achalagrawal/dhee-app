@@ -184,6 +184,10 @@ export default function IncognitoChat() {
               placeholder={t(lang, "replyPlaceholder")}
               minHeight={24}
             />
+            {/* The same caveat as the saved chat, but not a link: this
+                conversation only exists in memory, so navigating to /about
+                would throw it away to read about it. */}
+            <Text style={styles.disclaimer}>{t(lang, "chatDisclaimer")}</Text>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -254,5 +258,12 @@ function makeStyles(colors: Colors) {
       backgroundColor: colors.bg,
     },
     dockInner: readableColumn,
+    disclaimer: {
+      textAlign: "center",
+      color: colors.textFaint,
+      fontSize: 12,
+      marginTop: 9,
+      ...font.regular,
+    },
   });
 }

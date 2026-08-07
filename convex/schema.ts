@@ -70,6 +70,13 @@ export default defineSchema({
     // comma-joined string because the free/paid distinction is a *count*, and
     // a string would make counting a parsing problem.
     traditions: v.optional(v.array(v.string())),
+
+    // The DISCLAIMER_VERSION this person last acknowledged — what Dhee is,
+    // what it can't do, and that conversations are read internally. Absent
+    // means never: every account that predates the disclaimers reads as
+    // un-acknowledged and gets asked once. See
+    // docs/build/specs/ai-disclaimers.md.
+    disclaimersAckedVersion: v.optional(v.number()),
   }).index("by_user", ["userId"]),
 
   // The life questions a person is sitting with — the heart of the product.

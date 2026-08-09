@@ -96,7 +96,7 @@ async function clearMarksFor(
       .query("messageFeedback")
       .withIndex("by_message", (q) => q.eq("messageId", key))
       .unique();
-    if (row) await ctx.db.delete(row._id);
+    if (row) await ctx.db.delete("messageFeedback", row._id);
   }
   const meta = await threadMetaFor(ctx, threadId);
   const edited = meta?.editedMessages ?? [];
@@ -109,7 +109,7 @@ async function clearMarksFor(
     kept.edited.length !== edited.length ||
     kept.stopped.length !== stopped.length;
   if (meta && dropped) {
-    await ctx.db.patch(meta._id, {
+    await ctx.db.patch("threadMeta", meta._id, {
       editedMessages: kept.edited,
       stoppedMessages: kept.stopped,
     });
@@ -231,7 +231,7 @@ async function upsertThreadMeta(
 ): Promise<void> {
   const meta = await threadMetaFor(ctx, threadId);
   if (meta) {
-    await ctx.db.patch(meta._id, patch);
+    await ctx.db.patch("threadMeta", meta._id, patch);
   } else {
     await ctx.db.insert("threadMeta", {
       userId,
@@ -747,13 +747,15 @@ export const deleteThread = mutation({
     const meta = await threadMetaFor(ctx, threadId);
     if (meta) {
       await cancelPendingExtraction(ctx, meta);
-      await ctx.db.delete(meta._id);
+      await ctx.db.delete("threadMeta", meta._id);
     }
     const feedback = await ctx.db
       .query("messageFeedback")
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .collect();
-    for (const row of feedback) await ctx.db.delete(row._id);
+    for (const row of feedback) {
+      await ctx.db.delete("messageFeedback", row._id);
+    }
     // A share of a deleted thread points at messages that are going away, and
     // there would be no screen left to revoke it from.
     await deleteSharesForThread(ctx, threadId);
@@ -769,12 +771,32 @@ export const deleteAllThreads = mutation({
   returns: v.number(),
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
-    const { page } = await ctx.runQuery(
-      components.agent.threads.listThreadsByUserId,
-      { userId, paginationOpts: { cursor: null, numItems: 500 } },
-    );
-    for (const thread of page) {
-      await dhee.deleteThreadAsync(ctx, { threadId: thread._id });
+    // Paged to completion, not one page: a single fixed-size read would
+    // silently keep whatever conversations lie past it, and "delete all"
+    // half-kept is worse than an error. Ids are collected before any delete
+    // because paging a list while deleting from it walks a moving cursor
+    // (same shape as account.ts's deleteThreads).
+    const threadIds: string[] = [];
+    let cursor: string | null = null;
+    for (;;) {
+      const {
+        page,
+        isDone,
+        continueCursor,
+      }: {
+        page: Array<{ _id: string }>;
+        isDone: boolean;
+        continueCursor: string;
+      } = await ctx.runQuery(components.agent.threads.listThreadsByUserId, {
+        userId,
+        paginationOpts: { cursor, numItems: 100 },
+      });
+      threadIds.push(...page.map((thread) => thread._id));
+      if (isDone) break;
+      cursor = continueCursor;
+    }
+    for (const threadId of threadIds) {
+      await dhee.deleteThreadAsync(ctx, { threadId });
     }
     const metas = await ctx.db
       .query("threadMeta")
@@ -782,15 +804,17 @@ export const deleteAllThreads = mutation({
       .collect();
     for (const meta of metas) {
       await cancelPendingExtraction(ctx, meta);
-      await ctx.db.delete(meta._id);
+      await ctx.db.delete("threadMeta", meta._id);
     }
     const feedback = await ctx.db
       .query("messageFeedback")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    for (const row of feedback) await ctx.db.delete(row._id);
+    for (const row of feedback) {
+      await ctx.db.delete("messageFeedback", row._id);
+    }
     await deleteSharesForUser(ctx, userId);
-    return page.length;
+    return threadIds.length;
   },
 });
 
@@ -906,11 +930,11 @@ export const setMessageFeedback = mutation({
       .withIndex("by_message", (q) => q.eq("messageId", messageId))
       .unique();
     if (rating === null) {
-      if (existing) await ctx.db.delete(existing._id);
+      if (existing) await ctx.db.delete("messageFeedback", existing._id);
       return null;
     }
     if (existing) {
-      await ctx.db.patch(existing._id, { rating });
+      await ctx.db.patch("messageFeedback", existing._id, { rating });
     } else {
       await ctx.db.insert("messageFeedback", {
         userId,

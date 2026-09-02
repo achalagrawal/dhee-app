@@ -22,6 +22,18 @@ updates:
         update-types: [version-update:semver-major]
       - dependency-name: expo
         update-types: [version-update:semver-major]
+      # Expo pins these to exact versions per SDK (`expo/bundledNativeModules.json`),
+      # and its type shim for react-native-web is written against that pin. A
+      # bump past it breaks typecheck (#147: react-native 0.87 vs SDK 57's 0.86)
+      # or native builds. `npx expo install --fix` moves them, together, at SDK
+      # upgrade time.
+      - dependency-name: react-native
+      - dependency-name: react-native-screens
+      - dependency-name: react-native-safe-area-context
+      - dependency-name: react-native-reanimated
+      - dependency-name: react-native-web
+      - dependency-name: react-native-svg
+      - dependency-name: react-native-gesture-handler
 
   # Keep CI actions current; a stale action is a supply-chain risk.
   - package-ecosystem: github-actions

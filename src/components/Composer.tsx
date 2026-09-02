@@ -294,7 +294,7 @@ export function Composer({
             ]}
           >
             <Text style={[styles.modelText, { color: colors.textSoft }]}>
-              {modelPillLabel(lang, tier)}
+              {modelPillLabel(tier)}
             </Text>
             <Icon name="chevronDown" size={11} color={colors.textSoft} />
           </Pressable>

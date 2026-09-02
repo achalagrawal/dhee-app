@@ -1,5 +1,5 @@
 import type { ModelTier } from "@convex/agents/models";
-import type { Language, StringKey } from "./i18n";
+import type { StringKey } from "./i18n";
 
 // How the two model tiers are named and described to the person choosing.
 //
@@ -34,12 +34,17 @@ export const modelDescKey = (tier: ModelTier): StringKey => DESC_KEYS[tier];
  * "Dhee Quick" is too wide for a pill that sits beside the attach button on a
  * narrow screen, so the pill drops the "Dhee " and keeps the distinguishing
  * word. The full name is what the open menu shows.
+ *
+ * Roman in every language, because the names are product names and the menu
+ * shows them in Roman too (see the note on `modelQuickName` in i18n.ts). A
+ * Devanagari transliteration on the pill would send someone into a menu with
+ * no item by that name.
  */
-export function modelPillLabel(lang: Language, tier: ModelTier): string {
-  return PILL[lang][tier];
+export function modelPillLabel(tier: ModelTier): string {
+  return PILL[tier];
 }
 
-const PILL: Record<Language, Record<ModelTier, string>> = {
-  en: { quick: "Quick", reflective: "Reflective" },
-  hi: { quick: "क्विक", reflective: "रिफ्लेक्टिव" },
+const PILL: Record<ModelTier, string> = {
+  quick: "Quick",
+  reflective: "Reflective",
 };

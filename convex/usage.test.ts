@@ -1,8 +1,9 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { BACKGROUND_MODEL, CHAT_MODEL } from "./config";
 import {
   classifyAgentCall,
   costFromProviderMetadata,
+  EVAL_USER_ID,
   toUsageRecord,
 } from "./usage";
 import { initTest, createUser } from "./test.setup";
@@ -27,6 +28,19 @@ describe("classifyAgentCall", () => {
         backgroundModel,
       }),
     ).toBe("title");
+  });
+
+  test("the harness's user means eval, whatever else is true of the call", () => {
+    // Eval runs look exactly like incognito — no thread, the chat model — so
+    // the only thing that tells them apart is who they run as.
+    expect(
+      classifyAgentCall({
+        model: CHAT_MODEL,
+        threadId: undefined,
+        backgroundModel,
+        userId: EVAL_USER_ID,
+      }),
+    ).toBe("eval");
   });
 
   test("no thread means incognito", () => {
@@ -164,6 +178,73 @@ describe("usage.record", () => {
     const fields = Object.keys(row!);
     for (const forbidden of ["text", "prompt", "reply", "content", "title"]) {
       expect(fields).not.toContain(forbidden);
+    }
+  });
+
+  test("keeps the person on the row when the id is a real one", async () => {
+    const t = initTest();
+    const userId = await createUser(t, { email: "real@example.com" });
+
+    await t.mutation(internal.usage.record, {
+      userId,
+      kind: "chat",
+      model: CHAT_MODEL,
+      promptTokens: 10,
+      completionTokens: 1,
+    });
+
+    const [row] = await t.run(async (ctx) =>
+      ctx.db.query("llmUsage").collect(),
+    );
+    expect(row?.userId).toBe(userId);
+  });
+
+  test("files the harness's spend as eval, with no person and no complaint", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const t = initTest();
+      await t.mutation(internal.usage.record, {
+        userId: EVAL_USER_ID,
+        kind: "eval",
+        model: CHAT_MODEL,
+        promptTokens: 10,
+        completionTokens: 1,
+      });
+
+      const [row] = await t.run(async (ctx) =>
+        ctx.db.query("llmUsage").collect(),
+      );
+      expect(row).toMatchObject({ kind: "eval" });
+      expect(row?.userId).toBeUndefined();
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("keeps a row for an id it cannot place, and says so", async () => {
+    // The validator used to reject this at the boundary, loudly. Now the row
+    // survives — accounting must never be what fails — but a silent drop of
+    // the attribution would be a quiet misstatement of who cost what.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const t = initTest();
+      await t.mutation(internal.usage.record, {
+        userId: "not-a-users-id",
+        kind: "chat",
+        model: CHAT_MODEL,
+        promptTokens: 10,
+        completionTokens: 1,
+      });
+
+      const rows = await t.run(async (ctx) =>
+        ctx.db.query("llmUsage").collect(),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.userId).toBeUndefined();
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
     }
   });
 

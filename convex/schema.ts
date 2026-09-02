@@ -198,7 +198,8 @@ export default defineSchema({
   // No message text, no prompt, no reply — only counts, and `userId` so cost
   // can be attributed. Nothing here says anything about what was discussed.
   llmUsage: defineTable({
-    // Null for calls made outside a user's turn, should any ever exist.
+    // Absent when no signed-in person made the call. Today that is only the
+    // eval harness, whose rows are filed as `eval`.
     userId: v.optional(v.id("users")),
     threadId: v.optional(v.string()),
     // What the call was for. Named rather than derived, because the whole point
@@ -208,6 +209,7 @@ export default defineSchema({
       v.literal("title"),
       v.literal("extraction"),
       v.literal("incognito"),
+      v.literal("eval"),
     ),
     model: v.string(),
     provider: v.optional(v.string()),

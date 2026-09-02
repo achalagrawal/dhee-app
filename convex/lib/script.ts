@@ -31,27 +31,71 @@ export type ReplyScript =
   | "odia";
 
 const RANGES: { script: ReplyScript; re: RegExp }[] = [
-  { script: "devanagari", re: /[ऀ-ॿ]/g },
-  { script: "gujarati", re: /[઀-૿]/g },
-  { script: "bengali", re: /[ঀ-৿]/g },
-  { script: "gurmukhi", re: /[਀-੿]/g },
-  { script: "tamil", re: /[஀-௿]/g },
-  { script: "telugu", re: /[ఀ-౿]/g },
-  { script: "kannada", re: /[ಀ-೿]/g },
-  { script: "malayalam", re: /[ഀ-ൿ]/g },
-  { script: "odia", re: /[଀-୿]/g },
+  { script: "devanagari", re: /[ऀ-ॿ]/ },
+  { script: "gujarati", re: /[઀-૿]/ },
+  { script: "bengali", re: /[ঀ-৿]/ },
+  { script: "gurmukhi", re: /[਀-੿]/ },
+  { script: "tamil", re: /[஀-௿]/ },
+  { script: "telugu", re: /[ఀ-౿]/ },
+  { script: "kannada", re: /[ಀ-೿]/ },
+  { script: "malayalam", re: /[ഀ-ൿ]/ },
+  { script: "odia", re: /[଀-୿]/ },
 ];
 
-const LATIN = /[A-Za-z]/g;
+// Only letters count. Digits, dandas, and punctuation belong to a script's
+// block without saying anything about what the person is writing in — "१२३"
+// or a lone "।" is not a Devanagari message — and matras and viramas are marks
+// on a letter rather than letters, so counting them would let one Devanagari
+// word outweigh three English ones.
+const LETTER = /\p{L}/u;
+const LATIN = /\p{Script=Latin}/u;
 
-// A couple of Sanskrit terms dropped into an otherwise Roman-script message is
-// not a request for a Devanagari reply — someone writing "what does समाधान
-// mean?" wants an English answer. So a non-Latin script has to carry a real
-// share of the letters before it wins, rather than merely appearing.
-const MIN_SHARE = 0.3;
+// Something in quotation marks is being asked *about*, not written *in*. A
+// study question that quotes a whole line of the corpus — "what does 'जीवन ही
+// ज्ञान है' mean?" — is a Roman-script question and wants a Roman-script
+// answer, however much Devanagari the quotation carries.
+const QUOTED = /["“”„«»][^"“”„«»]*["“”„«»]|‘[^’]*’|`[^`]*`/g;
 
-function count(text: string, re: RegExp): number {
-  return text.match(re)?.length ?? 0;
+// A non-Latin script wins only when it carries the message: most of the words,
+// not most of the letters, and by a clear margin. "kya ye sahi hai: व्यवस्था"
+// is a Roman-script question about one Devanagari word; "मुझे अपनी job में
+// satisfaction नहीं मिलता" is Hindi with two English words in it. When the two
+// are close to even, Roman wins, because someone who has written a substantial
+// part of their message in Roman letters can read a reply in them — and the
+// base instruction still asks for their language.
+const MIN_SHARE = 0.7;
+
+/** Which script a single word is written in, by its letters. */
+function wordScript(word: string): ReplyScript | undefined {
+  const tally = new Map<ReplyScript, number>();
+  for (const ch of word) {
+    if (!LETTER.test(ch)) continue;
+    const script = LATIN.test(ch)
+      ? "latin"
+      : RANGES.find(({ re }) => re.test(ch))?.script;
+    if (!script) continue;
+    tally.set(script, (tally.get(script) ?? 0) + 1);
+  }
+  return leader(tally)?.script;
+}
+
+function leader<K>(
+  tally: Map<K, number>,
+): { script: K; n: number } | undefined {
+  let best: { script: K; n: number } | undefined;
+  for (const [script, n] of tally) {
+    if (best === undefined || n > best.n) best = { script, n };
+  }
+  return best;
+}
+
+function scriptsOfWords(text: string): ReplyScript[] {
+  const scripts: ReplyScript[] = [];
+  for (const word of text.split(/\s+/)) {
+    const script = wordScript(word);
+    if (script) scripts.push(script);
+  }
+  return scripts;
 }
 
 /**
@@ -64,19 +108,21 @@ export function detectReplyScript(text: string): ReplyScript | undefined {
   const source = text.trim();
   if (!source) return undefined;
 
-  const latin = count(source, LATIN);
-  let best: { script: ReplyScript; n: number } | undefined;
-  let indic = 0;
-  for (const { script, re } of RANGES) {
-    const n = count(source, re);
-    indic += n;
-    if (n > 0 && (best === undefined || n > best.n)) best = { script, n };
-  }
+  // Judge the person's own words first; fall back to the whole message when
+  // the quotation is all there is.
+  let words = scriptsOfWords(source.replace(QUOTED, " "));
+  if (words.length === 0) words = scriptsOfWords(source);
+  if (words.length === 0) return undefined;
 
-  const letters = latin + indic;
-  if (letters === 0) return undefined;
-  if (best && best.n / letters >= MIN_SHARE) return best.script;
-  return latin > 0 ? "latin" : undefined;
+  const tally = new Map<ReplyScript, number>();
+  for (const script of words) tally.set(script, (tally.get(script) ?? 0) + 1);
+  const latin = tally.get("latin") ?? 0;
+  tally.delete("latin");
+  const best = leader(tally);
+
+  if (best && best.n / words.length >= MIN_SHARE) return best.script;
+  if (latin > 0) return "latin";
+  return best?.script;
 }
 
 const NAMES: Record<ReplyScript, string> = {

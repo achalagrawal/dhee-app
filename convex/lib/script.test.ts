@@ -51,6 +51,40 @@ describe("detectReplyScript", () => {
     expect(detectReplyScript("मैं समझना चाहता हूँ ok")).toBe("devanagari");
   });
 
+  it("keeps a Roman-script question Roman when it quotes a whole line", () => {
+    // The study case: someone pastes a line of the corpus and asks about it.
+    // The quotation is what they are asking about, not what they wrote in.
+    expect(
+      detectReplyScript(
+        'What does this mean? "जीवन ही ज्ञान है, जीवन ही मानव है"',
+      ),
+    ).toBe("latin");
+    expect(
+      detectReplyScript(
+        "Can you explain this passage in simple English: मानव का लक्ष्य समाधान, समृद्धि, अभय और सह-अस्तित्व है।",
+      ),
+    ).toBe("latin");
+    expect(detectReplyScript("kya ye sahi hai: व्यवस्था")).toBe("latin");
+  });
+
+  it("still reads a quotation on its own as the script it is in", () => {
+    expect(detectReplyScript('"जीवन ही ज्ञान है"')).toBe("devanagari");
+  });
+
+  it("keeps Hindi Hindi when a few English words sit inside it", () => {
+    expect(
+      detectReplyScript("मुझे अपनी job में कोई satisfaction नहीं मिलता"),
+    ).toBe("devanagari");
+  });
+
+  it("does not count digits or punctuation as a script", () => {
+    // A danda or Devanagari numerals sit in the Devanagari block but say
+    // nothing about what the person writes in.
+    expect(detectReplyScript("।")).toBeUndefined();
+    expect(detectReplyScript("१२३")).toBeUndefined();
+    expect(detectReplyScript("page १२ please")).toBe("latin");
+  });
+
   it("says nothing when there is nothing to go on", () => {
     expect(detectReplyScript("")).toBeUndefined();
     expect(detectReplyScript("   ")).toBeUndefined();

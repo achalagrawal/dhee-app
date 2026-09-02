@@ -62,6 +62,7 @@ const en: StarterSet = {
   relationships: [
     "Someone I love keeps disappointing me. How much should I expect?",
     "I feel lonely even around people. Why?",
+    "How do I forgive someone who has never said sorry?",
   ],
   purpose: [
     "How do I know if my work actually matters to me?",
@@ -102,6 +103,7 @@ const hi: StarterSet = {
   relationships: [
     "जिनसे प्रेम है वही बार-बार निराश करते हैं। कितनी अपेक्षा रखना ठीक है?",
     "लोगों के बीच रहकर भी अकेलापन क्यों लगता है?",
+    "जिसने कभी माफ़ी नहीं माँगी, उसे कैसे माफ़ करूँ?",
   ],
   purpose: [
     "कैसे जानूँ कि मेरा काम सचमुच मेरे लिए मायने रखता है?",

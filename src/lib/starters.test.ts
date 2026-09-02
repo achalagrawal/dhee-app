@@ -31,8 +31,11 @@ describe("modes", () => {
 describe("startersFor", () => {
   // How many questions a mode offers is an editorial call and moves as the
   // writing is revised, so these assert a floor rather than a target. The
-  // count that actually has to hold is the cross-language one below.
-  const FLOOR = 2;
+  // floor is what `docs/build/FEATURES.md` promises — three per mode — so a
+  // mode that loses a question has to update the row rather than quietly
+  // shipping two. The count that actually has to hold is the cross-language
+  // one below.
+  const FLOOR = 3;
 
   it("gives the default set when no mode is chosen", () => {
     for (const lang of LANGUAGES) {

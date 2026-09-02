@@ -84,6 +84,28 @@ describe("chat — auth & authorization", () => {
 });
 
 describe("chat — sendMessage bookkeeping", () => {
+  test("hands the reply the text it was asked, so the script can follow it", async () => {
+    // `streamReply` decides the reply script from the message it is answering.
+    // Pinning the argument, not just the function name, means dropping it
+    // silently loses per-turn script correction rather than breaking a test.
+    const t = initTest();
+    const user = await createUser(t);
+    const threadId = await asUser(t, user).mutation(api.chat.startThread, {});
+
+    await asUser(t, user).mutation(api.chat.sendMessage, {
+      threadId,
+      prompt: "manav ki upyogita kisme hai",
+    });
+
+    const reply = await t.run(async (ctx) => {
+      const fns = await ctx.db.system.query("_scheduled_functions").collect();
+      return fns.find((f) => f.name.includes("streamReply"));
+    });
+    expect(reply?.args[0]).toMatchObject({
+      promptText: "manav ki upyogita kisme hai",
+    });
+  });
+
   test("the first turn schedules a reply now and an extraction later", async () => {
     const t = initTest();
     const user = await createUser(t);

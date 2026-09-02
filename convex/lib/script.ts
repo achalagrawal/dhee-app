@@ -20,6 +20,8 @@
 //   Hinglish in       -> Hindi in Devanagari   (not romanised Hindi)
 //   English in        -> English
 //   another script in -> that script
+//   another language  -> that language, in its own script
+//   in Roman letters
 //
 // The Hinglish row is a product decision rather than a technical one, and it
 // changed once: replying in romanised Hindi was tried and reads worse than
@@ -162,12 +164,18 @@ const NAMES: Record<ReplyScript, string> = {
  * was observed, and leaves the one genuinely ambiguous call to the model, which
  * is reliable at it.
  *
- * The Roman-script branch carries two rules that exist for two different bugs:
+ * The Roman-script branch carries three rules. Two exist for two different
+ * bugs; the third closes the gap they would otherwise leave:
  *
  *   - Romanised Hindi is answered in Devanagari, not in Roman. Hinglish output
  *     reads worse than either language written properly, and someone typing
  *     Hindi in Roman is usually doing it for want of a keyboard rather than
  *     because Devanagari is hard for them to read.
+ *   - Any other Indian language typed in Roman letters is answered in that
+ *     language, in its own script. Without this line the two above read as an
+ *     exhaustive list, and romanised Gujarati — which shares a lot of
+ *     vocabulary with Hindi — gets answered in Devanagari Hindi, a language
+ *     the person did not write.
  *   - Judge from *this* message rather than from the reply before it. Without
  *     that, one Hinglish turn pins the whole thread: the model starts matching
  *     its own last answer, so a later question in plain English keeps coming
@@ -180,6 +188,7 @@ export function replyScriptInstruction(script: ReplyScript): string {
       ``,
       `- If they wrote **English**, reply in English.`,
       `- If they wrote **Hindi in Roman letters** — Hinglish — reply in **Hindi in Devanagari**. Do not answer in romanised Hindi: half-transliterated Hindi reads worse than either language written properly.`,
+      `- If they wrote **another Indian language in Roman letters** — Gujarati, Marathi, Tamil, or any other — reply in that language, in its own script, for the same reason. Do not answer them in Hindi.`,
       ``,
       `Decide from the message above, not from what you said last turn. If an earlier reply in this conversation was in Hindi and they have now written to you in English, answer in English — your own previous replies are not evidence of what they want.`,
     ].join("\n");

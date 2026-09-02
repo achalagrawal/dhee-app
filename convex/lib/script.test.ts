@@ -120,6 +120,14 @@ describe("replyScriptInstruction", () => {
     expect(line).toContain("Do not answer in romanised Hindi");
   });
 
+  it("covers the other Indian languages typed in Roman letters", () => {
+    // Without this the two bullets above read as an exhaustive list, and
+    // romanised Gujarati gets answered in Devanagari Hindi.
+    const line = replyScriptInstruction("latin");
+    expect(line).toContain("another Indian language in Roman letters");
+    expect(line).toContain("in its own script");
+  });
+
   it("tells it to judge from this message, not from its own last reply", () => {
     // Without this, one Hinglish turn pins the rest of the thread: the model
     // matches its own previous answer and a later English question still comes

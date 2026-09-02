@@ -11,8 +11,16 @@ import {
   type TextInputContentSizeChangeEvent,
   View,
 } from "react-native";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import {
+  MODEL_TIERS,
+  resolveModelTier,
+  type ModelTier,
+} from "../../convex/agents/models";
 import { t } from "../lib/i18n";
 import { composerKeyAction } from "../lib/keyboard";
+import { modelDescKey, modelNameKey, modelPillLabel } from "../lib/models";
 import { useTheme } from "../lib/ThemeContext";
 import { font, noFocusRing, radius, shadow } from "../lib/theme";
 import type { Attachment } from "../lib/useAttachments";
@@ -79,6 +87,24 @@ export function Composer({
 
   const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
+  // The model tier, and the menu for changing it.
+  //
+  // The preference is per person rather than per thread, which is what the
+  // design's state machine does — the pill reads the same everywhere, and a
+  // change applies to the next message wherever you send it.
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const storedTier = useQuery(api.users.modelPreference);
+  const setPreferredModel = useMutation(api.users.setPreferredModel);
+  // While the query is in flight this resolves to the default, so the pill
+  // shows the tier someone is actually about to get rather than a blank.
+  const tier = resolveModelTier(storedTier);
+
+  const chooseTier = (next: ModelTier) => {
+    setModelMenuOpen(false);
+    if (next === tier) return;
+    void setPreferredModel({ preferredModel: next });
+  };
+
   const clamp = useCallback(
     (h: number) => Math.min(MAX_HEIGHT, Math.max(minHeight, h)),
     [minHeight],
@@ -122,6 +148,52 @@ export function Composer({
         { backgroundColor: colors.surface, borderColor: colors.borderStrong },
       ]}
     >
+      {modelMenuOpen ? (
+        <View
+          style={[
+            styles.modelMenu,
+            shadow(mode),
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          {MODEL_TIERS.map((option) => {
+            const active = option === tier;
+            return (
+              <Pressable
+                key={option}
+                accessibilityRole="button"
+                accessibilityLabel={t(lang, modelNameKey(option))}
+                accessibilityState={{ selected: active }}
+                onPress={() => chooseTier(option)}
+                style={({ pressed }) => [
+                  styles.modelOption,
+                  {
+                    backgroundColor: active ? colors.surface2 : "transparent",
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.modelOptionText}>
+                  <Text
+                    style={[styles.modelOptionName, { color: colors.text }]}
+                  >
+                    {t(lang, modelNameKey(option))}
+                  </Text>
+                  <Text
+                    style={[styles.modelOptionDesc, { color: colors.textSoft }]}
+                  >
+                    {t(lang, modelDescKey(option))}
+                  </Text>
+                </View>
+                {active ? (
+                  <Icon name="check" size={14} color={colors.accentStrong} />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
       {attachments.length > 0 ? (
         <View style={styles.chips}>
           {attachments.map((a) => (
@@ -208,18 +280,21 @@ export function Composer({
             onPress={onPickPhoto ?? (() => soon(t(lang, "addFiles")))}
           />
           <Pressable
-            onPress={() => soon(t(lang, "chooseModel"))}
+            accessibilityRole="button"
+            accessibilityLabel={t(lang, "chooseModel")}
+            accessibilityState={{ expanded: modelMenuOpen }}
+            onPress={() => setModelMenuOpen((open) => !open)}
             style={({ pressed }) => [
               styles.modelPill,
               {
-                borderColor: colors.border,
+                borderColor: modelMenuOpen ? colors.accent : colors.border,
                 backgroundColor: colors.surface,
                 opacity: pressed ? 0.7 : 1,
               },
             ]}
           >
             <Text style={[styles.modelText, { color: colors.textSoft }]}>
-              Dhee
+              {modelPillLabel(tier)}
             </Text>
             <Icon name="chevronDown" size={11} color={colors.textSoft} />
           </Pressable>
@@ -300,4 +375,30 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   modelText: { fontSize: 13, ...font.regular },
+  // Above the card rather than below it: the composer sits at the bottom of the
+  // screen on both Home and Chat, so a menu hanging downward would open into
+  // the keyboard or off the edge.
+  modelMenu: {
+    position: "absolute",
+    bottom: "100%",
+    left: 0,
+    marginBottom: 8,
+    minWidth: 260,
+    maxWidth: "100%",
+    borderWidth: 1,
+    borderRadius: radius.card,
+    padding: 6,
+    zIndex: 30,
+  },
+  modelOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 11,
+    borderRadius: 9,
+  },
+  modelOptionText: { flex: 1, gap: 2 },
+  modelOptionName: { fontSize: 14.5, ...font.medium },
+  modelOptionDesc: { fontSize: 12.5, lineHeight: 17, ...font.regular },
 });

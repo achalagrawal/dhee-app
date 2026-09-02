@@ -104,7 +104,8 @@ both documents.
 | Claim in the drafts                                                                         | Where it comes from                                                                                   |
 | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Conversations, threads, and streamed replies are stored server-side                         | `convex/chat.ts` (agent component tables via `@convex-dev/agent`)                                     |
-| Message text goes to OpenRouter, then to Anthropic's Claude                                 | `convex/agents/config.ts`, `CHAT_MODEL` in `convex/config.ts`                                         |
+| Message text goes to OpenRouter, then to DeepSeek or to Anthropic's Claude                  | `MODEL_SLUGS` / `DEFAULT_MODEL_TIER` in `convex/agents/models.ts`, `convex/agents/config.ts`          |
+| Background work always goes to Anthropic, whichever tier is chosen                          | `BACKGROUND_MODEL` in `convex/config.ts`; `chat.titleThread`, `memory.extractFromThread`              |
 | Query text goes to the corpus service at `md-mcp.achal.xyz`                                 | `DEFAULT_MD_MCP_URL` in `convex/config.ts`, `convex/lib/mcp.ts`, `convex/tools/md.ts`                 |
 | The corpus is searched for most life questions, and in incognito too                        | `convex/tools/md.ts` descriptions; `incognitoReply` comment in `convex/chat.ts`                       |
 | Titles and summaries are model-generated from the conversation                              | `chat.titleThread`                                                                                    |
@@ -125,7 +126,7 @@ both documents.
 | Profile holds name, preferred language, photo                                               | `profiles` in `convex/schema.ts`, `users.completeOnboarding`                                          |
 | Thumbs up/down is stored against the message                                                | `messageFeedback` in `convex/schema.ts`, `chat.setMessageFeedback`                                    |
 | Starred and pinned conversations are recorded                                               | `threadMeta` in `convex/schema.ts`                                                                    |
-| No account identifier is sent to the model provider                                         | `convex/agents/config.ts` sends only `HTTP-Referer` / `X-Title` headers                               |
+| No account identifier is sent to either model provider                                      | `convex/agents/config.ts` sends only `HTTP-Referer` / `X-Title` headers                               |
 | The context block sent to the model is rebuilt from user-editable rows                      | `memory.buildContextBlock`, `agents/dhee.ts` (`buildSystemPrompt`)                                    |
 | Every request is scoped to the signed-in person                                             | `requireUserId` in `convex/users.ts`, `authorizeThread` in `convex/chat.ts`                           |
 | Sessions live in device secure storage (native) or browser storage (web)                    | `src/lib/auth-client.ts`                                                                              |

@@ -21,7 +21,8 @@ import { useShell } from "../../src/lib/shell";
 import {
   MODE_KEYS,
   modeLabelKey,
-  startersFor,
+  newSeed,
+  sampleStarters,
   type ModeKey,
 } from "../../src/lib/starters";
 import { useTheme } from "../../src/lib/ThemeContext";
@@ -44,6 +45,10 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<ModeKey | undefined>(undefined);
+  // Which three of a mode's pool are showing. Held in state so the draw stays
+  // put while someone looks at it — re-renders, the keyboard, a tab switch
+  // all leave it alone — and is fresh each time this screen is arrived at.
+  const [seed, setSeed] = useState(newSeed);
   const photos = useAttachments(lang);
 
   // Takes its text explicitly rather than reading `draft`, so a starter and the
@@ -156,8 +161,13 @@ export default function Home() {
                       accessibilityLabel={label}
                       accessibilityState={{ selected }}
                       // Tapping the selected chip clears it, so the wider
-                      // default set is always one tap away.
-                      onPress={() => setMode(selected ? undefined : key)}
+                      // default set is always one tap away. Choosing a chip
+                      // draws a fresh three, so off-and-on again is how to
+                      // see more of what a mode holds.
+                      onPress={() => {
+                        setMode(selected ? undefined : key);
+                        if (!selected) setSeed(newSeed());
+                      }}
                       style={({ pressed }) => [
                         styles.chip,
                         {
@@ -186,7 +196,7 @@ export default function Home() {
                 {t(lang, mode ? "startersLeadMode" : "startersLead")}
               </Text>
 
-              {startersFor(lang, mode).map((question) => (
+              {sampleStarters(lang, mode, seed).map((question) => (
                 <Pressable
                   key={question}
                   accessibilityRole="button"

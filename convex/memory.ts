@@ -346,7 +346,7 @@ export const applyExtraction = internalMutation({
       );
       if (match) {
         if (!match.threadIds.includes(args.threadId)) {
-          await ctx.db.patch(match._id, {
+          await ctx.db.patch("inquiries", match._id, {
             threadIds: [...match.threadIds, args.threadId],
           });
         }
@@ -391,7 +391,7 @@ export const applyExtraction = internalMutation({
         )
         .unique();
       if (existing) {
-        await ctx.db.patch(existing._id, {
+        await ctx.db.patch("conceptsTouched", existing._id, {
           familiarity: concept.familiarity,
           plainLanguageLabel: concept.plainLanguageLabel,
           lastTouchedAt: now,
@@ -416,7 +416,7 @@ export const applyExtraction = internalMutation({
       .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
       .unique();
     if (meta && args.extractedThroughOrder !== undefined) {
-      await ctx.db.patch(meta._id, {
+      await ctx.db.patch("threadMeta", meta._id, {
         extractedThroughOrder: args.extractedThroughOrder,
       });
     }
@@ -446,7 +446,7 @@ export const buildContextBlock = internalMutation({
         .collect(),
       ctx.db
         .query("conceptsTouched")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_user_concept", (q) => q.eq("userId", userId))
         .collect(),
     ]);
 
@@ -500,7 +500,10 @@ export const buildContextBlock = internalMutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
     if (existing) {
-      await ctx.db.patch(existing._id, { block, generatedAt: Date.now() });
+      await ctx.db.patch("contextBlocks", existing._id, {
+        block,
+        generatedAt: Date.now(),
+      });
     } else {
       await ctx.db.insert("contextBlocks", {
         userId,

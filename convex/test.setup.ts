@@ -58,7 +58,7 @@ export async function createUser(
       name: overrides.name,
       createdAt: Date.now(),
     });
-    await ctx.db.patch(userId, { authId: testAuthId(userId) });
+    await ctx.db.patch("users", userId, { authId: testAuthId(userId) });
     return userId;
   });
 }

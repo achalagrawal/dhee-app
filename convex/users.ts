@@ -78,7 +78,7 @@ async function patchProfile(
 ): Promise<void> {
   const profile = await getProfile(ctx, userId);
   if (profile) {
-    await ctx.db.patch(profile._id, patch);
+    await ctx.db.patch("profiles", profile._id, patch);
   } else {
     await ctx.db.insert("profiles", {
       userId,
@@ -160,7 +160,7 @@ export const setAvatar = mutation({
     if (!profile) throw new Error("No profile.");
     // Drop the previous photo so storage doesn't accumulate orphans.
     if (profile.avatarId) await ctx.storage.delete(profile.avatarId);
-    await ctx.db.patch(profile._id, { avatarId: storageId });
+    await ctx.db.patch("profiles", profile._id, { avatarId: storageId });
     return null;
   },
 });
@@ -179,7 +179,7 @@ export const setAvatarForUser = internalMutation({
       return null;
     }
     if (profile.avatarId) await ctx.storage.delete(profile.avatarId);
-    await ctx.db.patch(profile._id, { avatarId: storageId });
+    await ctx.db.patch("profiles", profile._id, { avatarId: storageId });
     return null;
   },
 });
@@ -349,6 +349,11 @@ export const personalizationForUser = internalQuery({
 
 // Everything the settings screen needs to describe the account, including
 // the counts behind "delete everything" so the choice is informed.
+
+// Where the counts stop being exact. High enough that no real account is
+// near it; the UI shows the bound itself for anyone who somehow is.
+const COUNT_BOUND = 1000;
+
 export const accountSummary = query({
   args: {},
   returns: v.object({
@@ -363,29 +368,36 @@ export const accountSummary = query({
   }),
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
+    // `.take(COUNT_BOUND)` rather than `.collect()`: these reads exist only to
+    // put numbers on the settings screen, and an unbounded read makes that
+    // screen cost whatever the person's whole history costs. Past the bound
+    // the exact figure stops informing the "delete everything" choice anyway.
     const [user, profile, observations, inquiries, concepts] =
       await Promise.all([
-        ctx.db.get(userId),
+        ctx.db.get("users", userId),
         getProfile(ctx, userId),
         ctx.db
           .query("observations")
           .withIndex("by_user", (q) => q.eq("userId", userId))
-          .collect(),
+          .take(COUNT_BOUND),
         ctx.db
           .query("inquiries")
           .withIndex("by_user", (q) => q.eq("userId", userId))
-          .collect(),
+          .take(COUNT_BOUND),
         ctx.db
           .query("conceptsTouched")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
-          .collect(),
+          .withIndex("by_user_concept", (q) => q.eq("userId", userId))
+          .take(COUNT_BOUND),
       ]);
 
     return {
       email: user?.email,
       name: profile?.name,
       preferredLanguage: profile?.preferredLanguage ?? ("en" as const),
-      memberSince: profile?.createdAt ?? user?._creationTime ?? Date.now(),
+      // 0, not Date.now(): the clock inside a query is pinned and never
+      // re-fires the subscription, and this branch is unreachable anyway —
+      // requireUserId just resolved the row `user` was read from.
+      memberSince: profile?.createdAt ?? user?._creationTime ?? 0,
       observationCount: observations.length,
       inquiryCount: inquiries.length,
       conceptCount: concepts.length,

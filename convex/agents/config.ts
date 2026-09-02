@@ -194,6 +194,7 @@ export const defaultAgentConfig = {
             model: args.model,
             threadId: args.threadId,
             backgroundModel: BACKGROUND_MODEL,
+            userId: args.userId,
           }),
           model: args.model,
           provider: args.provider,

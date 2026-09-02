@@ -6,6 +6,7 @@ import { evalModelFor, evalModelSlugFor } from "../agents/config";
 import { detectReplyScript } from "../lib/script";
 import { replyOptionsFor } from "../chat";
 import { CHAT_MODEL } from "../config";
+import { EVAL_USER_ID } from "../usage";
 import { baseInstructionsFor } from "./variants";
 import { fingerprint, runChecks, type Check } from "./checks";
 import { judgeReply, JUDGE_MODEL, type JudgeScores } from "./judge";
@@ -45,7 +46,6 @@ import {
  * the same sandbox `chat.incognitoReply` runs in: nothing is written, nothing
  * is read, and hundreds of eval runs leave no threads or messages to clean up.
  */
-const EVAL_USER_ID = "eval-harness";
 
 // Long enough that a study-mode turn's twelve steps still fit, short enough
 // that one wedged case cannot eat the action's whole budget.

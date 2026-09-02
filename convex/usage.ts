@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
 
 // The record of what the model cost, kept because nothing else keeps it.
 //
@@ -20,9 +19,19 @@ export const usageKind = v.union(
   v.literal("title"),
   v.literal("extraction"),
   v.literal("incognito"),
+  v.literal("eval"),
 );
 
-export type UsageKind = "chat" | "title" | "extraction" | "incognito";
+export type UsageKind = "chat" | "title" | "extraction" | "incognito" | "eval";
+
+/**
+ * The userId the eval harness runs under. Not a users id — the harness has no
+ * account — but the agent needs one to call at all, and this is what lets the
+ * ledger tell harness spend from a person's. Rows it produces are filed as
+ * `eval` with no user, so a cost query can leave them out on purpose rather
+ * than by accident.
+ */
+export const EVAL_USER_ID = "eval-harness";
 
 /** The shape the AI SDK reports, as much of it as we care about. */
 export type ReportedUsage = {
@@ -116,6 +125,7 @@ export function toUsageRecord(args: {
  * nothing about intent — so intent is reconstructed from the two things that
  * already differ per call site:
  *
+ *   - the eval harness is the only caller running as `EVAL_USER_ID`
  *   - titling is the only agent call that runs on the background model
  *   - incognito is the only one with no thread, because it saves nothing
  *
@@ -128,7 +138,9 @@ export function classifyAgentCall(args: {
   model: string;
   threadId: string | undefined;
   backgroundModel: string;
+  userId?: string | undefined;
 }): UsageKind {
+  if (args.userId === EVAL_USER_ID) return "eval";
   if (args.model === args.backgroundModel) return "title";
   return args.threadId ? "chat" : "incognito";
 }
@@ -136,10 +148,12 @@ export function classifyAgentCall(args: {
 export const record = internalMutation({
   args: {
     // A string, not v.id("users"): the agent hands over whatever userId it was
-    // given, and the eval harness deliberately runs under an opaque one
-    // ("eval-harness"). The cast-and-hope version of this made every eval call
-    // log a validation error — the ledger must not be the thing that throws,
-    // so the narrowing happens here, where the db can actually decide.
+    // given, and the eval harness deliberately runs under `EVAL_USER_ID`. The
+    // cast-and-hope version of this made every eval call log a validation
+    // error — the ledger must not be the thing that throws, so the narrowing
+    // happens here, where the db can actually decide. The row is kept either
+    // way; an id that fails to narrow is dropped from it, and said so, unless
+    // it is the harness's, which is expected.
     userId: v.optional(v.string()),
     threadId: v.optional(v.string()),
     kind: usageKind,
@@ -157,6 +171,16 @@ export const record = internalMutation({
     const userId = args.userId
       ? (ctx.db.normalizeId("users", args.userId) ?? undefined)
       : undefined;
+    if (args.userId && !userId && args.kind !== "eval") {
+      console.warn(
+        "usage ledger: userId is not a users id; row kept without one",
+        {
+          userId: args.userId,
+          kind: args.kind,
+          model: args.model,
+        },
+      );
+    }
     await ctx.db.insert("llmUsage", {
       ...args,
       userId,

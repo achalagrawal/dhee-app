@@ -39,6 +39,7 @@ import {
   MEMORY_EXTRACTION_INTERVAL_TURNS,
 } from "./config";
 import { detectsCrisis } from "./lib/crisis";
+import { detectReplyScript } from "./lib/script";
 import {
   deleteSharesForThread,
   deleteSharesForUser,
@@ -368,6 +369,7 @@ export const sendMessage = mutation({
       threadId,
       promptMessageId: messageId,
       userId,
+      promptText: text,
     });
 
     // The counter catches a conversation while it is still running; the idle
@@ -422,11 +424,19 @@ export const incognitoReply = action({
       internal.users.personalizationForUser,
       { userId },
     );
+    // The script rule applies here too — incognito is about not saving the
+    // conversation, not about answering it worse. Taken from the newest user
+    // message, which is the one being replied to.
+    const latest = [...messages].reverse().find((m) => m.role === "user");
+    const replyScript = detectReplyScript(latest?.text ?? "");
     const { text } = await dhee.generateText(
       ctx,
       { userId },
       {
-        system: buildSystemPrompt(personalization),
+        system: buildSystemPrompt({
+          ...personalization,
+          ...(replyScript ? { replyScript } : {}),
+        }),
         messages: messages.map((m) => ({ role: m.role, content: m.text })),
         // Study mode is a setting, and settings apply in incognito.
         ...replyOptionsFor(personalization.traditions),
@@ -484,20 +494,29 @@ export const streamReply = internalAction({
     threadId: v.string(),
     promptMessageId: v.string(),
     userId: v.id("users"),
+    // What the person actually typed this turn, for the script rule. Passed in
+    // rather than read back from the component: every caller already holds it,
+    // and a reply that answers in the wrong script is not worth a round trip.
+    promptText: v.optional(v.string()),
   },
   returns: v.null(),
-  handler: async (ctx, { threadId, promptMessageId, userId }) => {
+  handler: async (ctx, { threadId, promptMessageId, userId, promptText }) => {
     const [contextBlock, personalization] = await Promise.all([
       ctx.runQuery(internal.memory.contextBlockForUser, { userId }),
       ctx.runQuery(internal.users.personalizationForUser, { userId }),
     ]);
+    const replyScript = detectReplyScript(promptText ?? "");
     try {
       const result = await dhee.streamText(
         ctx,
         { threadId, userId },
         {
           promptMessageId,
-          system: buildSystemPrompt({ contextBlock, ...personalization }),
+          system: buildSystemPrompt({
+            contextBlock,
+            ...personalization,
+            ...(replyScript ? { replyScript } : {}),
+          }),
           ...replyOptionsFor(personalization.traditions),
         },
         {
@@ -594,6 +613,7 @@ export const regenerate = mutation({
       threadId,
       promptMessageId: turn.prompt._id,
       userId,
+      ...(turn.prompt.text ? { promptText: turn.prompt.text } : {}),
     });
     return null;
   },
@@ -673,6 +693,7 @@ export const editAndResend = mutation({
       threadId,
       promptMessageId: newMessageId,
       userId,
+      promptText: trimmed,
     });
     return null;
   },

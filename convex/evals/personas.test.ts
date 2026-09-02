@@ -27,14 +27,26 @@ import { PERSONAS, type PersonaId } from "./scenarios";
 // tripling, which is the fundamentals block and nothing else. This is the one
 // case the file's own rule allows for a bulk update, and it is stated here so
 // the next bulk update has to justify itself the same way.
+//
+// Re-recorded a second time when the language rule was rewritten to say
+// "and the same script", to name romanised Hindi and the other Indian scripts
+// explicitly, and to tell Dhee to follow the person's latest message rather
+// than its own last reply. Every persona moved for the same reason as before —
+// they share the base — and the justification a bulk update owes is here: each
+// length rose by exactly 994, so the language section is the only thing that
+// changed and no persona picked up anything the others didn't.
+//
+// Note these still describe a prompt with no script line appended: the per-turn
+// script assertion is keyed off the message being answered, and a persona has
+// no message. `buildSystemPrompt` with no `replyScript` is what these pin.
 const PROMPT_FINGERPRINTS: Record<PersonaId, string> = {
-  bare: "0e7585c3-12126",
-  stoic: "8d79fdfe-12795",
-  advaita: "f6e4281c-12802",
-  corpus: "26f77049-14622",
-  personalized: "ad3b694a-12428",
-  remembered: "a5c47d3e-13011",
-  full: "37b327df-15809",
+  bare: "34633216-13120",
+  stoic: "e9a9375d-13789",
+  advaita: "8f27d751-13796",
+  corpus: "3d2a4c44-15616",
+  personalized: "76b8b1ef-13422",
+  remembered: "7cc4dfc1-14005",
+  full: "029635a4-16803",
 };
 
 // The section separator `buildSystemPrompt` joins with.
@@ -108,6 +120,27 @@ describe("persona prompts — structure", () => {
     expect(stoic).toContain("you may use that tradition's own vocabulary");
     expect(stoic).toContain("Keep it a lens, not a doctrine");
     expect(stoic).not.toContain("book, chapter and page");
+  });
+
+  test("the script rule is appended last, after even the memory block", () => {
+    // Last because it has to beat the conversation's own history: once a thread
+    // has drifted into the wrong script the model starts matching its previous
+    // replies, so the correction has to be the most recent thing it reads.
+    const withScript = buildSystemPrompt({
+      ...PERSONAS.full.inputs,
+      replyScript: "latin",
+    }).split(RULE);
+    expect(withScript).toHaveLength(sectionsFor("full").length + 1);
+    expect(withScript.at(-1)).toContain("Roman");
+    expect(withScript.at(-2)).toContain("Some things you already know");
+  });
+
+  test("no script input leaves the prompt byte-for-byte unchanged", () => {
+    // The fingerprints above pin the no-script prompt, so this is what makes
+    // them meaningful rather than accidental.
+    expect(buildSystemPrompt(PERSONAS.full.inputs)).toBe(
+      buildSystemPrompt({ ...PERSONAS.full.inputs, replyScript: undefined }),
+    );
   });
 
   test("every term Rule 1 names survives interpolation into the prompt", () => {

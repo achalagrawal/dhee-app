@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +18,12 @@ import { Icon } from "../../src/components/ui";
 import { greetingFontSize, greetingText } from "../../src/lib/greeting";
 import { t } from "../../src/lib/i18n";
 import { useShell } from "../../src/lib/shell";
+import {
+  MODE_KEYS,
+  modeLabelKey,
+  startersFor,
+  type ModeKey,
+} from "../../src/lib/starters";
 import { useTheme } from "../../src/lib/ThemeContext";
 import { font } from "../../src/lib/theme";
 import { useAttachments } from "../../src/lib/useAttachments";
@@ -36,23 +43,27 @@ export default function Home() {
   const sendMessage = useMutation(api.chat.sendMessage);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<ModeKey | undefined>(undefined);
   const photos = useAttachments(lang);
 
-  const send = async () => {
-    const prompt = draft.trim();
-    const fileIds = photos.fileIds;
-    if ((!prompt && fileIds.length === 0) || photos.uploading || busy) return;
+  // Takes its text explicitly rather than reading `draft`, so a starter and the
+  // composer share one path. Deliberately not the callback handed to either —
+  // `onSubmit` is invoked with an event, and a function that accepts an
+  // optional string would silently take that event as the prompt.
+  const submit = async (prompt: string, fileIds: string[]) => {
+    const text = prompt.trim();
+    if ((!text && fileIds.length === 0) || photos.uploading || busy) return;
     // Incognito hands the prompt to the ephemeral chat, which never touches a
     // thread — nothing about it is saved. Photos don't go there at all.
     if (incognito) {
       setDraft("");
-      router.push({ pathname: "/chat/incognito", params: { prompt } });
+      router.push({ pathname: "/chat/incognito", params: { prompt: text } });
       return;
     }
     setBusy(true);
     try {
       const threadId = await startThread();
-      await sendMessage({ threadId, prompt, fileIds });
+      await sendMessage({ threadId, prompt: text, fileIds });
       setDraft("");
       photos.clear();
       router.push(`/chat/${threadId}` as never);
@@ -60,6 +71,12 @@ export default function Home() {
       setBusy(false);
     }
   };
+
+  const send = () => void submit(draft, photos.fileIds);
+  // A starter carries no photos — it is its own complete question, and silently
+  // attaching whatever happened to be picked would send something the person
+  // did not compose.
+  const sendStarter = (question: string) => void submit(question, []);
 
   // What the greeting has to fit into: the reading column (or the window, when
   // it is narrower), less its padding and the mark sitting beside it.
@@ -118,6 +135,80 @@ export default function Home() {
               </Text>
             </View>
           ) : null}
+
+          {/* Only while the box is empty. Once someone is writing, suggestions
+              are no longer help — they are something else competing for the
+              screen with the thing they came to say. */}
+          {draft.trim() ? null : (
+            <View style={styles.starters}>
+              <View style={styles.modes}>
+                {MODE_KEYS.map((key) => {
+                  const selected = mode === key;
+                  const label = t(lang, modeLabelKey(key));
+                  return (
+                    <Pressable
+                      key={key}
+                      accessibilityRole="button"
+                      // Named explicitly: react-native-web does not derive an
+                      // accessible name from a nested Text, so without this a
+                      // screen reader reads the whole row as unlabelled
+                      // buttons.
+                      accessibilityLabel={label}
+                      accessibilityState={{ selected }}
+                      // Tapping the selected chip clears it, so the wider
+                      // default set is always one tap away.
+                      onPress={() => setMode(selected ? undefined : key)}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        {
+                          backgroundColor: selected
+                            ? colors.accentSoft
+                            : colors.surface2,
+                          borderColor: selected ? colors.accent : colors.border,
+                          opacity: pressed ? 0.75 : 1,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: selected ? colors.text : colors.textSoft },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.startersLead, { color: colors.textSoft }]}>
+                {t(lang, mode ? "startersLeadMode" : "startersLead")}
+              </Text>
+
+              {startersFor(lang, mode).map((question) => (
+                <Pressable
+                  key={question}
+                  accessibilityRole="button"
+                  accessibilityLabel={question}
+                  disabled={busy}
+                  onPress={() => sendStarter(question)}
+                  style={({ pressed }) => [
+                    styles.starter,
+                    {
+                      backgroundColor: colors.surface2,
+                      borderColor: colors.border,
+                      opacity: pressed || busy ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.starterText, { color: colors.text }]}>
+                    {question}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </AppShell>
@@ -158,4 +249,32 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   incognitoText: { fontSize: 13.5, ...font.regular },
+  starters: { marginTop: 30, gap: 9 },
+  modes: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  chip: {
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  chipText: { fontSize: 13, ...font.medium },
+  startersLead: {
+    fontSize: 12.5,
+    textAlign: "center",
+    marginBottom: 3,
+    ...font.regular,
+  },
+  starter: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+  },
+  starterText: { fontSize: 14.5, lineHeight: 21, ...font.regular },
 });

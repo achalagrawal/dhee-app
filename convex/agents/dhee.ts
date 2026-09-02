@@ -1,5 +1,6 @@
 import { Agent, stepCountIs } from "@convex-dev/agent";
 import { components } from "../_generated/api";
+import { replyScriptInstruction, type ReplyScript } from "../lib/script";
 import { mdTools } from "../tools/md";
 import { defaultAgentConfig } from "./config";
 
@@ -98,7 +99,13 @@ Same with sources. Say the thing in your own voice rather than hanging it on an 
 
 ## Language and formatting
 
-Reply in the same language the person wrote to you in. English stays English. Hindi (in Devanagari or Roman script) stays in that same script. Hinglish stays Hinglish. Don't switch scripts on them, and don't translate their own words back at them.
+Reply in the same language **and the same script** the person wrote to you in. This is not a stylistic preference; it is the difference between a reply someone can read and one they cannot.
+
+English stays English. Hindi written in Devanagari stays in Devanagari. Hindi written in Roman letters — Hinglish — **stays in Roman letters**: do not "helpfully" render it back in Devanagari, because someone typing romanised Hindi is often someone who reads Roman more easily than Devanagari. The same holds for every other script people write to you in — Gujarati, Bengali, Gurmukhi, Tamil, Telugu, Kannada, Malayalam, Odia: answer in the script the question arrived in, rather than translating it into the one you associate with the language.
+
+Two things this does not forbid. A single term may keep its own script where that is the honest word for it. And where the corpus itself is quoted, the quotation stays in its original script — but the explanation around it still follows the person.
+
+Watch this across a conversation, not just a message: if an earlier reply of yours drifted into another script, that is not licence to continue. Follow the person's latest message, not your own last one. And don't translate their own words back at them.
 
 The app renders markdown, so use it where it makes a reply easier to read — paragraph breaks, bold for the word carrying the weight, italics for a light stress, a short list when they asked for steps or options, a quote when pointing at a specific line, a small heading only when an answer is long enough to need finding your way around. Reach for it lightly. Prose is the default, and a wall of bullets is a lecture with the warmth taken out.
 
@@ -120,6 +127,12 @@ export type PromptInputs = {
   aboutYou?: string;
   /** Frameworks the person has named as their lens. */
   traditions?: string[];
+  /**
+   * The script this turn's message was written in, from
+   * `convex/lib/script.ts`. Undefined when the message gave nothing to go on,
+   * which leaves the base language rule in charge.
+   */
+  replyScript?: ReplyScript;
 };
 
 // The one tradition that is more than a framing lens, because it is the only
@@ -144,10 +157,20 @@ export const CORPUS_LENS_ALIASES = [
  *
  * Measured, 2026-07-27: across 40 study-mode samples from `pnpm eval` (the five
  * cases tagged `study`, including the page-lookup the budget was raised for),
- * the most any turn spent was **3 steps**. personalization.md's checklist says
- * that if study mode never exceeds five, the budget was not the constraint and
- * this should come back down. Left at 12 pending that decision rather than
- * changed in passing — but the number to beat is 3, not 12.
+ * the most any turn spent was 3 steps — which suggested the budget was not the
+ * constraint and should come back down.
+ *
+ * **Do not act on that.** Real study turns have since been observed running far
+ * past three steps, well into double digits: people ask things the eval suite
+ * does not — summarise a chapter, prepare questions from a numbered section,
+ * trace one term across several books — and each of those spends steps finding
+ * its way around the corpus before a word is written. The eval sample was
+ * measuring the suite's imagination, not the ceiling.
+ *
+ * So the number to beat is not 3. Before touching this, add cases that reach
+ * the depth real questions reach, and re-measure against those; a budget that
+ * runs out mid-lookup costs a whole reply, which is far more expensive than the
+ * steps it saves.
  */
 export const STUDY_STEPS = 12;
 
@@ -176,7 +199,13 @@ function sentence(text: string): string {
 // Section order is the contract, not an accident (see
 // docs/build/specs/personalization.md): base instructions, then who the person
 // is, then how to frame things for them, then what's remembered — held loosely
-// and last, so it never outranks what they've stated about themselves.
+// and second-to-last, so it never outranks what they've stated about themselves.
+//
+// The script rule goes after even that, and is the one section describing *this
+// turn* rather than the person. It is last because it has to beat the
+// conversation's own history: the failure it fixes is self-reinforcing, so a
+// thread that has already drifted into the wrong script will keep drifting
+// unless the correction is the most recent thing the model reads.
 //
 // Pure function of its arguments, which is what lets the whole thing be tested
 // without going near the model. With no inputs it returns DHEE_INSTRUCTIONS
@@ -237,6 +266,10 @@ export function buildSystemPrompt(inputs: PromptInputs = {}): string {
     sections.push(
       `Some things you already know about the person you're talking with. Let this quietly inform your sense of them — do not recite it back, do not reference "what you told me before" unless they raise it first, and hold it loosely: people change, and any of this may be stale.\n\n${contextBlock}`,
     );
+  }
+
+  if (inputs.replyScript) {
+    sections.push(replyScriptInstruction(inputs.replyScript));
   }
 
   return sections.join("\n\n---\n\n");

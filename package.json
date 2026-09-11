@@ -80,7 +80,7 @@
     "marked": "^18.0.7",
     "prettier": "^3.9.6",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20"

@@ -13,12 +13,13 @@ import { dhee } from "./agents/dhee";
 // Deliberately keyed by `userId` rather than by identity: it runs from the
 // delete trigger, after the row it would have authorized against is gone.
 
-// Each of these carries a `by_user` index, which is what makes a purge a set of
-// index reads rather than a table scan.
+// Each of these carries a `by_user` index, which is what makes a purge a set
+// of index reads rather than a table scan. `conceptsTouched` is missing on
+// purpose: its user index is `by_user_concept` (`by_user` would be a redundant
+// prefix of it), so it gets its own sweep in the handler below.
 const USER_OWNED_TABLES = [
   "inquiries",
   "observations",
-  "conceptsTouched",
   "contextBlocks",
   "threadMeta",
   "messageFeedback",
@@ -69,7 +70,7 @@ export const purgeUserData = internalMutation({
       // The photo is a storage object, not a row — deleting the profile alone
       // would leave the image itself sitting in storage.
       if (profile.avatarId) await ctx.storage.delete(profile.avatarId);
-      await ctx.db.delete(profile._id);
+      await ctx.db.delete("profiles", profile._id);
     }
 
     // Before the generic sweep below, because deleting a `threadMeta` row
@@ -98,6 +99,16 @@ export const purgeUserData = internalMutation({
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .collect();
       for (const row of rows) await ctx.db.delete(row._id);
+    }
+
+    // Same sweep, but through the index this table actually has: a range over
+    // just the `userId` prefix of `by_user_concept` reads the same rows.
+    const concepts = await ctx.db
+      .query("conceptsTouched")
+      .withIndex("by_user_concept", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of concepts) {
+      await ctx.db.delete("conceptsTouched", row._id);
     }
 
     await deleteThreads(ctx, userId);

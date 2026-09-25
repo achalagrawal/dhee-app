@@ -44,7 +44,10 @@ export const authComponent: ReturnType<typeof createClient<DataModel>> =
             .withIndex("by_email", (q) => q.eq("email", doc.email))
             .unique();
           if (existing) {
-            await ctx.db.patch(existing._id, { authId: doc._id, name });
+            await ctx.db.patch("users", existing._id, {
+              authId: doc._id,
+              name,
+            });
             return;
           }
 
@@ -88,7 +91,7 @@ export const authComponent: ReturnType<typeof createClient<DataModel>> =
             .withIndex("by_auth_id", (q) => q.eq("authId", newDoc._id))
             .unique();
           if (!user) return;
-          await ctx.db.patch(user._id, {
+          await ctx.db.patch("users", user._id, {
             email: newDoc.email,
             name: normalizeProviderName(newDoc.name),
           });
@@ -109,7 +112,7 @@ export const authComponent: ReturnType<typeof createClient<DataModel>> =
           await ctx.scheduler.runAfter(0, internal.account.purgeUserData, {
             userId: user._id,
           });
-          await ctx.db.delete(user._id);
+          await ctx.db.delete("users", user._id);
         },
       },
     },

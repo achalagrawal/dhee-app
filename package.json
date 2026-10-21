@@ -42,7 +42,7 @@
     "@expo-google-fonts/hanken-grotesk": "^0.4.3",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/noto-sans-devanagari": "^0.4.1",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@openrouter/ai-sdk-provider": "^2.10.0",
     "ai": "^6.0.232",
     "aws4fetch": "^1.0.20",

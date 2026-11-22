@@ -30,10 +30,20 @@ export const MODEL_SLUGS: Record<ModelTier, string> = {
   // The dated build, not `~deepseek/deepseek-v4-flash-latest`. The rolling
   // alias re-points when DeepSeek ships a new build — a model change with no
   // deploy, no diff, and no eval run. Upgrading the pin is deliberate: bump
-  // the date here and put an eval run in the PR that does it. (The bare
-  // `deepseek/deepseek-v4-flash` slug is itself a pin in disguise — OpenRouter
-  // resolves it to the older 0423 build at a higher price.)
-  quick: "deepseek/deepseek-v4-flash-0731",
+  // the date here and put an eval run in the PR that does it. (Bare slugs are
+  // pins in disguise: OpenRouter resolves `deepseek/deepseek-v4.1-flash` to
+  // the first v4.1 build, 0910, the way `deepseek/deepseek-v4-flash` stayed
+  // on 0423.) Moved from v4-flash-0731 on 2026-11-22.
+  quick: "deepseek/deepseek-v4.1-flash-1017",
+  // Held on Sonnet 5 when the other two moved on 2026-11-22. Sonnet 5.5 is
+  // cheaper and faster, and the judge rated it the same or higher, but on the
+  // same prompt it passed 17/54 rule checks against Sonnet 5's 35/54. Nearly
+  // all of the gap is the brevity rule: it writes the same number of words
+  // but splits them into more paragraphs and asks more questions back. Move
+  // only once the prompt holds it to the rule. Use the undated id when you
+  // do: an Anthropic version name is already a fixed snapshot (the dated
+  // `anthropic/claude-sonnet-5.5-20260928` resolves back to it), and the
+  // name that moves is `~anthropic/claude-sonnet-latest`.
   reflective: "anthropic/claude-sonnet-5",
 };
 

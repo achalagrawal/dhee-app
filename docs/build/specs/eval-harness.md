@@ -86,7 +86,7 @@ which personas your edit reached, before you spend a rupee finding out what it
 did to them.
 
 **Three repeats matters.** Temperature cannot be set — OpenRouter strips
-sampling parameters for this model and Sonnet 5 rejects non-default ones — so
+sampling parameters for this model and Sonnet 5.5 rejects non-default ones — so
 run-to-run variance is real and is handled by reporting rather than suppression.
 At `--repeats 1` the report greys out every delta and labels it "within noise",
 because it would be. The Hinglish bug is the worked example: 1/3 on the first

@@ -20,7 +20,10 @@ import { MODEL_SLUGS, DEFAULT_MODEL_TIER } from "./agents/models";
 export const CHAT_MODEL = MODEL_SLUGS[DEFAULT_MODEL_TIER];
 
 // Background work that nobody reads as a reply — conversation titles and
-// memory extraction. Roughly a third of the chat model's price.
+// memory extraction. A twentieth of the chat model's price: Haiku 5.5 is
+// $0.10 / $0.50 per million tokens against Sonnet 5.5's $2 / $10 (and against
+// Haiku 4.5's $1 / $5). That rate holds for prompts up to 100K tokens; past
+// that it is $0.50 / $2.50, which no title or extraction prompt comes near.
 //
 // Extraction ran on CHAT_MODEL until 2026-07-27, gated on an eval that plants
 // excluded material and proves the cheaper model still refuses it, because its
@@ -36,8 +39,19 @@ export const CHAT_MODEL = MODEL_SLUGS[DEFAULT_MODEL_TIER];
 //
 // The move was made when extraction frequency went up (see below): the same
 // eval, plus the cost of extracting several times more often, is what decided
-// it. Re-run the eval before changing EXTRACTION_EXCLUSIONS again.
-export const BACKGROUND_MODEL = "anthropic/claude-haiku-4-5";
+// it. Re-run the eval before changing EXTRACTION_EXCLUSIONS again, and before
+// changing this model.
+//
+// Moved from Haiku 4.5 to Haiku 5.5 on 2026-11-22; the extraction eval for
+// that move is in its PR. What changes beyond the price: Haiku 5.5 thinks by
+// default (adaptive, effort `medium`) where 4.5 never did, so these calls now
+// spend reasoning tokens. Nothing here caps output tokens, so thinking cannot
+// crowd out the answer, but the ledger's `reasoningTokens` will no longer be
+// empty for these rows. Its tokenizer also counts the same text as about 30%
+// more tokens. And it carries Anthropic's safety classifiers with no fallback
+// model: a declined extraction throws before the watermark moves, so nothing
+// is written and the next trigger tries the same turns again.
+export const BACKGROUND_MODEL = "anthropic/claude-haiku-5.5";
 
 // Extraction fires on two independent triggers, because either one alone
 // loses conversations.

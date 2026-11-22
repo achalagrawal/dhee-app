@@ -61,9 +61,12 @@ const shared = { usage: { include: true } } as const;
 // read the whole system prefix from cache — 3,553 of 3,572 prompt tokens
 // cached, $0.0008 against the $0.0090 the control pair paid twice. Watch
 // `cachedTokens` in the `llmUsage` ledger rather than assuming — and note
-// Anthropic only caches a prefix above a minimum length (1,024 tokens on
-// Sonnet 5); DHEE_INSTRUCTIONS alone is several times that, so every real
-// prompt qualifies.
+// Anthropic only caches a prefix above a minimum length (512 tokens on
+// Sonnet 5.5, down from 1,024 on Sonnet 5); DHEE_INSTRUCTIONS alone is many
+// times that, so every real prompt qualifies. The measurements above were
+// taken on Sonnet 5. Sonnet 5.5 takes the same two directives unchanged, and
+// its cache reads cost half what Sonnet 5's did ($0.10 per million against
+// $0.20), so the saving from a hit is larger than the figures above show.
 //
 // `ephemeral` means the five-minute TTL. The one-hour question is worth
 // re-opening now that turn openings can actually hit — re-run that math
@@ -162,10 +165,14 @@ export function evalModelSlugFor(spec: string): string {
 // model gets. Kept pointing at the default tier so the two cannot drift.
 export const languageModel = MODEL_BY_TIER[DEFAULT_MODEL_TIER];
 
-// Titling and other background work. A third of Sonnet's price, and neither
-// job needs Sonnet's judgement. No `cache_control` here on purpose: Haiku's
-// minimum cacheable prefix is 4,096 tokens and these prompts are far shorter,
-// so it would only ever pay the write premium.
+// Titling and other background work. A twentieth of Sonnet's price, and
+// neither job needs Sonnet's judgement. No `cache_control` here. It was left
+// off because Haiku 4.5 would not cache a prefix under 4,096 tokens and these
+// prompts are far shorter. Haiku 5.5's minimum is 512, so that reason no
+// longer holds: the extraction system prompt is near the line, and a title
+// call carries the thread. At $0.10 per million input tokens the most a hit
+// could save is small, though, so turning it on waits for the ledger to show
+// it is worth the write premium.
 export const backgroundModel = openrouter.chat(BACKGROUND_MODEL, shared);
 
 // Shared config applied to every Dhee-family agent. Embedding model is
@@ -174,7 +181,8 @@ export const backgroundModel = openrouter.chat(BACKGROUND_MODEL, shared);
 // `temperature` used to be pinned here at 0.7 with a comment about keeping
 // replies grounded. It never did anything: echoing the upstream request body
 // shows OpenRouter drops sampling parameters for this model before the call
-// reaches Anthropic, which is just as well, since Claude Sonnet 5 rejects
+// reaches Anthropic, which is just as well, since Claude Sonnet 5.5 (like
+// Sonnet 5 before it, and Haiku 5.5 on the background path) rejects
 // non-default ones outright. Steering tone is the system prompt's job.
 export const defaultAgentConfig = {
   languageModel,

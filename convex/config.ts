@@ -21,7 +21,7 @@ export const CHAT_MODEL = MODEL_SLUGS[DEFAULT_MODEL_TIER];
 
 // Background work that nobody reads as a reply — conversation titles and
 // memory extraction. A twentieth of the chat model's price: Haiku 5.5 is
-// $0.10 / $0.50 per million tokens against Sonnet 5.5's $2 / $10 (and against
+// $0.10 / $0.50 per million tokens against Sonnet 5's $2 / $10 (and against
 // Haiku 4.5's $1 / $5). That rate holds for prompts up to 100K tokens; past
 // that it is $0.50 / $2.50, which no title or extraction prompt comes near.
 //
@@ -42,8 +42,11 @@ export const CHAT_MODEL = MODEL_SLUGS[DEFAULT_MODEL_TIER];
 // it. Re-run the eval before changing EXTRACTION_EXCLUSIONS again, and before
 // changing this model.
 //
-// Moved from Haiku 4.5 to Haiku 5.5 on 2026-11-22; the extraction eval for
-// that move is in its PR. What changes beyond the price: Haiku 5.5 thinks by
+// Moved from Haiku 4.5 to Haiku 5.5 on 2026-11-22, on the same eval: 14/14
+// clean across seven plants at two samples each, including the two added since
+// the 4.5 run, with the same row counts and less category residue on the
+// finances plant ("money" where 4.5 left "debt, money, earn"), at $0.005
+// against $0.027. What changes beyond the price: Haiku 5.5 thinks by
 // default (adaptive, effort `medium`) where 4.5 never did, so these calls now
 // spend reasoning tokens. Nothing here caps output tokens, so thinking cannot
 // crowd out the answer, but the ledger's `reasoningTokens` will no longer be

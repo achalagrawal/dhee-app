@@ -35,15 +35,16 @@ export const MODEL_SLUGS: Record<ModelTier, string> = {
   // the first v4.1 build, 0910, the way `deepseek/deepseek-v4-flash` stayed
   // on 0423.) Moved from v4-flash-0731 on 2026-11-22.
   quick: "deepseek/deepseek-v4.1-flash-1017",
-  // Undated on purpose. Unlike DeepSeek's, an Anthropic version name is
-  // already a fixed snapshot: OpenRouter's canonical slug for this one is
-  // `anthropic/claude-sonnet-5.5-20260928`, and the dated slug resolves back
-  // to this id. The rolling name to avoid is `~anthropic/claude-sonnet-latest`.
-  // Keeping the plain id also keeps it identical to the `model` OpenRouter
-  // reports, which the usage ledger and eval runs record. Moved from
-  // `anthropic/claude-sonnet-5` on 2026-11-22: same input and output price,
-  // cache reads half the price.
-  reflective: "anthropic/claude-sonnet-5.5",
+  // Held on Sonnet 5 when the other two moved on 2026-11-22. Sonnet 5.5 is
+  // cheaper and faster, and the judge rated it the same or higher, but on the
+  // same prompt it passed 17/54 rule checks against Sonnet 5's 35/54. Nearly
+  // all of the gap is the brevity rule: it writes the same number of words
+  // but splits them into more paragraphs and asks more questions back. Move
+  // only once the prompt holds it to the rule. Use the undated id when you
+  // do: an Anthropic version name is already a fixed snapshot (the dated
+  // `anthropic/claude-sonnet-5.5-20260928` resolves back to it), and the
+  // name that moves is `~anthropic/claude-sonnet-latest`.
+  reflective: "anthropic/claude-sonnet-5",
 };
 
 /**

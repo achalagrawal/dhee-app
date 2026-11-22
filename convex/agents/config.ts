@@ -61,12 +61,9 @@ const shared = { usage: { include: true } } as const;
 // read the whole system prefix from cache — 3,553 of 3,572 prompt tokens
 // cached, $0.0008 against the $0.0090 the control pair paid twice. Watch
 // `cachedTokens` in the `llmUsage` ledger rather than assuming — and note
-// Anthropic only caches a prefix above a minimum length (512 tokens on
-// Sonnet 5.5, down from 1,024 on Sonnet 5); DHEE_INSTRUCTIONS alone is many
-// times that, so every real prompt qualifies. The measurements above were
-// taken on Sonnet 5. Sonnet 5.5 takes the same two directives unchanged, and
-// its cache reads cost half what Sonnet 5's did ($0.10 per million against
-// $0.20), so the saving from a hit is larger than the figures above show.
+// Anthropic only caches a prefix above a minimum length (1,024 tokens on
+// Sonnet 5); DHEE_INSTRUCTIONS alone is several times that, so every real
+// prompt qualifies.
 //
 // `ephemeral` means the five-minute TTL. The one-hour question is worth
 // re-opening now that turn openings can actually hit — re-run that math
@@ -181,9 +178,8 @@ export const backgroundModel = openrouter.chat(BACKGROUND_MODEL, shared);
 // `temperature` used to be pinned here at 0.7 with a comment about keeping
 // replies grounded. It never did anything: echoing the upstream request body
 // shows OpenRouter drops sampling parameters for this model before the call
-// reaches Anthropic, which is just as well, since Claude Sonnet 5.5 (like
-// Sonnet 5 before it, and Haiku 5.5 on the background path) rejects
-// non-default ones outright. Steering tone is the system prompt's job.
+// reaches Anthropic, which is just as well, since Claude Sonnet 5 (and
+// Haiku 5.5 on the background path) rejects non-default ones outright. Steering tone is the system prompt's job.
 export const defaultAgentConfig = {
   languageModel,
 

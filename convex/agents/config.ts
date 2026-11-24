@@ -132,15 +132,54 @@ const anthropicCacheBreakpoint: LanguageModelMiddleware = {
 // exact shape is load-bearing and must not drift silently.
 export const cacheMiddlewareForTest = anthropicCacheBreakpoint;
 
+// Earlier turns' thinking stays behind; only the current turn's goes back.
+//
+// Sonnet 5.5 (and every Claude model after it) checks a replayed thinking
+// block against the conversation it came from: the system prompt, the tools
+// and every message before it must be exactly as they were when the block was
+// written. On accounts created from 2026-08-31 a mismatch is a 400, which
+// `withFallback` would turn into a Quick reply, quietly, on every turn but
+// the first. Dhee's history never passes that check from one turn to the next:
+// the system prompt changes when extraction rewrites the context block or the
+// reply script changes, REPLY_CONTEXT_OPTIONS drops earlier turns' tool
+// messages, and the 20-message window slides. Within a turn none of that
+// happens, and there the blocks must go back: a step after a tool call
+// continues the thinking that made the call.
+//
+// So reasoning is dropped from assistant messages before the latest user
+// message and kept after it. The earlier turns' reasoning is not lost to the
+// person; it was never shown, and their replies' text still goes back.
+const dropEarlierTurnsReasoning: LanguageModelMiddleware = {
+  specificationVersion: "v3",
+  transformParams: async ({ params }) => {
+    const lastUser = params.prompt.findLastIndex(
+      (message) => message.role === "user",
+    );
+    if (lastUser <= 0) return params;
+    const prompt = params.prompt.flatMap((message, index) => {
+      if (index >= lastUser || message.role !== "assistant") return [message];
+      const content = message.content.filter(
+        (part) => part.type !== "reasoning",
+      );
+      if (content.length === message.content.length) return [message];
+      return content.length ? [{ ...message, content }] : [];
+    });
+    return { ...params, prompt };
+  },
+};
+
+export const reasoningMiddlewareForTest = dropEarlierTurnsReasoning;
+
 /**
- * A Claude model on Anthropic's API, with both cache directives, keeping the
+ * A Claude model on Anthropic's API, with both cache directives and only the
+ * current turn's thinking replayed, keeping the
  * `anthropic/…` slug as its id so the ledger and eval reports name it the same
  * way they did when it came through OpenRouter.
  */
 function claudeModel(slug: string) {
   return wrapLanguageModel({
     model: anthropic(anthropicModelId(slug)),
-    middleware: anthropicCacheBreakpoint,
+    middleware: [anthropicCacheBreakpoint, dropEarlierTurnsReasoning],
     modelId: slug,
   });
 }

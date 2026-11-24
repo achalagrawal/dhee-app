@@ -123,6 +123,7 @@ export default function Home() {
             onSubmit={send}
             placeholder={t(lang, "homePlaceholder")}
             minHeight={48}
+            menuPlacement="below"
             {...(incognito
               ? {}
               : {
@@ -146,7 +147,17 @@ export default function Home() {
               screen with the thing they came to say. */}
           {draft.trim() ? null : (
             <View style={styles.starters}>
-              <View style={styles.modes}>
+              {/* One row that scrolls sideways rather than three that wrap:
+                  eight pills stacked up read as a second form to fill in,
+                  louder than the box itself. The last chip running off the
+                  edge says there is more. */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                style={styles.modesScroll}
+                contentContainerStyle={styles.modes}
+              >
                 {MODE_KEYS.map((key) => {
                   const selected = mode === key;
                   const label = t(lang, modeLabelKey(key));
@@ -173,7 +184,7 @@ export default function Home() {
                         {
                           backgroundColor: selected
                             ? colors.accentSoft
-                            : colors.surface2,
+                            : "transparent",
                           borderColor: selected ? colors.accent : colors.border,
                           opacity: pressed ? 0.75 : 1,
                         },
@@ -190,33 +201,40 @@ export default function Home() {
                     </Pressable>
                   );
                 })}
+              </ScrollView>
+
+              {/* Rows rather than cards: three filled boxes outweighed the
+                  composer they are meant to serve. */}
+              <View>
+                {sampleStarters(lang, mode, seed).map((question, i) => (
+                  <Pressable
+                    key={question}
+                    accessibilityRole="button"
+                    accessibilityLabel={question}
+                    disabled={busy}
+                    onPress={() => sendStarter(question)}
+                    style={({ pressed }) => [
+                      styles.starter,
+                      {
+                        borderTopColor: colors.border,
+                        borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                        opacity: pressed || busy ? 0.6 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.starterText, { color: colors.textSoft }]}
+                    >
+                      {question}
+                    </Text>
+                    <Icon
+                      name="chevronRight"
+                      size={14}
+                      color={colors.textFaint}
+                    />
+                  </Pressable>
+                ))}
               </View>
-
-              <Text style={[styles.startersLead, { color: colors.textSoft }]}>
-                {t(lang, mode ? "startersLeadMode" : "startersLead")}
-              </Text>
-
-              {sampleStarters(lang, mode, seed).map((question) => (
-                <Pressable
-                  key={question}
-                  accessibilityRole="button"
-                  accessibilityLabel={question}
-                  disabled={busy}
-                  onPress={() => sendStarter(question)}
-                  style={({ pressed }) => [
-                    styles.starter,
-                    {
-                      backgroundColor: colors.surface2,
-                      borderColor: colors.border,
-                      opacity: pressed || busy ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.starterText, { color: colors.text }]}>
-                    {question}
-                  </Text>
-                </Pressable>
-              ))}
             </View>
           )}
         </ScrollView>
@@ -259,32 +277,24 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   incognitoText: { fontSize: 13.5, ...font.regular },
-  starters: { marginTop: 30, gap: 9 },
-  modes: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    justifyContent: "center",
-    marginBottom: 6,
-  },
+  starters: { marginTop: 28, gap: 14 },
+  // Bleeds to the window's edges so chips scroll out of view at the screen's
+  // edge, not at the column's padding.
+  modesScroll: { marginHorizontal: -PADDING_X, flexGrow: 0 },
+  modes: { gap: 8, paddingHorizontal: PADDING_X },
   chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 13,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
   },
   chipText: { fontSize: 13, ...font.medium },
-  startersLead: {
-    fontSize: 12.5,
-    textAlign: "center",
-    marginBottom: 3,
-    ...font.regular,
-  },
   starter: {
-    borderRadius: 14,
-    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     paddingVertical: 13,
-    paddingHorizontal: 15,
+    paddingHorizontal: 4,
   },
-  starterText: { fontSize: 14.5, lineHeight: 21, ...font.regular },
+  starterText: { flex: 1, fontSize: 14.5, lineHeight: 21, ...font.regular },
 });

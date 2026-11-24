@@ -105,8 +105,6 @@ const strings = {
     incognitoHomeNote: "This conversation won't be saved to your history.",
     // Topic modes. The questions themselves live in lib/starters.ts — these are
     // only the chip labels, which are chrome.
-    startersLead: "Or start with one of these",
-    startersLeadMode: "Questions people bring about this",
     modeRelationships: "Relationships",
     modeParenting: "Parenting",
     modeDecisions: "Decisions",
@@ -361,8 +359,6 @@ const strings = {
     greetingGeneric: "मन में क्या है?",
     homePlaceholder: "जो भी मन में है, पूछिए…",
     incognitoHomeNote: "यह बातचीत आपके इतिहास में सहेजी नहीं जाएगी।",
-    startersLead: "या इनमें से किसी से शुरू कीजिए",
-    startersLeadMode: "इस पर लोग जो पूछते हैं",
     modeRelationships: "रिश्ते",
     modeParenting: "परवरिश",
     modeDecisions: "निर्णय",

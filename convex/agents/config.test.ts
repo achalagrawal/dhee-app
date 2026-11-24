@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { LanguageModelV3CallOptions } from "@ai-sdk/provider";
-import { cacheMiddlewareForTest, quickModel, reflectiveModel } from "./config";
+import {
+  anthropicModelId,
+  cacheMiddlewareForTest,
+  quickModel,
+  reflectiveModel,
+} from "./config";
 import { MODEL_SLUGS } from "./models";
 
-// The middleware's output shape is load-bearing: the OpenRouter provider
-// emits a `cache_control` block only for `openrouter.cacheControl` (or its
-// aliases) on the message's providerOptions. A rename or a restructure here
+// The middleware's output shape is load-bearing: the Anthropic provider
+// emits a `cache_control` block only for `anthropic.cacheControl` in
+// providerOptions — on a message for a breakpoint, at the top level for
+// automatic caching. A rename or a restructure here
 // wouldn't error — it would silently stop caching, which looks exactly like
 // working caching from every seat except the invoice.
 
@@ -26,8 +32,15 @@ describe("the system-message cache breakpoint", () => {
       role: "system",
       content: "instructions",
       providerOptions: {
-        openrouter: { cacheControl: { type: "ephemeral" } },
+        anthropic: { cacheControl: { type: "ephemeral" } },
       },
+    });
+  });
+
+  it("turns on automatic caching at the top level too", async () => {
+    const out = await transform([{ role: "system", content: "instructions" }]);
+    expect(out.providerOptions).toMatchObject({
+      anthropic: { cacheControl: { type: "ephemeral" } },
     });
   });
 
@@ -45,13 +58,19 @@ describe("the system-message cache breakpoint", () => {
       {
         role: "system",
         content: "instructions",
-        providerOptions: { openrouter: { reasoning: { effort: "low" } } },
+        providerOptions: { anthropic: { sendReasoning: true } },
       },
     ]);
-    expect(out.prompt[0]?.providerOptions?.openrouter).toMatchObject({
-      reasoning: { effort: "low" },
+    expect(out.prompt[0]?.providerOptions?.anthropic).toMatchObject({
+      sendReasoning: true,
       cacheControl: { type: "ephemeral" },
     });
+  });
+
+  it("calls Anthropic with the model id, not the slug", () => {
+    expect(anthropicModelId("anthropic/claude-sonnet-5")).toBe(
+      "claude-sonnet-5",
+    );
   });
 
   it("wraps the reflective tier without changing its identity", () => {

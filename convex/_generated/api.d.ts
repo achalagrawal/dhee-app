@@ -9,8 +9,10 @@
  */
 
 import type * as account from "../account.js";
+import type * as agents_availability from "../agents/availability.js";
 import type * as agents_config from "../agents/config.js";
 import type * as agents_dhee from "../agents/dhee.js";
+import type * as agents_fallback from "../agents/fallback.js";
 import type * as agents_models from "../agents/models.js";
 import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
@@ -51,8 +53,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   account: typeof account;
+  "agents/availability": typeof agents_availability;
   "agents/config": typeof agents_config;
   "agents/dhee": typeof agents_dhee;
+  "agents/fallback": typeof agents_fallback;
   "agents/models": typeof agents_models;
   attachments: typeof attachments;
   auth: typeof auth;

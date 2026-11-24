@@ -73,6 +73,8 @@ export type EvalResult = {
     cacheWriteTokens?: number;
   };
   costUsd?: number;
+  /** What the judge's call cost, kept apart from the reply's own cost. */
+  judgeCostUsd?: number;
   /** Which upstream OpenRouter routed to. A real run-to-run confounder. */
   upstreamProvider?: string;
   /** Absent when the judge was skipped, or when it failed. */
@@ -261,15 +263,18 @@ async function runOnce(
 
     // After the checks, so a judge outage costs opinions but never evidence.
     let scores: JudgeScores | null = null;
+    let judgeCostUsd = 0;
     const warnings: string[] = [];
     if (judge) {
       try {
-        scores = await judgeReply({
+        const judged = await judgeReply({
           question: probe.text,
           reply,
           traditions,
           studyMode: isCorpusLens(traditions),
         });
+        scores = judged?.scores ?? null;
+        judgeCostUsd = judged?.costUsd ?? 0;
       } catch (error) {
         warnings.push(
           `judge failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -303,6 +308,7 @@ async function runOnce(
         cacheWriteTokens: result.totalUsage.inputTokenDetails?.cacheWriteTokens,
       },
       ...(costUsd > 0 ? { costUsd } : {}),
+      ...(judgeCostUsd > 0 ? { judgeCostUsd } : {}),
       upstreamProvider: openrouterMeta(result.steps.at(-1)?.providerMetadata)
         ?.provider,
     };
@@ -331,8 +337,8 @@ export const run = internalAction({
     dryRun: v.optional(v.boolean()),
     /**
      * "quick", "reflective", or a raw OpenRouter slug. Replies only — the
-     * judge stays on the default tier's model whatever this says, so scores
-     * from runs with different models remain comparable.
+     * judge stays on JUDGE_MODEL whatever this says, so scores from runs with
+     * different models remain comparable.
      */
     model: v.optional(v.string()),
     /** A prompt variant id from convex/evals/variants.ts. */

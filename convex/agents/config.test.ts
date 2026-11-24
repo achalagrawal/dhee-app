@@ -4,6 +4,7 @@ import {
   anthropicModelId,
   cacheMiddlewareForTest,
   quickModel,
+  reasoningMiddlewareForTest,
   reflectiveModel,
 } from "./config";
 import { MODEL_SLUGS } from "./models";
@@ -84,5 +85,65 @@ describe("the system-message cache breakpoint", () => {
     // noise. If quick ever gains middleware, this test is the prompt to say
     // why in convex/agents/config.ts rather than a blocker.
     expect(quickModel.modelId).toBe(MODEL_SLUGS.quick);
+  });
+});
+
+describe("replaying thinking to Claude", () => {
+  // Sonnet 5.5 rejects a thinking block whose conversation has changed since
+  // it was written, and Dhee's always has by the next turn (the context block,
+  // the dropped tool messages, the sliding window). Within a turn the blocks
+  // must go back, or a step after a tool call loses the thinking behind it.
+  const reasoning = (text: string) => ({ type: "reasoning", text }) as const;
+  const text = (t: string) => ({ type: "text", text: t }) as const;
+  const strip = async (prompt: LanguageModelV3CallOptions["prompt"]) =>
+    (
+      await reasoningMiddlewareForTest.transformParams!({
+        type: "stream",
+        params: { prompt } as LanguageModelV3CallOptions,
+        model: reflectiveModel,
+      })
+    ).prompt;
+
+  it("drops thinking from earlier turns and keeps their replies", async () => {
+    const out = await strip([
+      { role: "system", content: "instructions" },
+      { role: "user", content: [text("first")] },
+      { role: "assistant", content: [reasoning("why"), text("answer")] },
+      { role: "user", content: [text("second")] },
+    ]);
+    expect(out[2]).toEqual({ role: "assistant", content: [text("answer")] });
+    expect(out).toHaveLength(4);
+  });
+
+  it("keeps the current turn's thinking for the steps after a tool call", async () => {
+    const current = {
+      role: "assistant",
+      content: [
+        reasoning("look it up"),
+        { type: "tool-call", toolCallId: "1", toolName: "search", input: {} },
+      ],
+    } as const;
+    const out = await strip([
+      { role: "user", content: [text("question")] },
+      current,
+    ] as LanguageModelV3CallOptions["prompt"]);
+    expect(out[1]).toBe(current);
+  });
+
+  it("drops an earlier assistant message that held nothing but thinking", async () => {
+    const out = await strip([
+      { role: "user", content: [text("first")] },
+      { role: "assistant", content: [reasoning("only this")] },
+      { role: "user", content: [text("second")] },
+    ]);
+    expect(out.map((m) => m.role)).toEqual(["user", "user"]);
+  });
+
+  it("leaves a first turn alone", async () => {
+    const prompt: LanguageModelV3CallOptions["prompt"] = [
+      { role: "system", content: "instructions" },
+      { role: "user", content: [text("hi")] },
+    ];
+    expect(await strip(prompt)).toEqual(prompt);
   });
 });

@@ -1235,6 +1235,20 @@ describe("chat — per-turn model options", () => {
     }
   });
 
+  test("a saved thread is its own OpenRouter session, so its cache survives between turns", () => {
+    // Without a session id OpenRouter may answer each turn on a different
+    // provider, and the system prompt is paid for in full every time.
+    expect(replyOptionsFor([], "quick", "thread-1").providerOptions).toEqual({
+      openrouter: { session_id: "thread-1" },
+    });
+  });
+
+  test("incognito turns carry no session id", () => {
+    // No thread to name, and nothing else may stand in for one: a per-person
+    // id would link incognito turns together at OpenRouter.
+    expect(replyOptionsFor([], "quick")).not.toHaveProperty("providerOptions");
+  });
+
   test("a stored choice of an unavailable tier is answered on the default", () => {
     // Reflective is unavailable (UNAVAILABLE_MODEL_TIERS): people who chose it
     // must still get a reply, from a model that can give one.
@@ -1273,12 +1287,21 @@ describe("chat — per-turn model options", () => {
     }
   });
 
-  test("a study turn keeps tools until the end of its own, longer budget", () => {
+  test("a study turn keeps tools until the end of its own budget", () => {
     const { prepareStep } = replyOptionsFor(["Madhyasth Darshan"]);
-    expect(prepareStep({ stepNumber: REPLY_STEPS - 1 })).toEqual({});
+    for (let step = 0; step < STUDY_STEPS - 1; step++) {
+      expect(prepareStep({ stepNumber: step }), `step ${step}`).toEqual({});
+    }
     expect(prepareStep({ stepNumber: STUDY_STEPS - 1 })).toEqual({
       toolChoice: "none",
     });
+  });
+
+  test("study mode never gets a smaller budget than an ordinary reply", () => {
+    // A study turn spends steps finding its way around the corpus before it
+    // can answer; raising REPLY_STEPS past STUDY_STEPS would quietly make the
+    // harder turn the shorter one.
+    expect(STUDY_STEPS).toBeGreaterThanOrEqual(REPLY_STEPS);
   });
 
   test("answerOnFinalStep counts steps from zero", () => {

@@ -15,6 +15,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
   MODEL_TIERS,
+  isTierAvailable,
   resolveModelTier,
   type ModelTier,
 } from "../../convex/agents/models";
@@ -100,6 +101,7 @@ export function Composer({
   const tier = resolveModelTier(storedTier);
 
   const chooseTier = (next: ModelTier) => {
+    if (!isTierAvailable(next)) return;
     setModelMenuOpen(false);
     if (next === tier) return;
     void setPreferredModel({ preferredModel: next });
@@ -158,18 +160,23 @@ export function Composer({
         >
           {MODEL_TIERS.map((option) => {
             const active = option === tier;
+            // An unavailable tier stays in the menu, greyed out and saying
+            // so, rather than vanishing: people who chose it should see why
+            // they are on another one.
+            const available = isTierAvailable(option);
             return (
               <Pressable
                 key={option}
                 accessibilityRole="button"
                 accessibilityLabel={t(lang, modelNameKey(option))}
-                accessibilityState={{ selected: active }}
+                accessibilityState={{ selected: active, disabled: !available }}
+                disabled={!available}
                 onPress={() => chooseTier(option)}
                 style={({ pressed }) => [
                   styles.modelOption,
                   {
                     backgroundColor: active ? colors.surface2 : "transparent",
-                    opacity: pressed ? 0.7 : 1,
+                    opacity: !available ? 0.45 : pressed ? 0.7 : 1,
                   },
                 ]}
               >
@@ -182,7 +189,10 @@ export function Composer({
                   <Text
                     style={[styles.modelOptionDesc, { color: colors.textSoft }]}
                   >
-                    {t(lang, modelDescKey(option))}
+                    {t(
+                      lang,
+                      available ? modelDescKey(option) : "modelUnavailable",
+                    )}
                   </Text>
                 </View>
                 {active ? (

@@ -1228,9 +1228,11 @@ describe("chat — per-turn model options", () => {
     }
   });
 
-  test("the two tiers actually resolve to different models", () => {
-    expect(replyOptionsFor([], "quick").model).not.toBe(
-      replyOptionsFor([], "reflective").model,
+  test("a stored choice of an unavailable tier is answered on the default", () => {
+    // Reflective is unavailable (UNAVAILABLE_MODEL_TIERS): people who chose it
+    // must still get a reply, from a model that can give one.
+    expect(replyOptionsFor([], "reflective").model).toBe(
+      replyOptionsFor([], DEFAULT_MODEL_TIER).model,
     );
   });
 

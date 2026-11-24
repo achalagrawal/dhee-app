@@ -37,7 +37,19 @@ export const CHAT_MODEL = MODEL_SLUGS[DEFAULT_MODEL_TIER];
 // The move was made when extraction frequency went up (see below): the same
 // eval, plus the cost of extracting several times more often, is what decided
 // it. Re-run the eval before changing EXTRACTION_EXCLUSIONS again.
-export const BACKGROUND_MODEL = "anthropic/claude-haiku-4-5";
+//
+// DeepSeek V4 Flash 0731 since 2026-11-24, when OpenRouter restricted the account
+// from closed-weight models and every Haiku call came back 403, so titles and
+// extraction were failing. That move did NOT clear the gate above: the
+// extraction eval has not been run on this model yet. Run
+// `pnpm eval --suite extraction` against it, and if it records anything the
+// exclusions bar, stop extraction until a model passes.
+//
+// It is deliberately not the Quick tier's slug: `classifyAgentCall` in
+// usage.ts tells titling apart from chat by the model alone, so the two must
+// differ or every Quick reply would be booked as a title. 0731 is the build
+// Quick ran on until the same day, so it is known to work on this account.
+export const BACKGROUND_MODEL = "deepseek/deepseek-v4-flash-0731";
 
 // Extraction fires on two independent triggers, because either one alone
 // loses conversations.

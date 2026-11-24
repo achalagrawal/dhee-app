@@ -120,6 +120,8 @@ const strings = {
     // Model tiers. Names stay abstract; the descriptions carry the trade.
     modelQuickName: "Dhee Quick",
     modelQuickDesc: "Fast answers for your quick questions.",
+    modelThoughtfulName: "Dhee Thoughtful",
+    modelThoughtfulDesc: "Weighs your question before it answers.",
     modelReflectiveName: "Dhee Reflective",
     modelReflectiveDesc: "Takes longer, sees further.",
     modelUnavailable: "Not available right now.",
@@ -371,6 +373,8 @@ const strings = {
     // itself does — while the descriptions are written in Hindi.
     modelQuickName: "Dhee Quick",
     modelQuickDesc: "छोटे सवालों के तेज़ जवाब।",
+    modelThoughtfulName: "Dhee Thoughtful",
+    modelThoughtfulDesc: "जवाब देने से पहले आपके सवाल को तौलता है।",
     modelReflectiveName: "Dhee Reflective",
     modelReflectiveDesc: "समय लेता है, दूर तक देखता है।",
     modelUnavailable: "अभी उपलब्ध नहीं है।",

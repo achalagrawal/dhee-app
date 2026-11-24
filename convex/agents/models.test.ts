@@ -1,14 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MODEL_TIER,
   isModelTier,
-  isTierAvailable,
   MODEL_SLUGS,
   MODEL_TIERS,
   modelSlugFor,
   resolveModelTier,
 } from "./models";
+import { availableModelTiers } from "./availability";
 import { BACKGROUND_MODEL, CHAT_MODEL } from "../config";
+
+const ALL = MODEL_TIERS;
 
 describe("the tier registry", () => {
   it("gives every tier a slug", () => {
@@ -17,29 +19,25 @@ describe("the tier registry", () => {
     }
   });
 
-  it("points the two tiers at different models", () => {
+  it("points every tier at a different model", () => {
     // Two tiers on the same model is a picker that does nothing.
     const slugs = MODEL_TIERS.map((tier) => MODEL_SLUGS[tier]);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it("defaults to a tier that can answer", () => {
-    // Quick is the default only because Reflective is unavailable — see the
-    // DEFAULT_MODEL_TIER comment. Whatever the default is, it must be able to
-    // answer, or nobody who hasn't chosen gets a reply.
+  it("defaults to quick", () => {
     expect(DEFAULT_MODEL_TIER).toBe("quick");
-    expect(isTierAvailable(DEFAULT_MODEL_TIER)).toBe(true);
   });
 
-  it("names no closed-weight model, which the account can no longer reach", () => {
-    // OpenRouter restricted the account from Anthropic, Google and OpenAI on
-    // 2026-11-24. The reflective slug is exempt while that tier is unavailable.
-    for (const tier of MODEL_TIERS.filter(isTierAvailable)) {
-      expect(MODEL_SLUGS[tier], tier).not.toMatch(
-        /^(anthropic|google|openai)\//,
-      );
-    }
-    expect(BACKGROUND_MODEL).not.toMatch(/^(anthropic|google|openai)\//);
+  it("keeps the default and everything that remembers people on open weights", () => {
+    // Decided 2026-11-24, when OpenRouter cut the account off from Anthropic,
+    // Google and OpenAI overnight: no closed-weight provider can take down
+    // the default reply, titles, or memory extraction. Reflective is the one
+    // closed model, and it falls back to the default.
+    const closed = /^(anthropic|google|openai)\//;
+    expect(MODEL_SLUGS[DEFAULT_MODEL_TIER]).not.toMatch(closed);
+    expect(MODEL_SLUGS.thoughtful).not.toMatch(closed);
+    expect(BACKGROUND_MODEL).not.toMatch(closed);
   });
 
   it("keeps CHAT_MODEL and the default tier the same model", () => {
@@ -51,22 +49,27 @@ describe("the tier registry", () => {
 });
 
 describe("resolveModelTier", () => {
-  it("keeps a tier that exists and can answer", () => {
-    expect(resolveModelTier("quick")).toBe("quick");
+  it("keeps an available tier", () => {
+    for (const tier of MODEL_TIERS) {
+      expect(resolveModelTier(tier, ALL)).toBe(tier);
+    }
   });
 
   it("sends a stored choice of an unavailable tier to the default", () => {
     // People who chose Reflective keep that choice on file; they are answered
     // by the default until the tier is back.
-    expect(isTierAvailable("reflective")).toBe(false);
-    expect(resolveModelTier("reflective")).toBe(DEFAULT_MODEL_TIER);
+    expect(resolveModelTier("reflective", [DEFAULT_MODEL_TIER])).toBe(
+      DEFAULT_MODEL_TIER,
+    );
   });
 
   it("falls back to the default for anything else", () => {
     // A preference written by an older build, or a tier since retired, must
     // cost the preference and nothing more — never someone's reply.
     for (const stored of [undefined, "", "deep", "sonnet", "QUICK", "null"]) {
-      expect(resolveModelTier(stored), String(stored)).toBe(DEFAULT_MODEL_TIER);
+      expect(resolveModelTier(stored, ALL), String(stored)).toBe(
+        DEFAULT_MODEL_TIER,
+      );
     }
   });
 });
@@ -74,6 +77,7 @@ describe("resolveModelTier", () => {
 describe("isModelTier", () => {
   it("accepts only the tiers that exist", () => {
     expect(isModelTier("quick")).toBe(true);
+    expect(isModelTier("thoughtful")).toBe(true);
     expect(isModelTier("reflective")).toBe(true);
     for (const value of ["deep", "", 0, null, undefined, {}, ["quick"]]) {
       expect(isModelTier(value), JSON.stringify(value)).toBe(false);
@@ -83,10 +87,33 @@ describe("isModelTier", () => {
 
 describe("modelSlugFor", () => {
   it("resolves a stored preference to a slug", () => {
-    expect(modelSlugFor("quick")).toBe(MODEL_SLUGS.quick);
+    expect(modelSlugFor("reflective", ALL)).toBe(MODEL_SLUGS.reflective);
   });
 
   it("never returns undefined for junk", () => {
-    expect(modelSlugFor("nonsense")).toBe(MODEL_SLUGS[DEFAULT_MODEL_TIER]);
+    expect(modelSlugFor("nonsense", ALL)).toBe(MODEL_SLUGS[DEFAULT_MODEL_TIER]);
+  });
+});
+
+describe("availableModelTiers", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("offers Reflective only while the Anthropic key is set", () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    expect(availableModelTiers()).toEqual(["quick", "thoughtful"]);
+    vi.stubEnv("ANTHROPIC_API_KEY", "set");
+    expect(availableModelTiers()).toEqual([
+      "quick",
+      "thoughtful",
+      "reflective",
+    ]);
+  });
+
+  it("always offers the open-weight tiers", () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    expect(availableModelTiers()).toContain(DEFAULT_MODEL_TIER);
+    expect(availableModelTiers()).toContain("thoughtful");
   });
 });

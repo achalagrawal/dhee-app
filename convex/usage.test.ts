@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import { BACKGROUND_MODEL, CHAT_MODEL } from "./config";
 import {
+  answeringModel,
   classifyAgentCall,
   costFromProviderMetadata,
   EVAL_USER_ID,
@@ -8,6 +9,48 @@ import {
 } from "./usage";
 import { initTest, createUser } from "./test.setup";
 import { internal } from "./_generated/api";
+
+describe("answeringModel", () => {
+  const fallbackModel = CHAT_MODEL;
+
+  test("books a Reflective reply the fallback answered to the fallback", () => {
+    // Claude calls go to Anthropic directly, so OpenRouter metadata on one
+    // means the fallback answered it.
+    expect(
+      answeringModel({
+        model: "anthropic/claude-sonnet-5",
+        provider: "anthropic.messages",
+        providerMetadata: { openrouter: { usage: { cost: 0.001 } } },
+        fallbackModel,
+      }),
+    ).toEqual({ model: fallbackModel, provider: "openrouter" });
+  });
+
+  test("leaves a reply Claude answered as Claude's", () => {
+    expect(
+      answeringModel({
+        model: "anthropic/claude-sonnet-5",
+        provider: "anthropic.messages",
+        providerMetadata: { anthropic: { cacheCreationInputTokens: 0 } },
+        fallbackModel,
+      }),
+    ).toEqual({
+      model: "anthropic/claude-sonnet-5",
+      provider: "anthropic.messages",
+    });
+  });
+
+  test("leaves an open-weight reply alone", () => {
+    expect(
+      answeringModel({
+        model: CHAT_MODEL,
+        provider: "openrouter",
+        providerMetadata: { openrouter: {} },
+        fallbackModel,
+      }),
+    ).toEqual({ model: CHAT_MODEL, provider: "openrouter" });
+  });
+});
 
 describe("classifyAgentCall", () => {
   const backgroundModel = BACKGROUND_MODEL;

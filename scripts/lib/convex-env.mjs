@@ -30,6 +30,10 @@ export const COPY = [...MODEL_AND_AUTH, ...EMAIL, ...OPTIONAL];
 // an oversight. Anything here is reported as skipped rather than silently
 // dropped.
 export const SKIP = new Map([
+  [
+    "ANTHROPIC_API_KEY",
+    "production only: a throwaway backend shows Reflective as unavailable instead",
+  ],
   ["SITE_URL", "points at one origin, so it is set per environment"],
   ["EXTRA_TRUSTED_ORIGINS", "set per environment alongside SITE_URL"],
   [

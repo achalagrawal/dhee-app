@@ -1,7 +1,7 @@
 import type { ModelTier } from "@convex/agents/models";
 import type { StringKey } from "./i18n";
 
-// How the two model tiers are named and described to the person choosing.
+// How the model tiers are named and described to the person choosing.
 //
 // The wiring — which OpenRouter slug each tier is, which is the default — lives
 // in `convex/agents/models.ts`. This file is only what someone reads, and the
@@ -17,11 +17,13 @@ import type { StringKey } from "./i18n";
 // a type error here instead of a blank row in the picker.
 const NAME_KEYS = {
   quick: "modelQuickName",
+  thoughtful: "modelThoughtfulName",
   reflective: "modelReflectiveName",
 } as const satisfies Record<ModelTier, StringKey>;
 
 const DESC_KEYS = {
   quick: "modelQuickDesc",
+  thoughtful: "modelThoughtfulDesc",
   reflective: "modelReflectiveDesc",
 } as const satisfies Record<ModelTier, StringKey>;
 
@@ -46,5 +48,6 @@ export function modelPillLabel(tier: ModelTier): string {
 
 const PILL: Record<ModelTier, string> = {
   quick: "Quick",
+  thoughtful: "Thoughtful",
   reflective: "Reflective",
 };

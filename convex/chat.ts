@@ -28,7 +28,9 @@ import {
   query,
 } from "./_generated/server";
 import {
+  REPLY_STEPS,
   STUDY_STEPS,
+  answerOnFinalStep,
   buildSystemPrompt,
   dhee,
   isCorpusLens,
@@ -489,17 +491,39 @@ export const REPLY_CONTEXT_OPTIONS = {
 export function replyOptionsFor(
   traditions: string[] | undefined,
   preferredModel?: string,
+  threadId?: string,
 ) {
+  const steps = isCorpusLens(traditions) ? STUDY_STEPS : REPLY_STEPS;
   return {
+    // Keeps a conversation on one OpenRouter provider, so its prompt cache is
+    // still there on the next turn. Without it OpenRouter picks a provider per
+    // request and only sticks after it has seen a cache hit, and a hit is
+    // unlikely when turns are minutes apart: on 2026-11-24, three identical
+    // Kimi K3.1 Pro requests a minute apart cached nothing, two of them on the
+    // same provider. With `session_id`, OpenRouter pins the provider from the
+    // first successful reply until the session has been idle for a few
+    // minutes. A cached input token costs about a tenth of an uncached one.
+    //
+    // Only for a saved thread. Incognito has no thread id, and inventing one
+    // from the person's id would tie their incognito turns together at
+    // OpenRouter, which is the opposite of what incognito promises. Ignored by
+    // the Anthropic provider (Reflective); Reflective's fallback to Quick goes
+    // through OpenRouter and gets it.
+    ...(threadId
+      ? { providerOptions: { openrouter: { session_id: threadId } } }
+      : {}),
     // The tier this person chose. Named per call rather than left to the
     // Agent's constructor default, because the choice is per person and the
     // Agent is one shared instance.
     model: languageModelFor(preferredModel),
     // A study question spends steps before it can answer: find the book,
-    // read the page, look up the terms it turns on. The Agent's own budget is
-    // sized for "search, look up a term, maybe read a page, reply", and a
-    // study turn runs past it. Everyone else keeps that default.
-    ...(isCorpusLens(traditions) ? { stopWhen: stepCountIs(STUDY_STEPS) } : {}),
+    // read the page, look up the terms it turns on. REPLY_STEPS is sized for
+    // "search, look up a term, maybe read a page, reply", and a study turn
+    // runs past it.
+    stopWhen: stepCountIs(steps),
+    // Whatever the budget, its last step answers rather than calls a tool —
+    // see `answerOnFinalStep`.
+    prepareStep: answerOnFinalStep(steps),
   };
 }
 
@@ -534,6 +558,7 @@ export const streamReply = internalAction({
           ...replyOptionsFor(
             personalization.traditions,
             personalization.preferredModel,
+            threadId,
           ),
         },
         {

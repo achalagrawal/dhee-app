@@ -14,9 +14,8 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
+  DEFAULT_MODEL_TIER,
   MODEL_TIERS,
-  isTierAvailable,
-  resolveModelTier,
   type ModelTier,
 } from "../../convex/agents/models";
 import { t } from "../lib/i18n";
@@ -102,11 +101,14 @@ export function Composer({
   // design's state machine does — the pill reads the same everywhere, and a
   // change applies to the next message wherever you send it.
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
-  const storedTier = useQuery(api.users.modelPreference);
+  const choices = useQuery(api.users.modelChoices);
   const setPreferredModel = useMutation(api.users.setPreferredModel);
-  // While the query is in flight this resolves to the default, so the pill
-  // shows the tier someone is actually about to get rather than a blank.
-  const tier = resolveModelTier(storedTier);
+  // While the query is in flight this is the default, so the pill shows the
+  // tier someone is actually about to get rather than a blank — and only the
+  // default counts as available until the server says otherwise.
+  const tier: ModelTier = choices?.tier ?? DEFAULT_MODEL_TIER;
+  const isTierAvailable = (option: ModelTier) =>
+    (choices?.available ?? [DEFAULT_MODEL_TIER]).includes(option);
 
   const chooseTier = (next: ModelTier) => {
     if (!isTierAvailable(next)) return;

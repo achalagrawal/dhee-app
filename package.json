@@ -35,6 +35,8 @@
     "eval:report": "node scripts/eval-report.mjs"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "3.0.103",
+    "@ai-sdk/provider": "3.0.14",
     "@better-auth/expo": "^1.6.25",
     "@convex-dev/agent": "^0.6.4",
     "@convex-dev/better-auth": "^0.12.5",

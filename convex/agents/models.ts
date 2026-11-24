@@ -1,6 +1,6 @@
 // The models a person can choose between, and which one they get by default.
 //
-// Two tiers, named for how Dhee is thinking rather than for what is behind it —
+// Tiers are named for how Dhee is thinking rather than for what is behind it —
 // the mockup's convention, and the right one for a companion: someone is
 // picking a mode of attention, not routing to a vendor. Display names and
 // descriptions live in `src/lib/models.ts` with the rest of the user-facing
@@ -9,18 +9,33 @@
 // The third tier the design reserves, `deep`, is deliberately unclaimed. It is
 // `pro`-gated in the mockup, and spending that name on a free tier now would
 // leave nowhere to go when there is genuinely more-thorough work to sell —
-// a longer step budget, more corpus reading. Two now, three when billing lands.
+// a longer step budget, more corpus reading.
+//
+// Direction, decided 2026-11-24: Dhee moves toward open-weight models. That
+// day OpenRouter cut the account off from closed-weight models (Anthropic,
+// Google, OpenAI) with no warning, and Dhee stopped answering. A product
+// cannot rest on a provider that can do that, so the default and everything
+// that remembers people (titles, extraction) run on open weights, and the one
+// closed model left, Reflective, is reached through Anthropic's own API with a
+// fallback to the default when it fails.
 
-export type ModelTier = "quick" | "reflective";
+export type ModelTier = "quick" | "thoughtful" | "reflective";
 
+// In the order the picker shows them: fastest first, most considered last.
 export const MODEL_TIERS: readonly ModelTier[] = [
   "quick",
+  "thoughtful",
   "reflective",
 ] as const;
 
 /**
- * OpenRouter slugs, one per tier. Changing a slug here is the whole of
- * switching a tier's model — nothing else in the app names one.
+ * The model behind each tier, as `provider/model`. Changing a slug here is the
+ * whole of switching a tier's model — nothing else in the app names one.
+ *
+ * Quick goes through OpenRouter, so its slug is an OpenRouter slug. Reflective
+ * goes to Anthropic's API directly (see `convex/agents/config.ts`), which takes
+ * the part after `anthropic/`; the prefix stays so the usage ledger keeps one
+ * name for the model across the move.
  *
  * A wrong slug fails at request time rather than at build or deploy, because
  * this is only ever a string to us. `pnpm smoke` runs a full turn against the
@@ -37,67 +52,80 @@ export const MODEL_SLUGS: Record<ModelTier, string> = {
   // 0910.)
   //
   // Moved from v4-flash-0731 on 2026-11-24, when Quick became everyone's tier
-  // overnight (see UNAVAILABLE_MODEL_TIERS). The eval in PR #164 put 1017 at
-  // 17/54 on the current prompt, with brevity the main failure, against 6/18
-  // for 0731 on the August prompt: no fair baseline, but no sign it is worse,
-  // and it is the newer, cheaper-on-input build.
+  // overnight. The eval in PR #164 put 1017 at 17/54 on the current prompt,
+  // with brevity the main failure, against 6/18 for 0731 on the August prompt:
+  // no fair baseline, but no sign it is worse, and it is the newer,
+  // cheaper-on-input build.
   quick: "deepseek/deepseek-v4.1-flash-1017",
-  reflective: "anthropic/claude-sonnet-5",
+  // Kimi K3.1 Pro, the strongest open-weight model on OpenRouter, added
+  // 2026-11-24 as the middle tier. In that day's eval (18 cases x 3, judged
+  // by Kimi itself at low effort, so the judge scores flatter it; the rule
+  // checks do not): 98% of rule checks passed ignoring brevity, against 92%
+  // for DeepSeek 1017; median 212 words, the shortest of the four models; 43s
+  // median latency; $0.048 a reply at its default reasoning effort, `max`.
+  // It runs at `high` here (see convex/agents/config.ts), which that eval did
+  // not measure. Its brevity failures look like Sonnet 5.5's: too many
+  // paragraphs and questions back rather than too many words.
+  //
+  // Not a dated slug: the dated `moonshotai/kimi-k3.1-pro-20261023` is not
+  // accepted as a model id (checked 2026-11-24). If OpenRouter starts
+  // accepting it, pin it, for the reason given above for DeepSeek.
+  thoughtful: "moonshotai/kimi-k3.1-pro",
+  // Sonnet 5.5, moved from Sonnet 5 on 2026-11-24 at Achal's call. PR #164's
+  // eval had 5.5 at 17/54 against 5's 35/54, nearly all of it the brevity
+  // rule, so expect longer replies here until the prompt is tuned for it. The
+  // id after `anthropic/` is Anthropic's (`claude-sonnet-5-5`), not
+  // OpenRouter's (`claude-sonnet-5.5`), since this tier calls Anthropic
+  // directly. Sonnet 5.5 rejects forced `tool_choice` (`any`, `tool`); the
+  // final-step guard sends `none`, which it accepts. It also checks replayed
+  // thinking against the conversation, which convex/agents/config.ts handles.
+  reflective: "anthropic/claude-sonnet-5-5",
 };
 
 /**
- * Tiers that cannot answer right now. The picker shows them greyed out, and a
- * stored preference for one resolves to the default instead, so nobody is left
- * sending messages to a model that will refuse them.
- *
- * Reflective is here because on 2026-11-24 OpenRouter restricted the account
- * from closed-weight models (Anthropic, Google and OpenAI): every Sonnet call
- * came back 403. The stored preference is left alone rather than rewritten, so
- * taking a tier out of this set gives people back exactly what they had chosen.
- * When it comes out, put DEFAULT_MODEL_TIER back too if Quick still has not
- * earned the default on its own evidence.
- */
-export const UNAVAILABLE_MODEL_TIERS: ReadonlySet<ModelTier> = new Set([
-  "reflective",
-]);
-
-/** Whether a tier can answer right now. */
-export function isTierAvailable(tier: ModelTier): boolean {
-  return !UNAVAILABLE_MODEL_TIERS.has(tier);
-}
-
-/**
  * What someone gets before they choose, and what a signed-out or
- * not-yet-migrated profile falls back to.
+ * not-yet-migrated profile falls back to — and what answers when the tier they
+ * chose cannot.
  *
- * Quick, since 2026-11-24, as an emergency move rather than the planned flip:
- * Reflective is unavailable (see UNAVAILABLE_MODEL_TIERS), and the default has
- * to be a tier that can answer. The planned flip had two gates, in order: an
- * eval run showing Quick holds up inside this prompt (corpus grounding,
- * paribhasha precision, the script rule), and a stretch of `llmUsage` and
- * feedback from people who opted into Quick themselves. Neither has been
- * cleared, so once Reflective is back this returns to it unless they have.
+ * Quick, since 2026-11-24. It began as an emergency move when Reflective was
+ * cut off, and stayed as a decision: the default is an open-weight model, so
+ * no single provider can take Dhee down for people who never chose otherwise.
+ * It must always be available; `availableModelTiers` in config.ts never drops
+ * it.
  */
 export const DEFAULT_MODEL_TIER: ModelTier = "quick";
 
 /** Narrow an unvalidated string — a stored preference, a client argument. */
 export function isModelTier(value: unknown): value is ModelTier {
-  return value === "quick" || value === "reflective";
+  return value === "quick" || value === "thoughtful" || value === "reflective";
 }
 
 /**
- * The tier to answer with. Anything unrecognised falls back to the default
- * rather than throwing: a preference written by an older build, or a tier that
- * has since been removed, must not be able to stop someone getting a reply.
- * The same goes for a tier that is unavailable right now.
+ * The tier to answer with, given the tiers that can answer right now.
+ *
+ * Anything unrecognised falls back to the default rather than throwing: a
+ * preference written by an older build, or a tier that has since been removed,
+ * must not be able to stop someone getting a reply. The same goes for a tier
+ * that is unavailable right now — and the stored choice is left alone, so
+ * people get exactly what they picked back when the tier returns.
+ *
+ * `available` is required rather than defaulted, so no call site can quietly
+ * assume every tier is up. On the server it comes from `availableModelTiers`;
+ * on the client, from the server.
  */
-export function resolveModelTier(stored: string | undefined): ModelTier {
-  return isModelTier(stored) && isTierAvailable(stored)
+export function resolveModelTier(
+  stored: string | undefined,
+  available: readonly ModelTier[],
+): ModelTier {
+  return isModelTier(stored) && available.includes(stored)
     ? stored
     : DEFAULT_MODEL_TIER;
 }
 
-/** The OpenRouter slug for a stored preference. */
-export function modelSlugFor(stored: string | undefined): string {
-  return MODEL_SLUGS[resolveModelTier(stored)];
+/** The slug for a stored preference, given the tiers available right now. */
+export function modelSlugFor(
+  stored: string | undefined,
+  available: readonly ModelTier[],
+): string {
+  return MODEL_SLUGS[resolveModelTier(stored, available)];
 }

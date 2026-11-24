@@ -19,10 +19,12 @@
 // closed model left, Reflective, is reached through Anthropic's own API with a
 // fallback to the default when it fails.
 
-export type ModelTier = "quick" | "reflective";
+export type ModelTier = "quick" | "thoughtful" | "reflective";
 
+// In the order the picker shows them: fastest first, most considered last.
 export const MODEL_TIERS: readonly ModelTier[] = [
   "quick",
+  "thoughtful",
   "reflective",
 ] as const;
 
@@ -55,6 +57,20 @@ export const MODEL_SLUGS: Record<ModelTier, string> = {
   // no fair baseline, but no sign it is worse, and it is the newer,
   // cheaper-on-input build.
   quick: "deepseek/deepseek-v4.1-flash-1017",
+  // Kimi K3.1 Pro, the strongest open-weight model on OpenRouter, added
+  // 2026-11-24 as the middle tier. In that day's eval (18 cases x 3, judged
+  // by Kimi itself at low effort, so the judge scores flatter it; the rule
+  // checks do not): 98% of rule checks passed ignoring brevity, against 92%
+  // for DeepSeek 1017; median 212 words, the shortest of the four models; 43s
+  // median latency; $0.048 a reply at its default reasoning effort, `max`.
+  // It runs at `high` here (see convex/agents/config.ts), which that eval did
+  // not measure. Its brevity failures look like Sonnet 5.5's: too many
+  // paragraphs and questions back rather than too many words.
+  //
+  // Not a dated slug: the dated `moonshotai/kimi-k3.1-pro-20261023` is not
+  // accepted as a model id (checked 2026-11-24). If OpenRouter starts
+  // accepting it, pin it, for the reason given above for DeepSeek.
+  thoughtful: "moonshotai/kimi-k3.1-pro",
   // Sonnet 5, not 5.5: PR #164's eval had 5.5 at 17/54 against 5's 35/54,
   // nearly all of it the brevity rule.
   reflective: "anthropic/claude-sonnet-5",
@@ -75,7 +91,7 @@ export const DEFAULT_MODEL_TIER: ModelTier = "quick";
 
 /** Narrow an unvalidated string — a stored preference, a client argument. */
 export function isModelTier(value: unknown): value is ModelTier {
-  return value === "quick" || value === "reflective";
+  return value === "quick" || value === "thoughtful" || value === "reflective";
 }
 
 /**

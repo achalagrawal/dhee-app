@@ -14,6 +14,11 @@ import {
 import { planForProfile, traditionLimit } from "./lib/plan";
 import { isCorpusLensName } from "./agents/dhee";
 import { resolveModelTier } from "./agents/models";
+import { availableModelTiers } from "./agents/availability";
+
+// Exactly the tiers that exist today — what a client may write, and what the
+// picker queries return.
+const modelTierValidator = v.union(v.literal("quick"), v.literal("reflective"));
 
 /** The signed-in person's app-side user id, or null if there is no valid
  *  identity on the request.
@@ -417,13 +422,37 @@ export const setLanguage = mutation({
 // screen the whole time someone is writing, and `accountSummary` collects three
 // whole tables to count them. Subscribing the composer to that would re-run all
 // of it every time an observation is extracted.
+//
+// Kept for builds that predate `modelChoices`, which is what the composer
+// reads now.
 export const modelPreference = query({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
     const userId = await requireUserId(ctx);
     const profile = await getProfile(ctx, userId);
-    return resolveModelTier(profile?.preferredModel);
+    return resolveModelTier(profile?.preferredModel, availableModelTiers());
+  },
+});
+
+// The tier that will answer this person, and which tiers can answer at all —
+// what the picker needs to show its pill and grey out what is down. Which
+// tiers are up depends on this deployment's environment (see
+// `availableModelTiers`), so it has to come from the server.
+export const modelChoices = query({
+  args: {},
+  returns: v.object({
+    tier: modelTierValidator,
+    available: v.array(modelTierValidator),
+  }),
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    const profile = await getProfile(ctx, userId);
+    const available = availableModelTiers();
+    return {
+      tier: resolveModelTier(profile?.preferredModel, available),
+      available,
+    };
   },
 });
 
@@ -433,7 +462,7 @@ export const modelPreference = query({
 // tolerate a value written by an older build. See the note on the column.
 export const setPreferredModel = mutation({
   args: {
-    preferredModel: v.union(v.literal("quick"), v.literal("reflective")),
+    preferredModel: modelTierValidator,
   },
   returns: v.null(),
   handler: async (ctx, { preferredModel }) => {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
   CORPUS_LENS_ALIASES,
   buildSystemPrompt,
@@ -110,6 +110,30 @@ describe("users — model tier", () => {
       userId,
     });
     expect(forReply.preferredModel).toBe("reflective");
+  });
+
+  test("the picker is told which tiers can answer on this deployment", async () => {
+    const t = initTest();
+    const as = asUser(t, await createUser(t));
+    await as.mutation(api.users.setPreferredModel, {
+      preferredModel: "reflective",
+    });
+    try {
+      // No Anthropic key: Reflective is greyed out and the default answers.
+      vi.stubEnv("ANTHROPIC_API_KEY", "");
+      expect(await as.query(api.users.modelChoices, {})).toEqual({
+        tier: DEFAULT_MODEL_TIER,
+        available: [DEFAULT_MODEL_TIER],
+      });
+      // With it, the stored choice comes back exactly as it was made.
+      vi.stubEnv("ANTHROPIC_API_KEY", "set");
+      expect(await as.query(api.users.modelChoices, {})).toEqual({
+        tier: "reflective",
+        available: ["quick", "reflective"],
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   test("switching back is possible", async () => {

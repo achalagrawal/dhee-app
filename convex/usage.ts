@@ -71,6 +71,10 @@ function finite(value: unknown): number | undefined {
  * a missing cost is visibly missing, where a cost inferred from a hardcoded
  * price table would look identical to a real one long after the table went
  * stale.
+ *
+ * Claude calls go to Anthropic's API directly since 2026-11-24, and Anthropic
+ * does not report a cost, so those rows carry tokens and no cost — by the same
+ * reasoning. Their spend is in the Anthropic Console.
  */
 export function costFromProviderMetadata(
   metadata: unknown,
@@ -81,6 +85,34 @@ export function costFromProviderMetadata(
   const usage = (openrouter as Record<string, unknown>).usage;
   if (typeof usage !== "object" || usage === null) return undefined;
   return finite((usage as Record<string, unknown>).cost);
+}
+
+/**
+ * The model that actually answered a call.
+ *
+ * Reflective falls back to the default model when Anthropic fails before
+ * answering (convex/agents/fallback.ts), and the agent still reports the call
+ * under Reflective's name, because that is the model it was configured with.
+ * A Claude call does not go through OpenRouter, so OpenRouter metadata on one
+ * means the fallback answered it.
+ */
+export function answeringModel(args: {
+  model: string;
+  provider?: string;
+  providerMetadata: unknown;
+  fallbackModel: string;
+}): { model: string; provider?: string } {
+  const viaOpenRouter =
+    typeof args.providerMetadata === "object" &&
+    args.providerMetadata !== null &&
+    "openrouter" in args.providerMetadata;
+  if (args.model.startsWith("anthropic/") && viaOpenRouter) {
+    return { model: args.fallbackModel, provider: "openrouter" };
+  }
+  return {
+    model: args.model,
+    ...(args.provider ? { provider: args.provider } : {}),
+  };
 }
 
 /**

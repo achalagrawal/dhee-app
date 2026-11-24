@@ -6,6 +6,7 @@ import type { Id } from "./_generated/dataModel";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import { REPLY_CONTEXT_OPTIONS, replyOptionsFor } from "./chat";
 import { DEFAULT_MODEL_TIER } from "./agents/models";
+import { REPLY_STEPS, STUDY_STEPS, answerOnFinalStep } from "./agents/dhee";
 import {
   asUser,
   attachPhoto,
@@ -1210,10 +1211,16 @@ describe("chat — per-turn model options", () => {
   });
 
   test("a framing lens does not raise the step budget", () => {
-    // Decision 2 must not leak into the other 24 traditions.
-    expect(replyOptionsFor(["Stoicism"])).not.toHaveProperty("stopWhen");
-    expect(replyOptionsFor([])).not.toHaveProperty("stopWhen");
-    expect(replyOptionsFor(undefined)).not.toHaveProperty("stopWhen");
+    // Decision 2 must not leak into the other 24 traditions. Every reply now
+    // names its budget (so its last step can be made an answer), so this reads
+    // the budget off where the answer step falls: REPLY_STEPS, not STUDY_STEPS.
+    for (const traditions of [["Stoicism"], [], undefined]) {
+      const { prepareStep } = replyOptionsFor(traditions);
+      expect(
+        prepareStep({ stepNumber: REPLY_STEPS - 1 }),
+        String(traditions),
+      ).toEqual({ toolChoice: "none" });
+    }
   });
 
   test("the chosen tier is named on every turn, not left to the shared Agent", () => {
@@ -1252,6 +1259,35 @@ describe("chat — per-turn model options", () => {
     const quickStudy = replyOptionsFor(["Madhyasth Darshan"], "quick");
     expect(quickStudy).toHaveProperty("stopWhen");
     expect(quickStudy.model).toBe(replyOptionsFor([], "quick").model);
+  });
+
+  test("the last step of a reply answers instead of calling a tool", () => {
+    // Without this, a model that spends every step on tools ends the turn with
+    // nothing written: about 1 eval turn in 9 on DeepSeek.
+    const { prepareStep } = replyOptionsFor([], DEFAULT_MODEL_TIER);
+    expect(prepareStep({ stepNumber: REPLY_STEPS - 1 })).toEqual({
+      toolChoice: "none",
+    });
+    for (let step = 0; step < REPLY_STEPS - 1; step++) {
+      expect(prepareStep({ stepNumber: step }), `step ${step}`).toEqual({});
+    }
+  });
+
+  test("a study turn keeps tools until the end of its own, longer budget", () => {
+    const { prepareStep } = replyOptionsFor(["Madhyasth Darshan"]);
+    expect(prepareStep({ stepNumber: REPLY_STEPS - 1 })).toEqual({});
+    expect(prepareStep({ stepNumber: STUDY_STEPS - 1 })).toEqual({
+      toolChoice: "none",
+    });
+  });
+
+  test("answerOnFinalStep counts steps from zero", () => {
+    const guard = answerOnFinalStep(3);
+    expect([0, 1, 2].map((stepNumber) => guard({ stepNumber }))).toEqual([
+      {},
+      {},
+      { toolChoice: "none" },
+    ]);
   });
 
   test("replies are built on a bounded window that excludes tool traffic", () => {

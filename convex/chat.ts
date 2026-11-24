@@ -28,7 +28,9 @@ import {
   query,
 } from "./_generated/server";
 import {
+  REPLY_STEPS,
   STUDY_STEPS,
+  answerOnFinalStep,
   buildSystemPrompt,
   dhee,
   isCorpusLens,
@@ -490,16 +492,20 @@ export function replyOptionsFor(
   traditions: string[] | undefined,
   preferredModel?: string,
 ) {
+  const steps = isCorpusLens(traditions) ? STUDY_STEPS : REPLY_STEPS;
   return {
     // The tier this person chose. Named per call rather than left to the
     // Agent's constructor default, because the choice is per person and the
     // Agent is one shared instance.
     model: languageModelFor(preferredModel),
     // A study question spends steps before it can answer: find the book,
-    // read the page, look up the terms it turns on. The Agent's own budget is
-    // sized for "search, look up a term, maybe read a page, reply", and a
-    // study turn runs past it. Everyone else keeps that default.
-    ...(isCorpusLens(traditions) ? { stopWhen: stepCountIs(STUDY_STEPS) } : {}),
+    // read the page, look up the terms it turns on. REPLY_STEPS is sized for
+    // "search, look up a term, maybe read a page, reply", and a study turn
+    // runs past it.
+    stopWhen: stepCountIs(steps),
+    // Whatever the budget, its last step answers rather than calls a tool —
+    // see `answerOnFinalStep`.
+    prepareStep: answerOnFinalStep(steps),
   };
 }
 

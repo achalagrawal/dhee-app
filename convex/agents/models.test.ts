@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MODEL_TIER,
   isModelTier,
+  isTierAvailable,
   MODEL_SLUGS,
   MODEL_TIERS,
   modelSlugFor,
   resolveModelTier,
 } from "./models";
-import { CHAT_MODEL } from "../config";
+import { BACKGROUND_MODEL, CHAT_MODEL } from "../config";
 
 describe("the tier registry", () => {
   it("gives every tier a slug", () => {
@@ -22,11 +23,23 @@ describe("the tier registry", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  it("defaults to reflective until quick has earned the flip", () => {
-    // The default flip is gated on an eval run and opt-in usage data — see
-    // the DEFAULT_MODEL_TIER comment. This test is here so the flip arrives
-    // as its own reviewed change, not as a side effect.
-    expect(DEFAULT_MODEL_TIER).toBe("reflective");
+  it("defaults to a tier that can answer", () => {
+    // Quick is the default only because Reflective is unavailable — see the
+    // DEFAULT_MODEL_TIER comment. Whatever the default is, it must be able to
+    // answer, or nobody who hasn't chosen gets a reply.
+    expect(DEFAULT_MODEL_TIER).toBe("quick");
+    expect(isTierAvailable(DEFAULT_MODEL_TIER)).toBe(true);
+  });
+
+  it("names no closed-weight model, which the account can no longer reach", () => {
+    // OpenRouter restricted the account from Anthropic, Google and OpenAI on
+    // 2026-11-24. The reflective slug is exempt while that tier is unavailable.
+    for (const tier of MODEL_TIERS.filter(isTierAvailable)) {
+      expect(MODEL_SLUGS[tier], tier).not.toMatch(
+        /^(anthropic|google|openai)\//,
+      );
+    }
+    expect(BACKGROUND_MODEL).not.toMatch(/^(anthropic|google|openai)\//);
   });
 
   it("keeps CHAT_MODEL and the default tier the same model", () => {
@@ -38,9 +51,15 @@ describe("the tier registry", () => {
 });
 
 describe("resolveModelTier", () => {
-  it("keeps a tier that exists", () => {
+  it("keeps a tier that exists and can answer", () => {
     expect(resolveModelTier("quick")).toBe("quick");
-    expect(resolveModelTier("reflective")).toBe("reflective");
+  });
+
+  it("sends a stored choice of an unavailable tier to the default", () => {
+    // People who chose Reflective keep that choice on file; they are answered
+    // by the default until the tier is back.
+    expect(isTierAvailable("reflective")).toBe(false);
+    expect(resolveModelTier("reflective")).toBe(DEFAULT_MODEL_TIER);
   });
 
   it("falls back to the default for anything else", () => {
@@ -64,7 +83,7 @@ describe("isModelTier", () => {
 
 describe("modelSlugFor", () => {
   it("resolves a stored preference to a slug", () => {
-    expect(modelSlugFor("reflective")).toBe(MODEL_SLUGS.reflective);
+    expect(modelSlugFor("quick")).toBe(MODEL_SLUGS.quick);
   });
 
   it("never returns undefined for junk", () => {

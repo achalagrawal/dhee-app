@@ -99,7 +99,11 @@ describe("users — model tier", () => {
       preferredModel: "reflective",
     });
 
-    expect(await as.query(api.users.modelPreference, {})).toBe("reflective");
+    // Reflective is unavailable for now, so the pill shows the tier that will
+    // actually answer. The choice itself is kept, for when the tier is back.
+    expect(await as.query(api.users.modelPreference, {})).toBe(
+      DEFAULT_MODEL_TIER,
+    );
     // The picker is only real if the reply path reads the same value. This is
     // the seam where a working-looking picker could change nothing at all.
     const forReply = await t.query(internal.users.personalizationForUser, {

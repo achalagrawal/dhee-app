@@ -5,7 +5,7 @@ An AI companion for questions about life.
 Dhee is a chat product like ChatGPT or Claude, purpose-built for one thing:
 helping a person see their situation from a bigger vantage point than the one
 they're asking from. Its knowledge grounding is Madhyasth Darshan, a
-co-existential philosophy — but Dhee never uses that vocabulary with you.
+co-existential philosophy — but Dhee never uses that vocabulary with you unless you ask for it.
 Everything is translated into plain, everyday language, in English or Hindi.
 
 Live at [dhee.app](https://dhee.app).

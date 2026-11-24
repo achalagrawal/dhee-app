@@ -43,7 +43,7 @@ pnpm eval --suite extraction [--model chat|background] [--repeats <n>]
   --model    which model writes the replies. A tier name gets the production
              config for that tier; a raw slug (e.g. anthropic/claude-opus-5)
              evaluates a model the app doesn't ship. The judge always stays on
-             the default tier, so scores stay comparable across runs.
+             JUDGE_MODEL (convex/evals/judge.ts), so scores stay comparable.
   --variant  a prompt variant from convex/evals/variants.ts — ablations and
              expansions of DHEE_INSTRUCTIONS, for attributing behaviour to
              prompt sections.

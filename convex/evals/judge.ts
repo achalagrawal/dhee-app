@@ -1,7 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { languageModel } from "../agents/config";
-import { CHAT_MODEL } from "../config";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 // A second model scoring the qualities a regex cannot reach.
 //
@@ -15,9 +14,9 @@ import { CHAT_MODEL } from "../config";
 //
 // So this exists, with two limits stated up front:
 //
-// It is the noisiest thing in the harness. The judge is the same
-// non-deterministic model being judged, so its scores wobble on their own,
-// on top of the wobble in the replies. Read a score as a direction, never as a
+// It is the noisiest thing in the harness. The judge is itself a
+// non-deterministic model, so its scores wobble on their own, on top of the
+// wobble in the replies. Read a score as a direction, never as a
 // measurement, and never let a one-point move decide anything — that is what
 // `--repeats 3` and the side-by-side replies are for.
 //
@@ -26,7 +25,38 @@ import { CHAT_MODEL } from "../config";
 // which makes a prompt that says the right things score well even when the
 // reply is poor. It sees what the person saw, plus the mode.
 
-export const JUDGE_MODEL = CHAT_MODEL;
+// Pinned to its own model rather than following the default tier, so a
+// change of tier never silently changes the yardstick.
+//
+// Kimi K3.1 Pro since 2026-11-24. The judge used to be the default tier, which
+// was Sonnet 5, until OpenRouter restricted the account from closed-weight
+// models (Anthropic, Google, OpenAI) and every Sonnet call came back 403. Kimi
+// is the strongest open-weight model on the account's reach. Two consequences
+// to keep in mind when reading scores:
+//
+// - Scores from before that date were given by Sonnet 5 and are not
+//   comparable with scores since. Compare runs judged by the same model only;
+//   the run payload records `judgeModel` for exactly this.
+// - Kimi was also a candidate for the Reflective tier in the eval that moved
+//   the judge, so in that comparison it was grading its own replies alongside
+//   others'. Models tend to prefer their own writing. The pure checks carry no
+//   such bias, which is one more reason they, not the judge, decide.
+export const JUDGE_MODEL = "moonshotai/kimi-k3.1-pro";
+
+// Built here rather than taken from convex/agents/config.ts, which is the
+// app's model config: the judge is eval-only and should not be able to change
+// when a tier does.
+//
+// Reasoning is held at `low`. The judge fills in a five-field rubric about a
+// reply it can read in full, and at Kimi's default effort (`max`) it would
+// cost more than many of the replies it is judging. `usage.include` is what
+// puts the cost on the response.
+const judgeModel = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+}).chat(JUDGE_MODEL, {
+  usage: { include: true },
+  reasoning: { effort: "low" },
+});
 
 // Plain `z.number()`, with the range stated only in the description.
 //
@@ -98,11 +128,11 @@ export async function judgeReply(input: {
   reply: string;
   traditions: string[];
   studyMode: boolean;
-}): Promise<JudgeScores | null> {
+}): Promise<{ scores: JudgeScores; costUsd: number } | null> {
   if (!input.reply.trim()) return null;
 
-  const { object } = await generateObject({
-    model: languageModel,
+  const { object, providerMetadata } = await generateObject({
+    model: judgeModel,
     schema: judgeSchema,
     system: SYSTEM,
     prompt: [
@@ -120,7 +150,12 @@ export async function judgeReply(input: {
       input.reply,
     ].join("\n"),
   });
-  return {
+  // Recorded because the judge is a second model call on every reply, and on a
+  // reasoning model its cost is not small enough to leave out of a run's total.
+  const costUsd =
+    (providerMetadata?.openrouter as { usage?: { cost?: number } })?.usage
+      ?.cost ?? 0;
+  const scores: JudgeScores = {
     ...object,
     perspectiveNotLecture: clamp(object.perspectiveNotLecture, 1),
     widenedTheFrame: clamp(object.widenedTheFrame, 1),
@@ -130,4 +165,5 @@ export async function judgeReply(input: {
     lensAsLensNotDoctrine: clamp(object.lensAsLensNotDoctrine, 0),
     rationale: object.rationale.slice(0, 400),
   };
+  return { scores, costUsd };
 }

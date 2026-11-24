@@ -47,6 +47,13 @@ type Props = {
   attachments?: Attachment[];
   onPickPhoto?: () => void;
   onRemoveAttachment?: (key: string) => void;
+  /**
+   * Which way the model menu opens. Chat's composer sits at the foot of the
+   * screen, so its menu rises above the card; Home's sits near the top with
+   * the starters below it, so rising would cover the greeting and run under
+   * the header — there it drops below instead.
+   */
+  menuPlacement?: "above" | "below";
 };
 
 // Past this the input scrolls instead of growing.
@@ -74,6 +81,7 @@ export function Composer({
   attachments = [],
   onPickPhoto,
   onRemoveAttachment,
+  menuPlacement = "above",
 }: Props) {
   const { colors, mode } = useTheme();
   const lang = useLanguage();
@@ -148,12 +156,16 @@ export function Composer({
         styles.card,
         shadow(mode),
         { backgroundColor: colors.surface, borderColor: colors.borderStrong },
+        // Native stacks siblings by zIndex alone, so an open menu hanging out
+        // of the card would otherwise sit under whatever follows it.
+        modelMenuOpen ? styles.cardRaised : null,
       ]}
     >
       {modelMenuOpen ? (
         <View
           style={[
             styles.modelMenu,
+            menuPlacement === "below" ? styles.menuBelow : styles.menuAbove,
             shadow(mode),
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
@@ -385,14 +397,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   modelText: { fontSize: 13, ...font.regular },
-  // Above the card rather than below it: the composer sits at the bottom of the
-  // screen on both Home and Chat, so a menu hanging downward would open into
-  // the keyboard or off the edge.
+  cardRaised: { zIndex: 30 },
   modelMenu: {
     position: "absolute",
-    bottom: "100%",
     left: 0,
-    marginBottom: 8,
     minWidth: 260,
     maxWidth: "100%",
     borderWidth: 1,
@@ -400,6 +408,8 @@ const styles = StyleSheet.create({
     padding: 6,
     zIndex: 30,
   },
+  menuAbove: { bottom: "100%", marginBottom: 8 },
+  menuBelow: { top: "100%", marginTop: 8 },
   modelOption: {
     flexDirection: "row",
     alignItems: "center",

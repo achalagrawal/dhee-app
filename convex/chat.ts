@@ -491,9 +491,27 @@ export const REPLY_CONTEXT_OPTIONS = {
 export function replyOptionsFor(
   traditions: string[] | undefined,
   preferredModel?: string,
+  threadId?: string,
 ) {
   const steps = isCorpusLens(traditions) ? STUDY_STEPS : REPLY_STEPS;
   return {
+    // Keeps a conversation on one OpenRouter provider, so its prompt cache is
+    // still there on the next turn. Without it OpenRouter picks a provider per
+    // request and only sticks after it has seen a cache hit, and a hit is
+    // unlikely when turns are minutes apart: on 2026-11-24, three identical
+    // Kimi K3.1 Pro requests a minute apart cached nothing, two of them on the
+    // same provider. With `session_id`, OpenRouter pins the provider from the
+    // first successful reply until the session has been idle for a few
+    // minutes. A cached input token costs about a tenth of an uncached one.
+    //
+    // Only for a saved thread. Incognito has no thread id, and inventing one
+    // from the person's id would tie their incognito turns together at
+    // OpenRouter, which is the opposite of what incognito promises. Ignored by
+    // the Anthropic provider (Reflective); Reflective's fallback to Quick goes
+    // through OpenRouter and gets it.
+    ...(threadId
+      ? { providerOptions: { openrouter: { session_id: threadId } } }
+      : {}),
     // The tier this person chose. Named per call rather than left to the
     // Agent's constructor default, because the choice is per person and the
     // Agent is one shared instance.
@@ -540,6 +558,7 @@ export const streamReply = internalAction({
           ...replyOptionsFor(
             personalization.traditions,
             personalization.preferredModel,
+            threadId,
           ),
         },
         {

@@ -55,9 +55,15 @@ export const MODEL_SLUGS: Record<ModelTier, string> = {
   // no fair baseline, but no sign it is worse, and it is the newer,
   // cheaper-on-input build.
   quick: "deepseek/deepseek-v4.1-flash-1017",
-  // Sonnet 5, not 5.5: PR #164's eval had 5.5 at 17/54 against 5's 35/54,
-  // nearly all of it the brevity rule.
-  reflective: "anthropic/claude-sonnet-5",
+  // Sonnet 5.5, moved from Sonnet 5 on 2026-11-24 at Achal's call. PR #164's
+  // eval had 5.5 at 17/54 against 5's 35/54, nearly all of it the brevity
+  // rule, so expect longer replies here until the prompt is tuned for it. The
+  // id after `anthropic/` is Anthropic's (`claude-sonnet-5-5`), not
+  // OpenRouter's (`claude-sonnet-5.5`), since this tier calls Anthropic
+  // directly. Sonnet 5.5 rejects forced `tool_choice` (`any`, `tool`); the
+  // final-step guard sends `none`, which it accepts. It also checks replayed
+  // thinking against the conversation, which convex/agents/config.ts handles.
+  reflective: "anthropic/claude-sonnet-5-5",
 };
 
 /**

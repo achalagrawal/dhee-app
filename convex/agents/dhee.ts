@@ -194,9 +194,13 @@ export const STUDY_STEPS = 12;
  * paribhasha, read a page for context, then answer. Raised from 5 when the
  * prompt stopped treating retrieval as the exception: "search even when you
  * are sure" plus "look up the paribhasha rather than recall it" is three tool
- * steps before a word is written. The corpus lens gets STUDY_STEPS instead.
+ * steps before a word is written. Raised again from 8 to 12 on 2026-11-24, with
+ * the final-step guard below in place: the last step is always an answer, so a
+ * larger budget can no longer end a turn empty, only spend more on lookups
+ * before it answers. The corpus lens gets STUDY_STEPS, which is the same 12 for
+ * now; it must never be smaller.
  */
-export const REPLY_STEPS = 8;
+export const REPLY_STEPS = 12;
 
 /**
  * Makes the last step of a budget an answer.

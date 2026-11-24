@@ -189,6 +189,32 @@ export const CORPUS_LENS_ALIASES = [
  */
 export const STUDY_STEPS = 12;
 
+/**
+ * Steps for an ordinary reply: enough headroom to search, look up a term's
+ * paribhasha, read a page for context, then answer. Raised from 5 when the
+ * prompt stopped treating retrieval as the exception: "search even when you
+ * are sure" plus "look up the paribhasha rather than recall it" is three tool
+ * steps before a word is written. The corpus lens gets STUDY_STEPS instead.
+ */
+export const REPLY_STEPS = 8;
+
+/**
+ * Makes the last step of a budget an answer.
+ *
+ * A step budget alone only stops the loop. If a model spends every step on
+ * tool calls, the turn ends with nothing written, and the person gets an empty
+ * reply. On DeepSeek (the default since 2026-11-24) that was about 1 eval turn
+ * in 9. So on the final step tools are switched off, and the model has to
+ * answer with what it has already found: a thinner answer beats no answer.
+ *
+ * `stepNumber` counts from 0, so the last step of a budget of `steps` is
+ * `steps - 1`.
+ */
+export function answerOnFinalStep(steps: number) {
+  return ({ stepNumber }: { stepNumber: number }) =>
+    stepNumber >= steps - 1 ? { toolChoice: "none" as const } : {};
+}
+
 /** Whether one entry names the corpus, under any of its spellings. */
 export function isCorpusLensName(tradition: string): boolean {
   const name = tradition.trim().toLowerCase();
@@ -302,12 +328,9 @@ export const dhee = new Agent(components.agent, {
   name: "Dhee",
   instructions: DHEE_INSTRUCTIONS,
   tools: mdTools,
-  // Enough headroom to search, look up a term's paribhasha, read a page for
-  // context, then answer. Raised from 5 when the prompt stopped treating
-  // retrieval as the exception: "search even when you are sure" plus "look up
-  // the paribhasha rather than recall it" is three tool steps before a word is
-  // written, and a budget that runs out mid-lookup costs a whole reply. The
-  // corpus lens still gets STUDY_STEPS on top of this.
-  stopWhen: stepCountIs(8),
+  // See REPLY_STEPS. Replies set their own budget and the final-step guard in
+  // `replyOptionsFor` (convex/chat.ts); this is the default for anything that
+  // calls the agent without them.
+  stopWhen: stepCountIs(REPLY_STEPS),
   ...defaultAgentConfig,
 });

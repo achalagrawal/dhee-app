@@ -330,7 +330,7 @@ export const run = internalAction({
     /** Build every prompt and enumerate the matrix without calling the model. */
     dryRun: v.optional(v.boolean()),
     /**
-     * "quick", "reflective", or a raw OpenRouter slug. Replies only — the
+     * "quick", "thoughtful", "reflective", or a raw OpenRouter slug. Replies only — the
      * judge stays on the default tier's model whatever this says, so scores
      * from runs with different models remain comparable.
      */

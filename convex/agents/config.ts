@@ -208,9 +208,24 @@ export const reflectiveModel = withFallback(
   quickModel,
 );
 
+// The `thoughtful` tier: Kimi K3.1 Pro through OpenRouter, built the way
+// Quick is — no cache directives (Kimi caches on its own terms; about 60% of
+// input tokens came from cache in the eval) and no fallback (OpenRouter
+// already spreads Kimi across several upstream providers).
+//
+// Reasoning at `high` rather than Kimi's default `max`, Achal's call on
+// 2026-11-24: at `max` the eval measured $0.048 a reply, more than Sonnet 5
+// cost. `high` has not been evaluated; watch the `llmUsage` ledger and
+// feedback, and run the eval at `high` before treating it as settled.
+export const thoughtfulModel = openrouter.chat(MODEL_SLUGS.thoughtful, {
+  ...shared,
+  reasoning: { effort: "high" },
+});
+
 /** The model each tier answers with. */
 export const MODEL_BY_TIER = {
   quick: quickModel,
+  thoughtful: thoughtfulModel,
   reflective: reflectiveModel,
 } as const satisfies Record<ModelTier, unknown>;
 
@@ -233,7 +248,7 @@ export function languageModelFor(stored: string | undefined) {
  * than one that failed.
  */
 export function evalModelFor(spec: string) {
-  if (spec === "quick") return MODEL_BY_TIER.quick;
+  if (spec === "quick" || spec === "thoughtful") return MODEL_BY_TIER[spec];
   if (spec === "reflective") return claudeModel(MODEL_SLUGS.reflective);
   if (spec.startsWith("anthropic/")) return claudeModel(spec);
   return openrouter.chat(spec, shared);
@@ -241,7 +256,9 @@ export function evalModelFor(spec: string) {
 
 /** The slug a spec resolves to — what the run payload records as `model`. */
 export function evalModelSlugFor(spec: string): string {
-  return spec === "quick" || spec === "reflective" ? MODEL_SLUGS[spec] : spec;
+  return spec === "quick" || spec === "thoughtful" || spec === "reflective"
+    ? MODEL_SLUGS[spec]
+    : spec;
 }
 
 // What the Agent is constructed with, and what every call that doesn't name a

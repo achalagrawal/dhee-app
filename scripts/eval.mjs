@@ -33,7 +33,7 @@ const OUT_DIR = join(root, ".evals", "runs");
 
 const USAGE = `pnpm eval [--label <name>] [--only <id|tag> ...] [--repeats <n>]
                 [--concurrency <n>] [--no-judge] [--dry-run]
-                [--model quick|reflective|<openrouter-slug>] [--variant <id>]
+                [--model quick|thoughtful|reflective|<openrouter-slug>] [--variant <id>]
                 [--quick]
 pnpm eval --suite extraction [--model chat|background] [--repeats <n>]
 

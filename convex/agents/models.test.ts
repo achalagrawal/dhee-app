@@ -19,7 +19,7 @@ describe("the tier registry", () => {
     }
   });
 
-  it("points the two tiers at different models", () => {
+  it("points every tier at a different model", () => {
     // Two tiers on the same model is a picker that does nothing.
     const slugs = MODEL_TIERS.map((tier) => MODEL_SLUGS[tier]);
     expect(new Set(slugs).size).toBe(slugs.length);
@@ -36,6 +36,7 @@ describe("the tier registry", () => {
     // closed model, and it falls back to the default.
     const closed = /^(anthropic|google|openai)\//;
     expect(MODEL_SLUGS[DEFAULT_MODEL_TIER]).not.toMatch(closed);
+    expect(MODEL_SLUGS.thoughtful).not.toMatch(closed);
     expect(BACKGROUND_MODEL).not.toMatch(closed);
   });
 
@@ -49,8 +50,9 @@ describe("the tier registry", () => {
 
 describe("resolveModelTier", () => {
   it("keeps an available tier", () => {
-    expect(resolveModelTier("quick", ALL)).toBe("quick");
-    expect(resolveModelTier("reflective", ALL)).toBe("reflective");
+    for (const tier of MODEL_TIERS) {
+      expect(resolveModelTier(tier, ALL)).toBe(tier);
+    }
   });
 
   it("sends a stored choice of an unavailable tier to the default", () => {
@@ -75,6 +77,7 @@ describe("resolveModelTier", () => {
 describe("isModelTier", () => {
   it("accepts only the tiers that exist", () => {
     expect(isModelTier("quick")).toBe(true);
+    expect(isModelTier("thoughtful")).toBe(true);
     expect(isModelTier("reflective")).toBe(true);
     for (const value of ["deep", "", 0, null, undefined, {}, ["quick"]]) {
       expect(isModelTier(value), JSON.stringify(value)).toBe(false);
@@ -99,13 +102,18 @@ describe("availableModelTiers", () => {
 
   it("offers Reflective only while the Anthropic key is set", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
-    expect(availableModelTiers()).toEqual([DEFAULT_MODEL_TIER]);
+    expect(availableModelTiers()).toEqual(["quick", "thoughtful"]);
     vi.stubEnv("ANTHROPIC_API_KEY", "set");
-    expect(availableModelTiers()).toEqual(["quick", "reflective"]);
+    expect(availableModelTiers()).toEqual([
+      "quick",
+      "thoughtful",
+      "reflective",
+    ]);
   });
 
-  it("always offers the default", () => {
+  it("always offers the open-weight tiers", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     expect(availableModelTiers()).toContain(DEFAULT_MODEL_TIER);
+    expect(availableModelTiers()).toContain("thoughtful");
   });
 });

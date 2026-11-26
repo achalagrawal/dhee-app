@@ -82,7 +82,6 @@ async function rowCounts(
         | "profiles"
         | "inquiries"
         | "observations"
-        | "conceptsTouched"
         | "contextBlocks"
         | "threadMeta"
         | "messageFeedback",
@@ -98,7 +97,14 @@ async function rowCounts(
       profiles: await of("profiles"),
       inquiries: await of("inquiries"),
       observations: await of("observations"),
-      concepts: await of("conceptsTouched"),
+      // Its user index is `by_user_concept` (`by_user` would be a redundant
+      // prefix of it), so it can't ride the generic helper above.
+      concepts: (
+        await ctx.db
+          .query("conceptsTouched")
+          .withIndex("by_user_concept", (q) => q.eq("userId", userId))
+          .collect()
+      ).length,
       contextBlocks: await of("contextBlocks"),
       threadMeta: await of("threadMeta"),
       feedback: await of("messageFeedback"),

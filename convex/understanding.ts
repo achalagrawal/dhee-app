@@ -25,7 +25,7 @@ export const overview = query({
         .collect(),
       ctx.db
         .query("conceptsTouched")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_user_concept", (q) => q.eq("userId", userId))
         .collect(),
     ]);
     return {
@@ -41,9 +41,9 @@ export const editObservation = mutation({
   returns: v.null(),
   handler: async (ctx, { id, text }) => {
     const userId = await requireUserId(ctx);
-    const row = await ctx.db.get(id);
+    const row = await ctx.db.get("observations", id);
     if (!row || row.userId !== userId) throw new Error("Not found.");
-    await ctx.db.patch(id, { text, userEdited: true });
+    await ctx.db.patch("observations", id, { text, userEdited: true });
     await ctx.scheduler.runAfter(0, internal.memory.buildContextBlock, {
       userId,
     });
@@ -56,9 +56,9 @@ export const deleteObservation = mutation({
   returns: v.null(),
   handler: async (ctx, { id }) => {
     const userId = await requireUserId(ctx);
-    const row = await ctx.db.get(id);
+    const row = await ctx.db.get("observations", id);
     if (!row || row.userId !== userId) throw new Error("Not found.");
-    await ctx.db.delete(id);
+    await ctx.db.delete("observations", id);
     await ctx.scheduler.runAfter(0, internal.memory.buildContextBlock, {
       userId,
     });
@@ -75,9 +75,9 @@ export const editInquiry = mutation({
   returns: v.null(),
   handler: async (ctx, { id, question, status }) => {
     const userId = await requireUserId(ctx);
-    const row = await ctx.db.get(id);
+    const row = await ctx.db.get("inquiries", id);
     if (!row || row.userId !== userId) throw new Error("Not found.");
-    await ctx.db.patch(id, {
+    await ctx.db.patch("inquiries", id, {
       ...(question === undefined ? {} : { question }),
       ...(status === undefined ? {} : { status }),
       userEdited: true,
@@ -94,9 +94,9 @@ export const deleteInquiry = mutation({
   returns: v.null(),
   handler: async (ctx, { id }) => {
     const userId = await requireUserId(ctx);
-    const row = await ctx.db.get(id);
+    const row = await ctx.db.get("inquiries", id);
     if (!row || row.userId !== userId) throw new Error("Not found.");
-    await ctx.db.delete(id);
+    await ctx.db.delete("inquiries", id);
     await ctx.scheduler.runAfter(0, internal.memory.buildContextBlock, {
       userId,
     });
@@ -109,9 +109,9 @@ export const deleteConcept = mutation({
   returns: v.null(),
   handler: async (ctx, { id }) => {
     const userId = await requireUserId(ctx);
-    const row = await ctx.db.get(id);
+    const row = await ctx.db.get("conceptsTouched", id);
     if (!row || row.userId !== userId) throw new Error("Not found.");
-    await ctx.db.delete(id);
+    await ctx.db.delete("conceptsTouched", id);
     await ctx.scheduler.runAfter(0, internal.memory.buildContextBlock, {
       userId,
     });
@@ -135,16 +135,21 @@ export const forgetEverything = mutation({
         .collect(),
       ctx.db
         .query("conceptsTouched")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_user_concept", (q) => q.eq("userId", userId))
         .collect(),
       ctx.db
         .query("contextBlocks")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .collect(),
     ]);
-    for (const row of [...inquiries, ...observations, ...concepts, ...blocks]) {
-      await ctx.db.delete(row._id);
+    for (const row of inquiries) await ctx.db.delete("inquiries", row._id);
+    for (const row of observations) {
+      await ctx.db.delete("observations", row._id);
     }
+    for (const row of concepts) {
+      await ctx.db.delete("conceptsTouched", row._id);
+    }
+    for (const row of blocks) await ctx.db.delete("contextBlocks", row._id);
     return null;
   },
 });

@@ -117,7 +117,7 @@ export async function deleteSharesForThread(
     .query("sharedThreads")
     .withIndex("by_thread", (q) => q.eq("threadId", threadId))
     .collect();
-  for (const row of rows) await ctx.db.delete(row._id);
+  for (const row of rows) await ctx.db.delete("sharedThreads", row._id);
 }
 
 /** Revoke the thread's link if a rewrite reaches inside what it published.
@@ -140,7 +140,7 @@ export async function revokeSharesTouching(
   if (!share) return;
   const reachesSnapshot = deleted.some((m) => m.order <= share.throughOrder);
   if (reachesSnapshot) {
-    await ctx.db.patch(share._id, { revokedAt: Date.now() });
+    await ctx.db.patch("sharedThreads", share._id, { revokedAt: Date.now() });
   }
 }
 
@@ -155,7 +155,7 @@ export async function deleteSharesForUser(
     .query("sharedThreads")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
-  for (const row of rows) await ctx.db.delete(row._id);
+  for (const row of rows) await ctx.db.delete("sharedThreads", row._id);
 }
 
 export const shareThread = mutation({
@@ -194,7 +194,7 @@ export const shareThread = mutation({
     // person means "share more of this", not "hand out a second address".
     const existing = await activeShareForThread(ctx, threadId);
     if (existing) {
-      await ctx.db.patch(existing._id, snapshot);
+      await ctx.db.patch("sharedThreads", existing._id, snapshot);
       return { slug: existing.slug };
     }
 
@@ -220,7 +220,11 @@ export const unshareThread = mutation({
     const existing = await activeShareForThread(ctx, threadId);
     // Not an error when there's nothing to revoke: two taps on Unshare, or a
     // stale screen, should not surface a failure.
-    if (existing) await ctx.db.patch(existing._id, { revokedAt: Date.now() });
+    if (existing) {
+      await ctx.db.patch("sharedThreads", existing._id, {
+        revokedAt: Date.now(),
+      });
+    }
     return null;
   },
 });

@@ -53,11 +53,11 @@ export const demo = internalMutation({
         createdAt: Date.now(),
       }));
 
-    // Clear any prior demo data so re-seeding is idempotent.
+    // Clear any prior demo data so re-seeding is idempotent. `conceptsTouched`
+    // is swept separately: its user index is `by_user_concept`, not `by_user`.
     for (const table of [
       "inquiries",
       "observations",
-      "conceptsTouched",
       "contextBlocks",
     ] as const) {
       const rows = await ctx.db
@@ -66,13 +66,20 @@ export const demo = internalMutation({
         .collect();
       for (const row of rows) await ctx.db.delete(row._id);
     }
+    const concepts = await ctx.db
+      .query("conceptsTouched")
+      .withIndex("by_user_concept", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of concepts) {
+      await ctx.db.delete("conceptsTouched", row._id);
+    }
 
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
     if (profile) {
-      await ctx.db.patch(profile._id, { onboarded: true });
+      await ctx.db.patch("profiles", profile._id, { onboarded: true });
     } else {
       await ctx.db.insert("profiles", {
         userId,

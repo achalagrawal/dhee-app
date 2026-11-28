@@ -469,7 +469,9 @@ export const incognitoReply = action({
       },
       sandboxed,
     );
-    if (wroteAnything(result.steps)) {
+    // Incognito shows only the final step's text, so that is what has to be
+    // non-empty.
+    if (result.text.trim()) {
       return { text: result.text, crisisFlagged };
     }
     // The same rescue a saved thread gets (`rescueEmptyReply`), from the
@@ -665,7 +667,14 @@ export const streamReply = internalAction({
         },
       );
       await result.consumeStream();
-      if (!wroteAnything(await result.steps)) {
+      // Only a turn that finished normally and said nothing. A stream that
+      // failed is already reported as failed, with its own retry, and a stop
+      // throws out of `consumeStream` before this line.
+      const steps = await Promise.resolve(result.steps).catch(() => null);
+      const finish = await Promise.resolve(result.finishReason).catch(
+        () => "error",
+      );
+      if (steps && finish !== "error" && !wroteAnything(steps)) {
         await rescueEmptyReply(ctx, {
           threadId,
           userId,

@@ -122,7 +122,7 @@ export function phraseWords(phrase: string): string[] {
 
 /** What the model is told about a lookup's `pageno`. */
 export const LEXICON_PAGE_NOTE =
-  "pageno is a page of the paribhasha lexicon itself, not of any book in listBooks. Cite it as the paribhasha (lexicon), never as a page of another book, and don't pass it to readPage.";
+  "pageno is a page of Paribhasha Sanhita (परिभाषा संहिता), the darshan's book of definitions, not of any book in listBooks. Cite it as परिभाषा संहिता with this page, never as a page of another book, and don't pass it to readPage.";
 
 /** Adds fields to an envelope and serialises it again. */
 export function annotate(
@@ -152,10 +152,10 @@ export function explainPageError(
   const book = books.find((b) => b.id === bookId);
   if (!book) {
     const ids = books.map((b) => `${b.id} (${b.title})`).join(", ");
-    return `There is no book with id ${bookId}. Book ids come from listBooks or a search result; the books are: ${ids}. If this page number came from lookupDefinition, it is the lexicon's page and can't be read here.`;
+    return `There is no book with id ${bookId}. Book ids come from listBooks or a search result; the books are: ${ids}. If this page number came from lookupDefinition, it is a page of Paribhasha Sanhita and can't be read here.`;
   }
   if (book.total_pages !== undefined && pageNo > book.total_pages) {
-    return `Book ${bookId} (${book.title}) has pages 1–${book.total_pages}; there is no page ${pageNo}. If this page number came from lookupDefinition, it is the lexicon's page, not this book's.`;
+    return `Book ${bookId} (${book.title}) has pages 1–${book.total_pages}; there is no page ${pageNo}. If this page number came from lookupDefinition, it is a page of Paribhasha Sanhita, not of this book.`;
   }
   return null;
 }

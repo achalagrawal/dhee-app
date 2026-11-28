@@ -1,6 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
 import {
   CORPUS_LENS_ALIASES,
+  DHEE_INSTRUCTIONS,
+  OPEN_MODEL_RULES,
   buildSystemPrompt,
   isCorpusLens,
 } from "./agents/dhee";
@@ -385,7 +387,7 @@ describe("buildSystemPrompt — the base prompt's own commitments", () => {
     // block goes, those turns fall back to the model's general recollection of
     // the darshan, which is exactly what the corpus is here to replace.
     expect(base).toContain("Existence is co-existence");
-    expect(base).toContain("समाधान, समृद्धि, अभय, सह-अस्तित्व");
+    expect(base).toContain("समाधान, समृद्धि, अभय, सहअस्तित्व");
     expect(base).toContain("जीवन");
     expect(base).toContain("भ्रम");
   });
@@ -469,7 +471,7 @@ describe("buildSystemPrompt — the corpus lens (study mode)", () => {
     // And the base rule it overrides is still present to be overridden. If the
     // base wording changes, change the quotation in the study block with it —
     // an override that names a sentence nobody wrote overrides nothing.
-    expect(study).toContain("**Depth, not length.**");
+    expect(study).toContain("Depth, not length.**");
     expect(study).toContain('"depth, not length" is not a ceiling here');
   });
 
@@ -547,5 +549,59 @@ describe("isCorpusLens", () => {
     expect(isCorpusLens(["Advaita Vedanta"])).toBe(false);
     expect(isCorpusLens([])).toBe(false);
     expect(isCorpusLens(undefined)).toBe(false);
+  });
+});
+
+// The prompt pack from the 2026-11-28 improvements report. Each line pins a
+// rule the report traced to a failure in production.
+describe("buildSystemPrompt — the prompt pack", () => {
+  const base = DHEE_INSTRUCTIONS;
+
+  test("answers first, and holds a short question to a short reply", () => {
+    expect(base).toContain("The first line or two answers the question");
+    expect(base).toContain("A short question gets a short reply");
+    expect(base).toContain("no headings and no tables");
+  });
+
+  test("a question about Dhee is a question about the app", () => {
+    expect(base).toContain("Dhee is also the name of this app");
+    expect(base).toContain("Dhee kya hai?");
+  });
+
+  test("a life question gets the person first and no page numbers", () => {
+    expect(base).toContain("answer the person, not the book");
+    expect(base).toContain("No page numbers and no quoted passages");
+    expect(base).toContain("Hold a sound position");
+  });
+
+  test("names the helpline, and checks in even on an abstract question", () => {
+    expect(base).toContain("14416");
+    expect(base).toContain("even as an abstract or philosophical question");
+  });
+
+  test("cites only what it has seen, and names Paribhasha Sanhita", () => {
+    expect(base).toContain("cite a book and page only when you have seen it");
+    expect(base).toContain("Paribhasha Sanhita");
+    expect(base).toContain("no book ids");
+  });
+
+  test("speaks as a woman in Hindi", () => {
+    expect(base).toContain("In Hindi, you speak as a woman");
+  });
+
+  test("spells सहअस्तित्व without a hyphen", () => {
+    expect(base).not.toContain("सह-अस्तित्व");
+  });
+
+  test("the open-model rules come only for open models, just before the script rule", () => {
+    expect(buildSystemPrompt({ replyScript: "latin" })).not.toContain(
+      OPEN_MODEL_RULES,
+    );
+    const sections = buildSystemPrompt({
+      replyScript: "latin",
+      openModel: true,
+    }).split("\n\n---\n\n");
+    expect(sections.at(-2)).toBe(OPEN_MODEL_RULES);
+    expect(sections.at(-1)).toContain("This person wrote to you in");
   });
 });

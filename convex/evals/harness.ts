@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internalAction, type ActionCtx } from "../_generated/server";
 import { buildSystemPrompt, dhee, isCorpusLens } from "../agents/dhee";
 import { evalModelFor, evalModelSlugFor } from "../agents/config";
+import { isOpenModelSlug } from "../agents/models";
 import {
   planPrefetch,
   prefetchNote,
@@ -94,6 +95,8 @@ export type EvalRun = {
   model: string;
   /** Prompt variant id, when the run measured one (convex/evals/variants.ts). */
   variant?: string;
+  /** Whether the prompt carried OPEN_MODEL_RULES. */
+  openModelRules?: boolean;
   /** Absent when the run was not judged. */
   judgeModel?: string;
   repeats: number;
@@ -153,13 +156,15 @@ type RunOptions = {
   model?: ReturnType<typeof evalModelFor>;
   /** Whether the app's first round of lookups runs, as in production. */
   prefetch: boolean;
+  /** Whether OPEN_MODEL_RULES is added, as production does for open models. */
+  openModel: boolean;
 };
 
 async function runOnce(
   ctx: ActionCtx,
   evalCase: EvalCase,
   repeat: number,
-  { judge, baseInstructions, model, prefetch }: RunOptions,
+  { judge, baseInstructions, model, prefetch, openModel }: RunOptions,
 ): Promise<EvalResult> {
   const persona = PERSONAS[evalCase.persona];
   const probe = PROBES[evalCase.probe];
@@ -176,6 +181,7 @@ async function runOnce(
     {
       ...persona.inputs,
       ...(replyScript ? { replyScript } : {}),
+      openModel,
     },
     baseInstructions,
   );
@@ -364,6 +370,8 @@ export const run = internalAction({
     variant: v.optional(v.string()),
     /** Skip the app's first round of lookups, to measure what it buys. */
     noPrefetch: v.optional(v.boolean()),
+    /** Leave out OPEN_MODEL_RULES even for an open model, to measure it. */
+    noOpenRules: v.optional(v.boolean()),
   },
   // The summary is validated so a bare `convex run` in a terminal is readable;
   // the detail rides along as one JSON string. Fifteen heterogeneous case
@@ -402,10 +410,15 @@ export const run = internalAction({
     const base = baseInstructionsFor(args.variant);
     const model = args.model ? evalModelFor(args.model) : undefined;
     const modelSlug = args.model ? evalModelSlugFor(args.model) : CHAT_MODEL;
+    // As production decides it: by the model that writes the reply.
+    const openModel = isOpenModelSlug(modelSlug) && !args.noOpenRules;
 
     const prompts: EvalRun["prompts"] = {};
     for (const personaId of new Set(cases.map((c) => c.persona))) {
-      const text = buildSystemPrompt(PERSONAS[personaId].inputs, base);
+      const text = buildSystemPrompt(
+        { ...PERSONAS[personaId].inputs, openModel },
+        base,
+      );
       prompts[personaId] = { text, fingerprint: fingerprint(text) };
     }
 
@@ -424,6 +437,7 @@ export const run = internalAction({
                   baseInstructions: base,
                   model,
                   prefetch: !args.noPrefetch,
+                  openModel,
                 }),
               );
             }
@@ -436,6 +450,7 @@ export const run = internalAction({
       startedAt,
       model: modelSlug,
       ...(args.variant ? { variant: args.variant } : {}),
+      openModelRules: openModel,
       ...(judge ? { judgeModel: JUDGE_MODEL } : {}),
       repeats,
       dryRun,

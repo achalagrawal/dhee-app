@@ -62,14 +62,21 @@ import { detectReplyScript, replyScriptInstruction } from "../lib/script";
 // a quoted line in English when the question was in English. Prompted by
 // DeepSeek's study replies on the 2026-11-28 export — 57% carried three or
 // more page references, against 19% for Sonnet 5.
+//
+// Re-recorded for the prompt pack (2026-11-28 improvements report). Every
+// persona moved by 4,321, the shared base: answer first and shorter, what Dhee
+// is, personal questions, safety, citing, Dhee speaking as a woman in Hindi,
+// and English-with-darshan-words staying English. The corpus and full personas
+// moved 175 more, for study mode's "answer first still holds" and no page
+// numbers in a reply about someone's life.
 const PROMPT_FINGERPRINTS: Record<PersonaId, string> = {
-  bare: "adff579f-14421",
-  stoic: "a5bbebca-15090",
-  advaita: "d0489f88-15097",
-  corpus: "3468bad3-17281",
-  personalized: "5eeb9b0e-14723",
-  remembered: "29dbb64a-15306",
-  full: "20cb7345-18468",
+  bare: "9f350e58-18742",
+  stoic: "fb007e5f-19411",
+  advaita: "3397ba13-19418",
+  corpus: "19b79e30-21777",
+  personalized: "8e1e72f5-19044",
+  remembered: "acc101d7-19627",
+  full: "32048f8a-22964",
 };
 
 // The section separator `buildSystemPrompt` joins with.

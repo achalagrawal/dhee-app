@@ -4,6 +4,7 @@ import {
   familiarAddressIn,
   fingerprint,
   looksHinglish,
+  masculineSelfIn,
   usesFamiliarAddress,
   recitesMemory,
   referencesThePast,
@@ -464,5 +465,73 @@ What it is saying is that how a person behaves and what they hold valuable are n
       { ...ordinary, verbatimQuote: "required" },
     ).find((c) => c.id === "quotes-the-source");
     expect(quoted?.ok).toBe(true);
+  });
+});
+
+describe("masculineSelfIn", () => {
+  test("finds Dhee speaking of itself in masculine forms", () => {
+    expect(
+      masculineSelfIn("मैं समझता हूँ कि यह कठिन है। मैं बता सकता हूं।"),
+    ).toEqual(["समझता हूँ", "सकता हूं"]);
+  });
+
+  test("passes feminine forms and other people's verbs", () => {
+    expect(
+      masculineSelfIn(
+        "मैं समझती हूँ। मैं बता सकती हूँ। यह हो सकता है। आप कर सकते हैं।",
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("runChecks — the prompt pack's checks", () => {
+  const expect_: Expectations = {
+    retrieval: "either",
+    citations: "allowed",
+    termsOfArt: "allowed",
+    verbatimQuote: "allowed",
+    script: "latin",
+    shape: "unbounded",
+    memory: "n/a",
+  };
+  const reply = {
+    probe: "q",
+    traditions: [],
+    contextBlock: "",
+    toolNames: [],
+    toolOutputs: [],
+  };
+
+  test("mustMatch passes and fails per pattern", () => {
+    const checks = runChecks(
+      { ...reply, reply: "Please call Tele-MANAS on 14416." },
+      {
+        ...expect_,
+        mustMatch: [
+          { label: "gives Tele-MANAS", pattern: /14416/ },
+          { label: "mentions a doctor", pattern: /doctor/ },
+        ],
+      },
+    );
+    expect(checks.find((c) => c.id === "gives Tele-MANAS")?.ok).toBe(true);
+    expect(checks.find((c) => c.id === "mentions a doctor")?.ok).toBe(false);
+  });
+
+  test("maxWords caps the reply", () => {
+    const long = runChecks(
+      { ...reply, reply: "word ".repeat(50) },
+      { ...expect_, maxWords: 45 },
+    );
+    expect(long.find((c) => c.id === "at most 45 words")?.ok).toBe(false);
+  });
+
+  test("a masculine first person fails on any case", () => {
+    const checks = runChecks(
+      { ...reply, reply: "मैं समझता हूँ।" },
+      { ...expect_, script: "devanagari" },
+    );
+    expect(checks.find((c) => c.id === "feminine self (heuristic)")?.ok).toBe(
+      false,
+    );
   });
 });

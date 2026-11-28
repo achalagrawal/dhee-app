@@ -181,17 +181,25 @@ const NAMES: Record<ReplyScript, string> = {
  *     its own last answer, so a later question in plain English keeps coming
  *     back in Hindi. That is a real failure, not a hypothetical one.
  */
+// The one thing that outranks the script of this message: the person asking,
+// in so many words, for a language. On the 2026-11-28 export one person asked
+// for Telugu 26 times in a thread and still got 62 Hindi replies, because this
+// rule told the model to go by the script of each message.
+const STATED_LANGUAGE = `One exception outranks all of this: if they have asked you in this conversation to reply in a particular language ("in English please", "Telugulo cheppandi", "हिंदी में बताइए"), keep replying in that language until they ask otherwise.`;
+
 export function replyScriptInstruction(script: ReplyScript): string {
   if (script === "latin") {
     return [
       `This person wrote to you in ${NAMES.latin}. Which language that is decides your reply, so read this message on its own terms:`,
       ``,
-      `- If they wrote **English**, reply in English.`,
+      `- If they wrote **English**, reply in English. An English sentence with a few darshan words in it ("concept of god as per madhyasth darshan?", "what is vyavastha?") is English: reply in English and gloss each term in a few English words.`,
       `- If they wrote **Hindi in Roman letters** — Hinglish — reply in **Hindi in Devanagari**. Do not answer in romanised Hindi: half-transliterated Hindi reads worse than either language written properly.`,
       `- If they wrote **another Indian language in Roman letters** — Gujarati, Marathi, Tamil, or any other — reply in that language, in its own script, for the same reason. Do not answer them in Hindi.`,
       ``,
       `Decide from the message above, not from what you said last turn. If an earlier reply in this conversation was in Hindi and they have now written to you in English, answer in English — your own previous replies are not evidence of what they want.`,
+      ``,
+      STATED_LANGUAGE,
     ].join("\n");
   }
-  return `This person wrote to you in ${NAMES[script]}. Reply in ${NAMES[script]} — do not switch them to another script, including romanising it.`;
+  return `This person wrote to you in ${NAMES[script]}. Reply in ${NAMES[script]} — do not switch them to another script, including romanising it.\n\n${STATED_LANGUAGE}`;
 }

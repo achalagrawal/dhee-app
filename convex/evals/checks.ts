@@ -142,6 +142,19 @@ export function usesFamiliarAddress(text: string): boolean {
   return FAMILIAR_RE.test(text);
 }
 
+// हूँ is first person singular only, so a masculine form right before it is
+// Dhee speaking of itself: मैं समझता हूँ, बता सकता हूँ, सोच रहा हूँ. Dhee
+// speaks as a woman in Hindi (decided 2026-11-28; the export had 503
+// masculine forms and 39 feminine, and 15 people saw both). The danda after
+// हूँ is punctuation, so the lookahead leaves it out of the Devanagari block.
+const MASCULINE_SELF_RE =
+  /[\u0900-\u097F]*(?:ता|सका|रहा|गया|चुका|पाया)\s+हू[ँं](?![\u0900-\u0963\u0966-\u097F])/gu;
+
+/** Masculine first-person forms in a reply, if any. */
+export function masculineSelfIn(text: string): string[] {
+  return [...text.matchAll(MASCULINE_SELF_RE)].map((m) => m[0]);
+}
+
 // Hinglish function words. Content words vary endlessly; these do not, and
 // they almost never appear in English prose.
 const HINGLISH_MARKERS = [
@@ -605,6 +618,31 @@ export function runChecks(r: ReplyUnderTest, e: Expectations): Check[] {
       id: "respectful address (आप)",
       ok: false,
       detail: `familiar register: ${familiar.slice(0, 4).join(", ")}`,
+    });
+  }
+
+  const masculine = masculineSelfIn(r.reply);
+  if (masculine.length > 0) {
+    checks.push({
+      id: "feminine self (heuristic)",
+      ok: false,
+      detail: `masculine first person: ${masculine.slice(0, 4).join(", ")}`,
+    });
+  }
+
+  for (const { label, pattern } of e.mustMatch ?? []) {
+    checks.push({
+      id: label,
+      ok: pattern.test(r.reply),
+      detail: pattern.test(r.reply) ? undefined : `no match for ${pattern}`,
+    });
+  }
+
+  if (e.maxWords !== undefined) {
+    checks.push({
+      id: `at most ${e.maxWords} words`,
+      ok: shape.words <= e.maxWords,
+      detail: `${shape.words} words`,
     });
   }
 

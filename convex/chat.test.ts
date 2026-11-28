@@ -4,7 +4,12 @@ import { describe, expect, test } from "vitest";
 import { api, components } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
-import { REPLY_CONTEXT_OPTIONS, replyOptionsFor } from "./chat";
+import {
+  REPLY_CONTEXT_OPTIONS,
+  replyOptionsFor,
+  rescueContext,
+  wroteAnything,
+} from "./chat";
 import { DEFAULT_MODEL_TIER } from "./agents/models";
 import { REPLY_STEPS, STUDY_STEPS, answerOnFinalStep } from "./agents/dhee";
 import {
@@ -1198,6 +1203,71 @@ describe("chat — message feedback", () => {
       rating: null,
     });
     expect(await as.query(api.chat.threadFeedback, { threadId })).toEqual([]);
+  });
+});
+
+describe("chat — empty replies are rescued", () => {
+  test("a turn counts as answered if any step wrote text", () => {
+    expect(wroteAnything([{ text: "" }, { text: "Here is the answer." }])).toBe(
+      true,
+    );
+  });
+
+  test("a turn of only tool calls, or only whitespace, is empty", () => {
+    // What DeepSeek's broken turns looked like once the markup was stripped.
+    expect(wroteAnything([{ text: "" }, { text: "\n\n  " }])).toBe(false);
+    expect(wroteAnything([])).toBe(false);
+  });
+
+  test("the rescue is written from this turn's lookups, not earlier turns' tool traffic", () => {
+    const earlierCall = {
+      role: "assistant" as const,
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "old",
+          toolName: "searchWisdom",
+          input: { query: "earlier" },
+        },
+      ],
+    };
+    const thisCall = {
+      role: "assistant" as const,
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "new",
+          toolName: "readPage",
+          input: { bookId: 1, page: 2 },
+        },
+      ],
+    };
+    const thisResult = {
+      role: "tool" as const,
+      content: [
+        {
+          type: "tool-result" as const,
+          toolCallId: "new",
+          toolName: "readPage",
+          output: { type: "text" as const, value: "the page text" },
+        },
+      ],
+    };
+    const out = rescueContext({
+      recent: [{ role: "user", content: "earlier question" }, earlierCall],
+      inputPrompt: [{ role: "user", content: "this question" }],
+      existingResponses: [thisCall, thisResult],
+    });
+    const text = JSON.stringify(out);
+    expect(text).toContain("earlier question");
+    expect(text).not.toContain("searchWisdom");
+    expect(text.indexOf("this question")).toBeLessThan(
+      text.indexOf("the page text"),
+    );
+    expect(out.every((m) => m.role !== "tool")).toBe(true);
+    expect(String(out.at(-1)!.content)).toContain(
+      "Answer the person's message now",
+    );
   });
 });
 

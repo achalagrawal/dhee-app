@@ -14,6 +14,8 @@ import type * as agents_config from "../agents/config.js";
 import type * as agents_dhee from "../agents/dhee.js";
 import type * as agents_fallback from "../agents/fallback.js";
 import type * as agents_models from "../agents/models.js";
+import type * as agents_specialTokens from "../agents/specialTokens.js";
+import type * as agents_steps from "../agents/steps.js";
 import type * as attachments from "../attachments.js";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
@@ -58,6 +60,8 @@ declare const fullApi: ApiFromModules<{
   "agents/dhee": typeof agents_dhee;
   "agents/fallback": typeof agents_fallback;
   "agents/models": typeof agents_models;
+  "agents/specialTokens": typeof agents_specialTokens;
+  "agents/steps": typeof agents_steps;
   attachments: typeof attachments;
   auth: typeof auth;
   chat: typeof chat;

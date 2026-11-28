@@ -115,7 +115,10 @@ export type ProbeId =
   | "hinglish"
   | "language-switch"
   | "memory-aware"
-  | "provenance";
+  | "provenance"
+  | "deep-compare"
+  | "deep-explain"
+  | "deep-basis";
 
 export type Turn = { role: "user" | "assistant"; text: string };
 
@@ -216,6 +219,27 @@ export const PROBES: Record<ProbeId, Probe> = {
       },
       { role: "assistant", text: SEEDED_REPLY },
     ],
+  },
+  // The depth real study questions reach. STUDY_STEPS warns that the suite's
+  // own questions never spent more than three steps while real ones ran into
+  // double digits; these three are the shape of questions that did, taken from
+  // DeepSeek's broken replies on the 2026-11-28 prod export (wording kept, no
+  // person attached). Each spent all twelve steps, made 25 to 40 lookups, and
+  // ended empty or in tool-call markup.
+  "deep-compare": {
+    id: "deep-compare",
+    why: "A comparison across several defined terms: the shape that sends a model tracing every term through every book until the budget runs out.",
+    text: "स्वभाव, दृष्टि और विषय के आधार पर अविकसित एवं विकसित चेतना की तुलना कीजिए।",
+  },
+  "deep-explain": {
+    id: "deep-explain",
+    why: '"Explain fully" over three related terms. Twice on the export it ended in raw <｜DSML｜> markup instead of an answer.',
+    text: "स्वत्व, स्वतंत्रता, स्वराज्य को पूरी तरह से समझाएं।",
+  },
+  "deep-basis": {
+    id: "deep-basis",
+    why: "An English study question with a Hindi term in it. Asked three times on the export, and every time it ended empty or in markup.",
+    text: "What is the basis for affection (sneh) for all humans at all times? Please explain with references.",
   },
 };
 
@@ -526,6 +550,31 @@ export const CASES: EvalCase[] = [
       memory: "must-not-recite",
     },
   },
+  // `--only deep`: the step budget's real test. The rule that matters most is
+  // the one `runChecks` applies first — the reply is not empty — and after it,
+  // no tool-call markup in the text.
+  ...(
+    [
+      ["deep-compare", "devanagari"],
+      ["deep-explain", "devanagari"],
+      ["deep-basis", "latin"],
+    ] as const
+  ).map(([probe, script]): EvalCase => ({
+    id: `corpus/${probe}`,
+    persona: "corpus",
+    probe,
+    tags: ["study", "deep"],
+    why: "A study question as deep as the real ones that broke the final step. It must end in an answer, whatever the budget did on the way.",
+    expect: {
+      retrieval: "required",
+      citations: "allowed",
+      termsOfArt: "allowed",
+      verbatimQuote: "allowed",
+      script,
+      shape: "unbounded",
+      memory: "n/a",
+    },
+  })),
 ];
 
 /**

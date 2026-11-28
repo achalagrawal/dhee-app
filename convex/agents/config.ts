@@ -12,6 +12,7 @@ import {
 } from "./models";
 import { availableModelTiers } from "./availability";
 import { withFallback } from "./fallback";
+import { stripSpecialTokens } from "./specialTokens";
 import {
   answeringModel,
   asUserId,
@@ -196,7 +197,13 @@ function claudeModel(slug: string) {
 // on the reflective tier, and none of that reasoning transfers here. Read the
 // `llmUsage` ledger for what this tier actually costs rather than assuming it
 // is simply cheaper because the per-token price is lower.
-export const quickModel = openrouter.chat(MODEL_SLUGS.quick, shared);
+//
+// Wrapped so DeepSeek's own tool-call markup never reaches a reply as text —
+// see convex/agents/specialTokens.ts.
+export const quickModel = wrapLanguageModel({
+  model: openrouter.chat(MODEL_SLUGS.quick, shared),
+  middleware: stripSpecialTokens,
+});
 
 // The `reflective` tier: Claude on Anthropic's API, falling back to Quick when
 // the call fails before it starts — the credit has run out, the key was
@@ -217,9 +224,12 @@ export const reflectiveModel = withFallback(
 // 2026-11-24: at `max` the eval measured $0.048 a reply, more than Sonnet 5
 // cost. `high` has not been evaluated; watch the `llmUsage` ledger and
 // feedback, and run the eval at `high` before treating it as settled.
-export const thoughtfulModel = openrouter.chat(MODEL_SLUGS.thoughtful, {
-  ...shared,
-  reasoning: { effort: "high" },
+export const thoughtfulModel = wrapLanguageModel({
+  model: openrouter.chat(MODEL_SLUGS.thoughtful, {
+    ...shared,
+    reasoning: { effort: "high" },
+  }),
+  middleware: stripSpecialTokens,
 });
 
 /** The model each tier answers with. */
@@ -228,6 +238,18 @@ export const MODEL_BY_TIER = {
   thoughtful: thoughtfulModel,
   reflective: reflectiveModel,
 } as const satisfies Record<ModelTier, unknown>;
+
+/**
+ * The model that writes a reply when the one asked could not: the turn ended
+ * with nothing written (see `rescueEmptyReply` in convex/chat.ts). Claude when
+ * this deployment has the key, since an answer that has to be written from a
+ * pile of lookups in one go is the job it is most reliable at; otherwise Kimi.
+ */
+export function rescueModel() {
+  return availableModelTiers().includes("reflective")
+    ? reflectiveModel
+    : thoughtfulModel;
+}
 
 /** The model for a stored preference, falling back to the default tier. */
 export function languageModelFor(stored: string | undefined) {

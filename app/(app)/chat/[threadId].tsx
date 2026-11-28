@@ -188,12 +188,34 @@ export default function Chat() {
   // message it leaves behind is the only evidence. Retry is regenerate: the
   // prompt is already saved, and `chat.regenerate` discards the failed reply
   // and re-runs from it. Issue #60.
+  // A reply can also finish cleanly with nothing in it: every step went on
+  // lookups and the model never wrote. The server answers those again on
+  // another model (`rescueEmptyReply` in convex/chat.ts), so the empty reply
+  // is usually followed within a second by the rescue streaming in. Only one
+  // that is still empty a few seconds later is owed the error card — sooner,
+  // and the card would flash up in the gap before the rescue starts.
+  const emptyKey = useMemo(() => {
+    const last = results[results.length - 1];
+    return last?.role === "assistant" &&
+      last.status === "success" &&
+      !last.text.trim()
+      ? last.key
+      : null;
+  }, [results]);
+  const [emptySettled, setEmptySettled] = useState<string | null>(null);
+  useEffect(() => {
+    if (!emptyKey) return;
+    const timer = setTimeout(() => setEmptySettled(emptyKey), 4000);
+    return () => clearTimeout(timer);
+  }, [emptyKey]);
+  const emptyReply = emptyKey !== null && emptySettled === emptyKey;
+
   const streamFailure = useMemo<Failure>(
     () =>
-      stalled && !stalled.stopped
+      (stalled && !stalled.stopped) || emptyReply
         ? { reason: "error", retry: "regenerate" }
         : null,
-    [stalled],
+    [stalled, emptyReply],
   );
 
   // A stop before the first token renders nothing at all, which also takes the

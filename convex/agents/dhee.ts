@@ -3,6 +3,7 @@ import { components } from "../_generated/api";
 import { replyScriptInstruction, type ReplyScript } from "../lib/script";
 import { mdTools } from "../tools/md";
 import { defaultAgentConfig } from "./config";
+import { stepGuard } from "./steps";
 
 // The vocabulary the plain-language preference names. Exported and interpolated
 // rather than written inline, because convex/evals/checks.ts has to detect
@@ -203,20 +204,17 @@ export const STUDY_STEPS = 12;
 export const REPLY_STEPS = 12;
 
 /**
- * Makes the last step of a budget an answer.
+ * Makes the last step of a budget an answer, and warns as the budget runs low.
  *
  * A step budget alone only stops the loop. If a model spends every step on
  * tool calls, the turn ends with nothing written, and the person gets an empty
- * reply. On DeepSeek (the default since 2026-11-24) that was about 1 eval turn
- * in 9. So on the final step tools are switched off, and the model has to
+ * reply. So on the final step tools are switched off, and the model has to
  * answer with what it has already found: a thinner answer beats no answer.
- *
- * `stepNumber` counts from 0, so the last step of a budget of `steps` is
- * `steps - 1`.
+ * For models other than Claude that takes more than `toolChoice: "none"`,
+ * which DeepSeek ignored — see `stepGuard` in convex/agents/steps.ts.
  */
 export function answerOnFinalStep(steps: number) {
-  return ({ stepNumber }: { stepNumber: number }) =>
-    stepNumber >= steps - 1 ? { toolChoice: "none" as const } : {};
+  return stepGuard(steps);
 }
 
 /** Whether one entry names the corpus, under any of its spellings. */
@@ -307,7 +305,7 @@ export function buildSystemPrompt(
     // paragraph and drop the last.
     if (isCorpusLens(traditions)) {
       sections.push(
-        `This is the tradition whose books you can actually read, so with this person you are also a study partner, not only a companion.\n\nWith them, and only them, these earlier instructions are lifted: you may quote the source verbatim rather than saying it in your own words, and you may say exactly where a passage comes from — book, chapter and page. "Say the thing in your own voice rather than hanging it on an authority" does not apply to this person; they asked for the source. If they ask what a particular line on a particular page says, look it up and tell them what it says. Use the book list to find the book they named, read the page, and answer from what is actually there rather than from memory. Let the answer be as long as the question needs — a text question deserves a full answer, and "depth, not length" is not a ceiling here.\n\nWhat has not changed: don't preach. Answer the question they asked, at the depth they asked it, and stop. Don't turn a page lookup into a sermon, don't volunteer the philosophy when they brought you a life question, and don't treat their having named this lens as agreement with everything in it. Quote what the answer needs — a line, a passage, a paragraph — not a chapter. The corpus is in Hindi; if they wrote to you in English, give the original line and then say what it means in English, rather than answering in a script they didn't use.\n\nWhen you do explain, explain properly: name the book and page for anything you quote, show what in the text leads you to your reading rather than asserting the conclusion, and check a term's paribhasha before you build an argument on it. Then close with the same thing said in plain words. A student wants the precision and the plain version both, and the plain version is how they find out whether the precision was real.`,
+        `This is the tradition whose books you can actually read, so with this person you are also a study partner, not only a companion.\n\nWith them, and only them, these earlier instructions are lifted: you may quote the source verbatim rather than saying it in your own words, and you may say exactly where a passage comes from — book, chapter and page. "Say the thing in your own voice rather than hanging it on an authority" does not apply to this person; they asked for the source. If they ask what a particular line on a particular page says, look it up and tell them what it says. Use the book list to find the book they named, read the page, and answer from what is actually there rather than from memory. Let the answer be as long as the question needs — a text question deserves a full answer, and "depth, not length" is not a ceiling here. Be economical with lookups, though: most questions need two to four. Once you have what the answer needs, stop searching and write it.\n\nWhat has not changed: don't preach. Answer the question they asked, at the depth they asked it, and stop. Don't turn a page lookup into a sermon, don't volunteer the philosophy when they brought you a life question, and don't treat their having named this lens as agreement with everything in it. Quote sparingly: the one or two short lines that carry the answer, not a string of passages and page numbers. A reply that is mostly quotation has not explained anything yet. The corpus is in Hindi; if they wrote to you in English, give the original line and then say what it means in English, rather than answering in a script they didn't use. Everything outside the quoted line itself stays in English: no Hindi sentences, no Hindi headings, no Hindi terms left unexplained.\n\nWhen you do explain, explain properly: name the book and page for anything you quote, show what in the text leads you to your reading rather than asserting the conclusion, and check a term's paribhasha before you build an argument on it. Then close with the same thing said in plain words. A student wants the precision and the plain version both, and the plain version is how they find out whether the precision was real.`,
       );
     }
   }

@@ -477,7 +477,8 @@ describe("buildSystemPrompt — the corpus lens (study mode)", () => {
     // Brevity is no longer the protection, so this is the only one left.
     expect(study).toContain("don't preach");
     expect(study).toContain("at the depth they asked it");
-    expect(study).toContain("not a chapter");
+    expect(study).toContain("Quote sparingly");
+    expect(study).toContain("A reply that is mostly quotation");
     expect(study).toContain(
       "don't treat their having named this lens as agreement",
     );

@@ -352,6 +352,7 @@ describe("runChecks", () => {
     const checks = runChecks(clean, ordinary);
     expect(checks.every((c) => c.ok)).toBe(true);
     expect(checks.map((c) => c.id)).toEqual([
+      "no-markup",
       "plain-language (light)",
       "no-citations",
       "searched-corpus",
@@ -399,7 +400,18 @@ describe("runChecks", () => {
       verbatimQuote: "allowed",
       shape: "unbounded",
     }).map((c) => c.id);
-    expect(ids).toEqual(["script-mirrored (quoting allowed)"]);
+    // `no-markup` has no expectation to switch it off: markup is never right.
+    expect(ids).toEqual(["no-markup", "script-mirrored (quoting allowed)"]);
+  });
+
+  test("tool-call markup written as text fails, with the markup shown", () => {
+    const leaked = {
+      ...clean,
+      reply: `${clean.reply}\n\n<\u200b｜DSML｜ calls>\n<｜DSML｜ invoke name="readPage">`,
+    };
+    const check = runChecks(leaked, ordinary).find((c) => c.id === "no-markup");
+    expect(check?.ok).toBe(false);
+    expect(check?.detail).toContain("DSML");
   });
 
   test("a study answer may carry a Devanagari quote inside English prose", () => {

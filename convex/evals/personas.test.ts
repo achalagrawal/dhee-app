@@ -55,14 +55,21 @@ import { detectReplyScript, replyScriptInstruction } from "../lib/script";
 // "तुम्हारे" — familiarity nobody offered, on a question about suffering, to a
 // readership much of which is older than that voice. Every length rose by
 // exactly 1,129, so once again the language section is all that moved.
+//
+// Re-recorded a fifth time, for study mode alone (only `corpus` and `full`
+// moved, each by 364): quote one or two short lines rather than walls of
+// passages, keep lookups to what the answer needs, and keep everything outside
+// a quoted line in English when the question was in English. Prompted by
+// DeepSeek's study replies on the 2026-11-28 export — 57% carried three or
+// more page references, against 19% for Sonnet 5.
 const PROMPT_FINGERPRINTS: Record<PersonaId, string> = {
   bare: "adff579f-14421",
   stoic: "a5bbebca-15090",
   advaita: "d0489f88-15097",
-  corpus: "770e75ed-16917",
+  corpus: "3468bad3-17281",
   personalized: "5eeb9b0e-14723",
   remembered: "29dbb64a-15306",
-  full: "178820db-18104",
+  full: "20cb7345-18468",
 };
 
 // The section separator `buildSystemPrompt` joins with.

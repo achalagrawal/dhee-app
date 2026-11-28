@@ -12,7 +12,7 @@ import {
   updateThreadMetadata,
   vStreamArgs,
 } from "@convex-dev/agent";
-import type { ImagePart } from "ai";
+import type { ImagePart, ModelMessage } from "ai";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { z } from "zod";
@@ -35,7 +35,12 @@ import {
   dhee,
   isCorpusLens,
 } from "./agents/dhee";
-import { backgroundModel, languageModelFor } from "./agents/config";
+import {
+  backgroundModel,
+  languageModelFor,
+  rescueModel,
+} from "./agents/config";
+import { answerOnlyMessages, withoutToolParts } from "./agents/steps";
 import {
   MEMORY_EXTRACTION_IDLE_MS,
   MEMORY_EXTRACTION_INTERVAL_TURNS,
@@ -435,30 +440,54 @@ export const incognitoReply = action({
     // message, which is the one being replied to.
     const latest = [...messages].reverse().find((m) => m.role === "user");
     const replyScript = detectReplyScript(latest?.text ?? "");
-    const { text } = await dhee.generateText(
+    const system = buildSystemPrompt({
+      ...personalization,
+      ...(replyScript ? { replyScript } : {}),
+    });
+    const history: ModelMessage[] = messages.map((m) => ({
+      role: m.role,
+      content: m.text,
+    }));
+    // Persist nothing, and pull in no prior context — a userId is required
+    // by the agent, but recentMessages:0 + no search keeps the turn
+    // sandboxed to just what the client sent.
+    const sandboxed = {
+      storageOptions: { saveMessages: "none" },
+      contextOptions: { recentMessages: 0, searchOptions: { limit: 0 } },
+    } as const;
+    const result = await dhee.generateText(
       ctx,
       { userId },
       {
-        system: buildSystemPrompt({
-          ...personalization,
-          ...(replyScript ? { replyScript } : {}),
-        }),
-        messages: messages.map((m) => ({ role: m.role, content: m.text })),
+        system,
+        messages: history,
         // Study mode is a setting, and settings apply in incognito.
         ...replyOptionsFor(
           personalization.traditions,
           personalization.preferredModel,
         ),
       },
-      {
-        // Persist nothing, and pull in no prior context — a userId is required
-        // by the agent, but recentMessages:0 + no search keeps the turn
-        // sandboxed to just what the client sent.
-        storageOptions: { saveMessages: "none" },
-        contextOptions: { recentMessages: 0, searchOptions: { limit: 0 } },
-      },
+      sandboxed,
     );
-    return { text, crisisFlagged };
+    if (wroteAnything(result.steps)) {
+      return { text: result.text, crisisFlagged };
+    }
+    // The same rescue a saved thread gets (`rescueEmptyReply`), from the
+    // lookups this call made.
+    const rescued = await dhee.generateText(
+      ctx,
+      { userId },
+      {
+        system,
+        messages: [...history, ...answerOnlyMessages(result.response.messages)],
+        model: rescueModel(),
+        activeTools: [],
+        toolChoice: "none",
+        stopWhen: stepCountIs(1),
+      },
+      sandboxed,
+    );
+    return { text: rescued.text, crisisFlagged };
   },
 });
 
@@ -527,6 +556,74 @@ export function replyOptionsFor(
   };
 }
 
+/** Whether any step of a turn wrote text a person can read. */
+export function wroteAnything(steps: ReadonlyArray<{ text: string }>): boolean {
+  return steps.some((step) => step.text.trim().length > 0);
+}
+
+/**
+ * Writes the answer a turn failed to write, from what it looked up.
+ *
+ * The last line of defence behind the final-step guard (`stepGuard` in
+ * convex/agents/steps.ts). A turn that still ends with nothing written —
+ * DeepSeek wrote only markup, which the filter removed, or stopped without
+ * writing — would otherwise leave an empty bubble. This makes one more call,
+ * on `rescueModel`, with no tools, the turn's lookups rewritten as plain text
+ * and earlier turns' tool traffic left out as usual. It is saved as part of
+ * the same reply, so the person sees an answer arrive late rather than none.
+ */
+async function rescueEmptyReply(
+  ctx: ActionCtx,
+  args: {
+    threadId: string;
+    userId: Id<"users">;
+    promptMessageId: string;
+    system: string;
+  },
+) {
+  console.warn(`empty reply in ${args.threadId}; rescuing on another model`);
+  const result = await dhee.streamText(
+    ctx,
+    { threadId: args.threadId, userId: args.userId },
+    {
+      promptMessageId: args.promptMessageId,
+      system: args.system,
+      model: rescueModel(),
+      activeTools: [],
+      toolChoice: "none",
+      stopWhen: stepCountIs(1),
+    },
+    {
+      saveStreamDeltas: { chunking: "word", throttleMs: 100 },
+      // The turn's own tool messages are what the answer has to be written
+      // from, so they are read in here and flattened below.
+      contextOptions: { ...REPLY_CONTEXT_OPTIONS, excludeToolMessages: false },
+      contextHandler: async (
+        _ctx,
+        { recent, inputPrompt, existingResponses },
+      ) => rescueContext({ recent, inputPrompt, existingResponses }),
+    },
+  );
+  await result.consumeStream();
+}
+
+/**
+ * The messages a rescue is written from: earlier turns without their tool
+ * traffic (as every reply gets them), then this turn's question, then this
+ * turn's lookups as plain text, then the note to answer now.
+ */
+export function rescueContext(parts: {
+  recent: ModelMessage[];
+  inputPrompt: ModelMessage[];
+  existingResponses: ModelMessage[];
+}): ModelMessage[] {
+  return [
+    ...withoutToolParts(parts.recent),
+    ...parts.inputPrompt,
+    ...answerOnlyMessages(parts.existingResponses),
+  ];
+}
+
 export const streamReply = internalAction({
   args: {
     threadId: v.string(),
@@ -544,17 +641,18 @@ export const streamReply = internalAction({
       ctx.runQuery(internal.users.personalizationForUser, { userId }),
     ]);
     const replyScript = detectReplyScript(promptText ?? "");
+    const system = buildSystemPrompt({
+      contextBlock,
+      ...personalization,
+      ...(replyScript ? { replyScript } : {}),
+    });
     try {
       const result = await dhee.streamText(
         ctx,
         { threadId, userId },
         {
           promptMessageId,
-          system: buildSystemPrompt({
-            contextBlock,
-            ...personalization,
-            ...(replyScript ? { replyScript } : {}),
-          }),
+          system,
           ...replyOptionsFor(
             personalization.traditions,
             personalization.preferredModel,
@@ -567,6 +665,14 @@ export const streamReply = internalAction({
         },
       );
       await result.consumeStream();
+      if (!wroteAnything(await result.steps)) {
+        await rescueEmptyReply(ctx, {
+          threadId,
+          userId,
+          promptMessageId,
+          system,
+        });
+      }
     } finally {
       // In `finally` because a stopped stream makes the consume throw, and a
       // thread stopped on its first turn still needs a name.

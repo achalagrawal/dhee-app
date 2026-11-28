@@ -64,6 +64,15 @@ export const BACKGROUND_MODEL = "deepseek/deepseek-v4-flash-0731";
 // those labelled light went deep. Median 1.0s, 90th percentile 1.5s, no
 // timeouts. v4-flash-0731 was 74%, with timeouts; with its thinking on, a
 // third of calls overran the four-second limit.
+//
+// Also tried, same day: TypeSafe's Jev 1.14, a Decisions model built for this
+// (`classifyWithDecisions` in convex/agents/router.ts). Twice as fast — 0.45s
+// median — but 71% agreement, and it sent about half of all term lookups to
+// the deep tier: 43 deep questions light and 112 light questions deep,
+// against 36 and 94 here. Requiring 70% confidence before a light route cut
+// the first to 29 but raised the second to 152. Worth re-running when Jev
+// ships a new version: `npx convex run evals/routing:classify` with
+// `"decisions": true`.
 export const ROUTER_MODEL = "deepseek/deepseek-v4.1-flash-1017";
 
 // Extraction fires on two independent triggers, because either one alone

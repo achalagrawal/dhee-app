@@ -7,6 +7,7 @@ import {
   type RouteInput,
   type RouteKind,
   classifierPrompt,
+  classifyWithDecisions,
   routeByRules,
   routeTurn,
   tierForKind,
@@ -175,6 +176,64 @@ describe("routeTurn", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("classifyWithDecisions", () => {
+  // A stubbed fetch stands in for OpenRouter's Decisions API.
+  const reply = (choice: string, probabilities: Record<string, number>) =>
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            answers: { kind: { type: "choice", choice, probabilities } },
+            usage: { input_tokens: 300, output_tokens: 10, cost: 0.00001 },
+          }),
+        ),
+    ) as unknown as typeof fetch;
+
+  test("asks one choice question whose options are the kinds", async () => {
+    const fetchImpl = reply("term-lookup", { "term-lookup": 1 });
+    await classifyWithDecisions({
+      model: "typesafe/jev-1.14",
+      apiKey: "k",
+      fetchImpl,
+    })({
+      ...base,
+      text: "What is samadhan?",
+    });
+    const body = JSON.parse(
+      (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![1].body,
+    );
+    expect(body.model).toBe("typesafe/jev-1.14");
+    expect(Object.keys(body.questions.kind.criteria)).toEqual([...ROUTE_KINDS]);
+  });
+
+  test("a light pick it is unsure of goes to the likeliest deep kind", async () => {
+    const classify = classifyWithDecisions({
+      model: "typesafe/jev-1.14",
+      apiKey: "k",
+      minLightProbability: 0.7,
+      fetchImpl: reply("term-lookup", {
+        "term-lookup": 0.55,
+        concept: 0.3,
+        personal: 0.15,
+      }),
+    });
+    expect(await classify({ ...base, text: "x" })).toBe("concept");
+  });
+
+  test("an error response throws, so routing falls back", async () => {
+    const classify = classifyWithDecisions({
+      model: "typesafe/jev-1.14",
+      apiKey: "k",
+      fetchImpl: vi.fn(
+        async () => new Response("nope", { status: 500 }),
+      ) as unknown as typeof fetch,
+    });
+    await expect(classify({ ...base, text: "x" })).rejects.toThrow(
+      "decisions 500",
+    );
   });
 });
 

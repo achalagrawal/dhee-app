@@ -136,20 +136,37 @@ export function tierForKind(
   return LIGHT.has(kind) ? "quick" : input.deepTier;
 }
 
-export const CLASSIFIER_SYSTEM = `You sort messages sent to Dhee, an assistant for students of Madhyasth Darshan (a philosophy by A. Nagraj, with books in Hindi). You do not answer them. Pick the one kind that fits the person's latest message best.
+/** What each kind means, as both classifiers are told. */
+export const KIND_DESCRIPTIONS: Record<RouteKind, string> = {
+  acknowledgement: "thanks, ok, a greeting, nothing asked",
+  "term-lookup":
+    "what one word or term means, its definition (paribhasha), a single short fact",
+  "find-text":
+    "where something is written, which book or page, read out a specific page or line",
+  translation: "translate given text, with nothing else asked",
+  drafting:
+    "write or tidy a short practical text — a message, invitation, schedule, post — that needs no deep explanation",
+  practical:
+    "an everyday practical question with a plain answer (time, a recipe, how to do a task)",
+  "short-follow-up":
+    'a one-line continuation that only makes sense with the previous message ("and the second one?", "explain more", "give an example")',
+  concept:
+    "explain how an idea of the darshan works, why something is so, what it means for living",
+  comparison: "compare or relate several concepts, terms, or views",
+  personal:
+    "the person's own life, feelings, relationships, decisions, struggles",
+  "multi-part-study":
+    "a long or multi-part study request — explain fully, summarise a chapter, prepare questions, trace a term across books",
+  "refine-message":
+    "rewrite or refine a message so it expresses the darshan's understanding properly",
+};
 
-- acknowledgement: thanks, ok, a greeting, nothing asked
-- term-lookup: what one word or term means, its definition (paribhasha), a single short fact
-- find-text: where something is written, which book or page, read out a specific page or line
-- translation: translate given text, with nothing else asked
-- drafting: write or tidy a short practical text — a message, invitation, schedule, post — that needs no deep explanation
-- practical: an everyday practical question with a plain answer (time, a recipe, how to do a task)
-- short-follow-up: a one-line continuation that only makes sense with the previous message ("and the second one?", "explain more", "give an example")
-- concept: explain how an idea of the darshan works, why something is so, what it means for living
-- comparison: compare or relate several concepts, terms, or views
-- personal: the person's own life, feelings, relationships, decisions, struggles
-- multi-part-study: a long or multi-part study request — explain fully, summarise a chapter, prepare questions, trace a term across books
-- refine-message: rewrite or refine a message so it expresses the darshan's understanding properly
+const ABOUT_DHEE =
+  "Dhee is an assistant for students of Madhyasth Darshan (a philosophy by A. Nagraj, with books in Hindi).";
+
+export const CLASSIFIER_SYSTEM = `You sort messages sent to Dhee. ${ABOUT_DHEE} You do not answer them. Pick the one kind that fits the person's latest message best.
+
+${ROUTE_KINDS.map((kind) => `- ${kind}: ${KIND_DESCRIPTIONS[kind]}`).join("\n")}
 
 When torn between a light kind and a deep one, choose the deep one.`;
 
@@ -203,6 +220,87 @@ export async function routeTurn(
       by: "fallback",
     };
   }
+}
+
+/**
+ * A classifier on a Decisions model (OpenRouter's `/api/alpha/decisions`),
+ * such as TypeSafe's Jev: one `choice` question whose options are the kinds.
+ * It returns a probability for every kind, not only the pick, so a turn is
+ * sent light only when the light kinds together are likely enough
+ * (`minLightProbability`) — a hedge the chat classifier cannot give.
+ */
+export function classifyWithDecisions(args: {
+  model: string;
+  apiKey: string;
+  minLightProbability?: number;
+  onUsage?: (usage: ClassifierUsage, cost: number | undefined) => void;
+  fetchImpl?: typeof fetch;
+}) {
+  return async (input: RouteInput): Promise<RouteKind> => {
+    const doFetch = args.fetchImpl ?? fetch;
+    const response = await doFetch(
+      "https://openrouter.ai/api/alpha/decisions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${args.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: args.model,
+          state: classifierPrompt(input),
+          questions: {
+            kind: {
+              type: "choice",
+              instructions: `${ABOUT_DHEE} Which kind of message is the person's latest message? When torn between a light kind and a deep one, choose the deep one.`,
+              criteria: KIND_DESCRIPTIONS,
+            },
+          },
+        }),
+        signal: AbortSignal.timeout(CLASSIFIER_TIMEOUT_MS),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `decisions ${response.status}: ${(await response.text()).slice(0, 300)}`,
+      );
+    }
+    const body = (await response.json()) as {
+      answers?: {
+        kind?: { choice?: string; probabilities?: Record<string, number> };
+      };
+      usage?: { input_tokens?: number; output_tokens?: number; cost?: number };
+    };
+    args.onUsage?.(
+      {
+        inputTokens: body.usage?.input_tokens,
+        outputTokens: body.usage?.output_tokens,
+      },
+      body.usage?.cost,
+    );
+    const answer = body.answers?.kind;
+    const choice = answer?.choice as RouteKind | undefined;
+    if (!choice || !ROUTE_KINDS.includes(choice)) {
+      throw new Error(`decisions returned no usable kind: ${String(choice)}`);
+    }
+    const threshold = args.minLightProbability;
+    if (threshold !== undefined && LIGHT.has(choice) && answer?.probabilities) {
+      const light = Object.entries(answer.probabilities)
+        .filter(([kind]) => LIGHT.has(kind as RouteKind))
+        .reduce((sum, [, p]) => sum + p, 0);
+      // Not sure enough it is light: take the likeliest deep kind instead.
+      if (light < threshold) {
+        const deep = Object.entries(answer.probabilities)
+          .filter(
+            ([kind]) =>
+              !LIGHT.has(kind as RouteKind) && kind !== "short-follow-up",
+          )
+          .sort((a, b) => b[1] - a[1])[0];
+        if (deep) return deep[0] as RouteKind;
+      }
+    }
+    return choice;
+  };
 }
 
 /** A classifier on `model`, reporting its token usage to `onUsage`. */

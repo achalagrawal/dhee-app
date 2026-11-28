@@ -1,7 +1,12 @@
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { classifierModel } from "../agents/config";
-import { type RouteKind, classifyWith, routeTurn } from "../agents/router";
+import {
+  type RouteKind,
+  classifyWith,
+  classifyWithDecisions,
+  routeTurn,
+} from "../agents/router";
 
 // Auto's router, run over a batch of messages, for checking it against
 // hand-labelled questions before changing CLASSIFIER_SYSTEM or the kinds.
@@ -23,6 +28,10 @@ export const classify = internalAction({
     concurrency: v.optional(v.number()),
     /** An OpenRouter slug to try in ROUTER_MODEL's place. */
     model: v.optional(v.string()),
+    /** Use the Decisions API (e.g. Jev) with `model` instead of chat. */
+    decisions: v.optional(v.boolean()),
+    /** For decisions: how sure it must be that a turn is light. */
+    minLightProbability: v.optional(v.number()),
   },
   returns: v.array(
     v.object({
@@ -33,8 +42,17 @@ export const classify = internalAction({
       ms: v.number(),
     }),
   ),
-  handler: async (_ctx, { items, concurrency, model }) => {
-    const classify = classifyWith(classifierModel(model));
+  handler: async (
+    _ctx,
+    { items, concurrency, model, decisions, minLightProbability },
+  ) => {
+    const classify = decisions
+      ? classifyWithDecisions({
+          model: model ?? "typesafe/jev-1.14",
+          apiKey: process.env.OPENROUTER_API_KEY ?? "",
+          ...(minLightProbability !== undefined ? { minLightProbability } : {}),
+        })
+      : classifyWith(classifierModel(model));
     const out: Array<{
       id: string;
       tier: string;

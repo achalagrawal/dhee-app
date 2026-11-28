@@ -70,6 +70,11 @@ const LIGHT: ReadonlySet<RouteKind> = new Set([
   "practical",
 ]);
 
+/** Whether Auto read this turn as one of the light kinds. */
+export function isLightKind(kind: string | undefined): boolean {
+  return kind !== undefined && LIGHT.has(kind as RouteKind);
+}
+
 export type RouteDecision = {
   tier: AnsweringTier;
   kind: RouteKind | "crisis" | "attachment" | "fallback";

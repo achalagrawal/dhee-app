@@ -48,7 +48,7 @@ export const searchWisdom = createTool({
 });
 
 export const searchExactPhrase = createTool({
-  description: `Find passages containing an exact word or phrase. Use only when you already know a specific term and want the passages that use it — for a person's open-ended life question, use searchWisdom instead. Results say how many pages of hits there are, so you can ask for a later one. Some hits are front matter rather than a numbered page; those are marked and must not be cited as a page.`,
+  description: `Find passages containing an exact word or phrase, in Devanagari. Use only when you already know a specific term and want the passages that use it — for a person's open-ended life question, use searchWisdom instead. Search for one to three words, or a line copied exactly from a book; a bundle of keywords almost never occurs word for word. When nothing matches exactly, the result says so and gives the closest passages by meaning instead — don't present those as occurrences. Results say how many pages of hits there are, so you can ask for a later one. Some hits are front matter rather than a numbered page; those are marked and must not be cited as a page.`,
   inputSchema: z.object({
     query: z.string().describe("The exact word or phrase to find."),
     bookIds: z
@@ -72,7 +72,7 @@ export const searchExactPhrase = createTool({
 });
 
 export const lookupDefinition = createTool({
-  description: `Look up how the source tradition precisely defines one of its own terms. Use this to sharpen your own understanding when a search result hinges on a term you want to be accurate about. The definitions come back dense and technical. Alongside the term you asked for, the result names related terms in the lexicon, which you can look up in turn if one of them is what you actually meant.`,
+  description: `Look up how the source tradition precisely defines one of its own terms. Use this to sharpen your own understanding when a search result hinges on a term you want to be accurate about. The definitions come back dense and technical. Look up a single base term (सहअस्तित्व, संबंध, जीवन), not a phrase; other spellings are tried for you. Alongside the term you asked for, the result names related terms in the lexicon, which you can look up in turn if one of them is what you actually meant. A definition's pageno is a page of the lexicon itself: cite it as the paribhasha, never as a page of another book, and don't pass it to readPage.`,
   inputSchema: z.object({
     word: z
       .string()
@@ -126,6 +126,46 @@ export const readBookToc = createTool({
     return await ctx.runAction(internal.md.getBookToc, { bookId });
   },
 });
+
+/** What a lookup returns once a reply has used up its budget. */
+export const CALL_BUDGET_SPENT =
+  "Not run: this reply has used all its lookups. Answer now from what you have already found.";
+
+/**
+ * The same tools, sharing one budget of calls for a single reply.
+ *
+ * The step budget limits rounds, but not how many calls a model packs into one
+ * round: on the 2026-11-28 export one reply made 113 calls, 94 of them
+ * lookups, and DeepSeek V4.1's median was 10. Past `max`, a call returns a note
+ * to answer instead of running. Make a fresh set per reply — the count lives
+ * in the closure.
+ */
+export function withCallBudget<T extends Record<string, unknown>>(
+  tools: T,
+  max: number,
+): T {
+  let used = 0;
+  return Object.fromEntries(
+    Object.entries(tools).map(([name, tool]) => {
+      const t = tool as { execute?: (...args: unknown[]) => unknown };
+      if (!t.execute) return [name, tool];
+      const execute = t.execute;
+      return [
+        name,
+        {
+          ...t,
+          // `this` carries the Convex ctx the agent binds to each tool (see
+          // createTool's `getCtx(this)`), so it is passed straight through.
+          execute(this: unknown, ...args: unknown[]) {
+            used += 1;
+            if (used > max) return Promise.resolve(CALL_BUDGET_SPENT);
+            return execute.apply(this, args);
+          },
+        },
+      ];
+    }),
+  ) as T;
+}
 
 export const mdTools = {
   searchWisdom,

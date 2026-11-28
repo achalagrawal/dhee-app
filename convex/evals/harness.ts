@@ -3,6 +3,12 @@ import { v } from "convex/values";
 import { internalAction, type ActionCtx } from "../_generated/server";
 import { buildSystemPrompt, dhee, isCorpusLens } from "../agents/dhee";
 import { evalModelFor, evalModelSlugFor } from "../agents/config";
+import {
+  planPrefetch,
+  prefetchNote,
+  runPrefetch,
+  shownResults,
+} from "../agents/prefetch";
 import { detectReplyScript } from "../lib/script";
 import { replyOptionsFor } from "../chat";
 import { CHAT_MODEL } from "../config";
@@ -145,13 +151,15 @@ type RunOptions = {
   baseInstructions: string;
   /** Model override; absent means the default tier, same as production. */
   model?: ReturnType<typeof evalModelFor>;
+  /** Whether the app's first round of lookups runs, as in production. */
+  prefetch: boolean;
 };
 
 async function runOnce(
   ctx: ActionCtx,
   evalCase: EvalCase,
   repeat: number,
-  { judge, baseInstructions, model }: RunOptions,
+  { judge, baseInstructions, model, prefetch }: RunOptions,
 ): Promise<EvalResult> {
   const persona = PERSONAS[evalCase.persona];
   const probe = PROBES[evalCase.probe];
@@ -190,23 +198,27 @@ async function runOnce(
 
   const started = Date.now();
   try {
+    // Inside the timing, as in production: the prefetch is part of the wait.
+    // No route kind here (the suite picks the model itself), which is how a
+    // person with a fixed tier is served: everything the prefetch found.
+    const prefetched = prefetch
+      ? shownResults(await runPrefetch(planPrefetch(probe.text)), undefined)
+      : [];
+    const note = prefetchNote(prefetched, undefined);
     const result = await withTimeout(
       dhee.generateText(
         ctx,
         { userId: EVAL_USER_ID },
         {
           system,
-          ...(probe.priorTurns
-            ? {
-                messages: [
-                  ...probe.priorTurns.map((t) => ({
-                    role: t.role,
-                    content: t.text,
-                  })),
-                  { role: "user" as const, content: probe.text },
-                ],
-              }
-            : { prompt: probe.text }),
+          messages: [
+            ...(probe.priorTurns ?? []).map((t) => ({
+              role: t.role,
+              content: t.text,
+            })),
+            { role: "user" as const, content: probe.text },
+            ...(note ? [note] : []),
+          ],
           // The same per-turn options a real reply gets, so the step budget
           // under test is the one the app actually uses. The model override
           // comes after, because replyOptionsFor names the default tier's
@@ -232,12 +244,24 @@ async function runOnce(
         .filter(Boolean)
         .join("\n\n") || result.text;
 
-    const toolCalls = result.steps.flatMap((s) => s.toolCalls ?? []);
-    const toolOutputs = result.steps
-      .flatMap((s) => s.toolResults ?? [])
-      .map((r) =>
-        typeof r.output === "string" ? r.output : JSON.stringify(r.output),
-      );
+    // The app's own first round counts as searching: the model was handed
+    // those results exactly as if it had made the calls.
+    const toolCalls = [
+      ...prefetched.map((p) => ({
+        toolName: p.tool,
+        input: p.input as unknown,
+        prefetched: true,
+      })),
+      ...result.steps.flatMap((s) => s.toolCalls ?? []),
+    ];
+    const toolOutputs = [
+      ...prefetched.map((p) => p.output),
+      ...result.steps
+        .flatMap((s) => s.toolResults ?? [])
+        .map((r) =>
+          typeof r.output === "string" ? r.output : JSON.stringify(r.output),
+        ),
+    ];
 
     // Summed across steps: `result.providerMetadata` is the last step's alone,
     // which would under-report a twelve-step turn by an order of magnitude.
@@ -291,7 +315,8 @@ async function runOnce(
       toolCalls: toolCalls.map((c) => ({
         toolName: c.toolName,
         input: c.input,
-        ...(c.invalid ? { invalid: true } : {}),
+        ...("invalid" in c && c.invalid ? { invalid: true } : {}),
+        ...("prefetched" in c ? { prefetched: true } : {}),
       })),
       toolResultSizes: toolOutputs.map((o) => o.length),
       checks,
@@ -337,6 +362,8 @@ export const run = internalAction({
     model: v.optional(v.string()),
     /** A prompt variant id from convex/evals/variants.ts. */
     variant: v.optional(v.string()),
+    /** Skip the app's first round of lookups, to measure what it buys. */
+    noPrefetch: v.optional(v.boolean()),
   },
   // The summary is validated so a bare `convex run` in a terminal is readable;
   // the detail rides along as one JSON string. Fifteen heterogeneous case
@@ -396,6 +423,7 @@ export const run = internalAction({
                   judge,
                   baseInstructions: base,
                   model,
+                  prefetch: !args.noPrefetch,
                 }),
               );
             }

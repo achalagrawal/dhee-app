@@ -185,6 +185,33 @@ function claudeModel(slug: string) {
   });
 }
 
+/**
+ * Which OpenRouter providers Quick prefers. DeepSeek V4.1 is served by about
+ * thirty, writing at anywhere from 35 to 200+ tokens a second, and OpenRouter's
+ * default routing leans to the cheapest. A reply is mostly writing — on the
+ * 2026-11-28 eval the median reply produced ~2,400 output tokens, most of them
+ * reasoning — so the provider's speed is felt directly.
+ */
+export const QUICK_PROVIDER_SORT: "throughput" | undefined = "throughput";
+
+/**
+ * The most Quick pays per million tokens, so "fastest" doesn't mean the
+ * priciest. Uncapped, throughput routing chose providers charging up to
+ * $0.90/M output and nearly tripled the cost of a reply.
+ */
+export const QUICK_MAX_PRICE = { prompt: 0.15, completion: 0.5 } as const;
+
+/**
+ * Quick's reasoning effort; undefined is DeepSeek's default. Reasoning is most
+ * of a Quick reply's output tokens, and so most of its writing time.
+ *
+ * Left at the default here, and lowered per reply for light questions (see
+ * LIGHT_REASONING in convex/chat.ts). On the 2026-11-28 eval, `low` for every
+ * reply cut the median from 27 s to 21.5 s with overall quality unchanged —
+ * but the judge's score on deep study questions fell from 4.2 to 3.2.
+ */
+export const QUICK_REASONING_EFFORT: "low" | "medium" | undefined = undefined;
+
 // The `quick` tier, and the default. Deliberately no
 // `cache_control` and no breakpoint middleware: both are Anthropic mechanisms,
 // and this tier does not route there. DeepSeek caches context on its own terms
@@ -201,7 +228,20 @@ function claudeModel(slug: string) {
 // Wrapped so DeepSeek's own tool-call markup never reaches a reply as text —
 // see convex/agents/specialTokens.ts.
 const quickOnOpenRouter = wrapLanguageModel({
-  model: openrouter.chat(MODEL_SLUGS.quick, shared),
+  model: openrouter.chat(MODEL_SLUGS.quick, {
+    ...shared,
+    ...(QUICK_PROVIDER_SORT
+      ? {
+          provider: {
+            sort: QUICK_PROVIDER_SORT,
+            max_price: QUICK_MAX_PRICE,
+          },
+        }
+      : {}),
+    ...(QUICK_REASONING_EFFORT
+      ? { reasoning: { effort: QUICK_REASONING_EFFORT } }
+      : {}),
+  }),
   middleware: stripSpecialTokens,
 });
 

@@ -32,7 +32,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(root, ".evals", "runs");
 
 const USAGE = `pnpm eval [--label <name>] [--only <id|tag> ...] [--repeats <n>]
-                [--concurrency <n>] [--no-judge] [--dry-run]
+                [--concurrency <n>] [--no-judge] [--dry-run] [--no-prefetch]
                 [--model quick|thoughtful|reflective|<openrouter-slug>] [--variant <id>]
                 [--quick]
 pnpm eval --suite extraction [--model chat|background] [--repeats <n>]
@@ -109,6 +109,11 @@ function parseArgs(argv) {
         break;
       case "--dry-run":
         args.dryRun = true;
+        break;
+      case "--no-prefetch":
+        // Skips the app's first round of lookups (convex/agents/prefetch.ts),
+        // to measure what it buys against the same code otherwise.
+        args.noPrefetch = true;
         break;
       case "--help":
       case "-h":

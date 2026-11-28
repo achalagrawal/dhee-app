@@ -166,6 +166,70 @@ describe("stepGuard", () => {
   });
 });
 
+describe("stepGuard with a budget", () => {
+  const guard = stepGuard(12, { openRouterSteps: 6, maxToolCalls: 4 });
+  const taken = (calls: number[]) =>
+    calls.map((n) => ({ toolCalls: Array.from({ length: n }, () => ({})) }));
+
+  test("an open-weight model answers at its own, smaller step budget", () => {
+    const out = guard({
+      stepNumber: 5,
+      model: openrouterModel,
+      messages: turn,
+    });
+    expect(out).toMatchObject({ toolChoice: "none", activeTools: [] });
+    const warned = guard({
+      stepNumber: 4,
+      model: openrouterModel,
+      messages: turn,
+    }) as { messages: ModelMessage[] };
+    expect(String(warned.messages.at(-1)!.content)).toContain(
+      "one more lookup step",
+    );
+  });
+
+  test("any model answers once its tool calls are spent", () => {
+    expect(
+      guard({
+        stepNumber: 1,
+        model: openrouterModel,
+        messages: turn,
+        steps: taken([4]),
+      }),
+    ).toMatchObject({ toolChoice: "none", activeTools: [] });
+    expect(
+      guard({
+        stepNumber: 2,
+        model: claude,
+        messages: turn,
+        steps: taken([2, 2]),
+      }),
+    ).toEqual({ toolChoice: "none" });
+  });
+
+  test("Claude keeps the full step budget while it has calls left", () => {
+    expect(
+      guard({
+        stepNumber: 7,
+        model: claude,
+        messages: turn,
+        steps: taken([1]),
+      }),
+    ).toEqual({});
+  });
+
+  test("calls under the budget leave an early step alone", () => {
+    expect(
+      guard({
+        stepNumber: 1,
+        model: openrouterModel,
+        messages: turn,
+        steps: taken([3]),
+      }),
+    ).toEqual({});
+  });
+});
+
 test("answerOnlyMessages ends on the note to answer now", () => {
   const out = answerOnlyMessages(turn);
   expect(out.at(-1)).toMatchObject({ role: "user" });

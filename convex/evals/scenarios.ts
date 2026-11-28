@@ -358,7 +358,9 @@ export const CASES: EvalCase[] = [
     expect: {
       ...ORDINARY,
       retrieval: "required",
-      expectTools: ["listBooks", "readPage"],
+      // readPage alone: the book can be resolved from listBooks or from a
+      // search result the app prefetched — what matters is the page was read.
+      expectTools: ["readPage"],
       citations: "allowed",
       verbatimQuote: "allowed",
     },
@@ -494,7 +496,9 @@ export const CASES: EvalCase[] = [
     why: "personalization.md:354 — the capability #62 was missing. Resolve the book, read the page, quote it, say where it is from. Also where STUDY_STEPS gets measured.",
     expect: {
       retrieval: "required",
-      expectTools: ["listBooks", "readPage"],
+      // readPage alone: the book can be resolved from listBooks or from a
+      // search result the app prefetched — what matters is the page was read.
+      expectTools: ["readPage"],
       citations: "allowed",
       termsOfArt: "allowed",
       verbatimQuote: "required",

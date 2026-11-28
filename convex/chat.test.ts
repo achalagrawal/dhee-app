@@ -7,6 +7,7 @@ import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import {
   REPLY_CONTEXT_OPTIONS,
   TITLE_CONTEXT_OPTIONS,
+  LIGHT_REASONING,
   replyOptionsFor,
   rescueContext,
   wroteAnything,
@@ -1320,6 +1321,30 @@ describe("chat — per-turn model options", () => {
     expect(replyOptionsFor([], "quick", "thread-1").providerOptions).toEqual({
       openrouter: { session_id: "thread-1" },
     });
+  });
+
+  test("a light question thinks less; a deep one, or no reading, keeps the default", () => {
+    expect(
+      replyOptionsFor([], "quick", "thread-1", "term-lookup").providerOptions,
+    ).toEqual({
+      openrouter: { session_id: "thread-1", reasoning: LIGHT_REASONING },
+    });
+    expect(
+      replyOptionsFor([], "quick", undefined, "drafting").providerOptions,
+    ).toEqual({ openrouter: { reasoning: LIGHT_REASONING } });
+    for (const kind of ["multi-part-study", "personal", "concept", undefined]) {
+      expect(
+        replyOptionsFor([], "quick", "thread-1", kind).providerOptions,
+        String(kind),
+      ).toEqual({ openrouter: { session_id: "thread-1" } });
+    }
+  });
+
+  test("every reply gets its own budget of tool calls", () => {
+    const a = replyOptionsFor([]).tools;
+    const b = replyOptionsFor([]).tools;
+    expect(Object.keys(a)).toEqual(Object.keys(b));
+    expect(a.searchWisdom).not.toBe(b.searchWisdom);
   });
 
   test("incognito turns carry no session id", () => {

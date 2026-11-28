@@ -52,6 +52,16 @@ export const CHAT_MODEL = MODEL_SLUGS[BASE_TIER];
 // Quick ran on until the same day, so it is known to work on this account.
 export const BACKGROUND_MODEL = "deepseek/deepseek-v4-flash-0731";
 
+// Voice input (convex/voice.ts). Chosen 2026-11-28 by `convex/evals/voice.ts`:
+// six spoken questions in Hindi, Hindi with English words, English, Gujarati
+// and Telugu. Scribe v2 had a mean character error of 1–2% and kept English
+// words in English the way people type them; MAI-Transcribe 2 was next at 8%,
+// writing those English words in Devanagari. Whisper Large v3 was 29% and
+// turned the Telugu question into an English translation; OpenAI's own
+// transcription models are refused on this account. About $0.0003 a clip.
+export const TRANSCRIBE_MODEL = "elevenlabs/scribe-v2";
+export const TRANSCRIBE_FALLBACK_MODEL = "microsoft/mai-transcribe-2";
+
 // Auto's classifier, which picks the model for each turn. Separate from
 // BACKGROUND_MODEL because it sits in front of every Auto reply, so speed
 // matters more here than anywhere else in the background.

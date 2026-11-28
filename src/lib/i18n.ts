@@ -138,6 +138,16 @@ const strings = {
     modelUnavailable: "Not available right now.",
     voiceMode: "Voice mode",
     dictate: "Dictate",
+    dictationDone: "Done speaking",
+    dictationCancel: "Cancel recording",
+    dictationWorking: "Writing it down…",
+    dictationNothingHeard:
+      "Didn't catch anything. Try again a little closer to the mic.",
+    dictationTooLong: "That recording was too long. Try a shorter one.",
+    dictationFailed: "Couldn't turn that into text. Please try again.",
+    micBlocked:
+      "Microphone access is off. Allow it in your browser's site settings to dictate.",
+    micMissing: "No microphone found.",
     addFiles: "Add files, photos, web search",
     // Attachments
     addPhoto: "Add a photo",
@@ -400,6 +410,16 @@ const strings = {
     modelUnavailable: "अभी उपलब्ध नहीं है।",
     voiceMode: "वॉइस मोड",
     dictate: "बोलकर लिखें",
+    dictationDone: "बोलना पूरा",
+    dictationCancel: "रिकॉर्डिंग रद्द करें",
+    dictationWorking: "लिख रहे हैं…",
+    dictationNothingHeard:
+      "कुछ सुनाई नहीं दिया। माइक के थोड़ा पास बोलकर फिर कोशिश करें।",
+    dictationTooLong: "रिकॉर्डिंग बहुत लंबी थी। थोड़ा छोटा बोलकर देखें।",
+    dictationFailed: "बोली को लिखा नहीं जा सका। कृपया फिर कोशिश करें।",
+    micBlocked:
+      "माइक की अनुमति बंद है। बोलकर लिखने के लिए ब्राउज़र की साइट सेटिंग में इसे चालू करें।",
+    micMissing: "कोई माइक नहीं मिला।",
     addFiles: "फ़ाइल, फ़ोटो, वेब खोज जोड़ें",
     // Attachments
     addPhoto: "फ़ोटो जोड़ें",

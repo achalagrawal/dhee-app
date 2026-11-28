@@ -31,6 +31,7 @@ import type * as evals_judge from "../evals/judge.js";
 import type * as evals_routing from "../evals/routing.js";
 import type * as evals_scenarios from "../evals/scenarios.js";
 import type * as evals_variants from "../evals/variants.js";
+import type * as evals_voice from "../evals/voice.js";
 import type * as http from "../http.js";
 import type * as lib_backend from "../lib/backend.js";
 import type * as lib_crisis from "../lib/crisis.js";
@@ -40,6 +41,7 @@ import type * as lib_passages from "../lib/passages.js";
 import type * as lib_plan from "../lib/plan.js";
 import type * as lib_redirect from "../lib/redirect.js";
 import type * as lib_script from "../lib/script.js";
+import type * as lib_transcribe from "../lib/transcribe.js";
 import type * as md from "../md.js";
 import type * as memory from "../memory.js";
 import type * as routing from "../routing.js";
@@ -49,6 +51,7 @@ import type * as tools_md from "../tools/md.js";
 import type * as understanding from "../understanding.js";
 import type * as usage from "../usage.js";
 import type * as users from "../users.js";
+import type * as voice from "../voice.js";
 
 import type {
   ApiFromModules,
@@ -80,6 +83,7 @@ declare const fullApi: ApiFromModules<{
   "evals/routing": typeof evals_routing;
   "evals/scenarios": typeof evals_scenarios;
   "evals/variants": typeof evals_variants;
+  "evals/voice": typeof evals_voice;
   http: typeof http;
   "lib/backend": typeof lib_backend;
   "lib/crisis": typeof lib_crisis;
@@ -89,6 +93,7 @@ declare const fullApi: ApiFromModules<{
   "lib/plan": typeof lib_plan;
   "lib/redirect": typeof lib_redirect;
   "lib/script": typeof lib_script;
+  "lib/transcribe": typeof lib_transcribe;
   md: typeof md;
   memory: typeof memory;
   routing: typeof routing;
@@ -98,6 +103,7 @@ declare const fullApi: ApiFromModules<{
   understanding: typeof understanding;
   usage: typeof usage;
   users: typeof users;
+  voice: typeof voice;
 }>;
 
 /**

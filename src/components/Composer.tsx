@@ -18,12 +18,18 @@ import {
   MODEL_TIERS,
   type ModelTier,
 } from "../../convex/agents/models";
+import {
+  appendTranscript,
+  failureMessageKey,
+  formatElapsed,
+} from "../lib/dictation";
 import { t } from "../lib/i18n";
 import { composerKeyAction } from "../lib/keyboard";
 import { modelDescKey, modelNameKey, modelPillLabel } from "../lib/models";
 import { useTheme } from "../lib/ThemeContext";
 import { font, noFocusRing, radius, shadow } from "../lib/theme";
 import type { Attachment } from "../lib/useAttachments";
+import { useDictation } from "../lib/useDictation";
 import { useEnterToSend } from "../lib/useEnterToSend";
 import { useLanguage } from "../lib/useLanguage";
 import { Icon, IconButton } from "./ui";
@@ -63,11 +69,10 @@ const MAX_HEIGHT = 160;
 // inert until its backend exists — it surfaces a "coming soon" note so nothing
 // looks broken.
 //
-// Voice mode and dictation used to sit beside Send and pop "coming soon" (#97).
-// Neither has a cheap path — dictation needs a native module or a transcription
-// vendor, voice mode needs TTS plus barge-in — so they are hidden rather than
-// left inert next to the button people press most. They come back when Epic 12
-// lands; their icons (`mic`/`voice`) and labels are still in place waiting.
+// Dictation sits beside Send where the browser can record: speak, and the
+// words land in the box to read and fix before sending
+// (docs/build/specs/dictation.md). Voice mode — spoken replies with barge-in —
+// is still hidden; its `voice` icon waits for Epic 12.
 export function Composer({
   value,
   onChangeText,
@@ -92,6 +97,16 @@ export function Composer({
   const uploading = attachments.some((a) => !a.fileId);
   const canSend =
     (value.trim().length > 0 || attachments.length > 0) && !uploading;
+
+  // Dictation adds to what is typed; it never replaces it or sends on its own.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const dictation = useDictation((text) => {
+    onChangeText(appendTranscript(valueRef.current, text));
+    inputRef.current?.focus();
+  });
+  const recording = dictation.state.phase === "recording";
+  const transcribing = dictation.state.phase === "transcribing";
 
   const soon = (label: string) => Alert.alert(label, t(lang, "comingSoon"));
 
@@ -291,6 +306,18 @@ export function Composer({
         ]}
       />
 
+      {dictation.error ? (
+        <Pressable
+          onPress={dictation.clearError}
+          accessibilityRole="button"
+          accessibilityLiveRegion="polite"
+        >
+          <Text style={[styles.dictationError, { color: colors.danger }]}>
+            {t(lang, failureMessageKey(dictation.error))}
+          </Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.row}>
         <View style={styles.left}>
           {/* Straight to the photo library. The mockup's attach *menu*
@@ -325,7 +352,57 @@ export function Composer({
         </View>
 
         <View style={styles.right}>
-          {generating ? (
+          {recording ? (
+            <>
+              <IconButton
+                name="close"
+                size={36}
+                accessibilityLabel={t(lang, "dictationCancel")}
+                onPress={dictation.cancel}
+              />
+              <View style={styles.clock} accessibilityLiveRegion="polite">
+                <View
+                  style={[styles.recDot, { backgroundColor: colors.danger }]}
+                />
+                <Text style={[styles.clockText, { color: colors.textSoft }]}>
+                  {formatElapsed(dictation.elapsedMs)}
+                </Text>
+              </View>
+              <IconButton
+                name="check"
+                size={40}
+                variant="accent"
+                accessibilityLabel={t(lang, "dictationDone")}
+                onPress={dictation.stop}
+                style={{ borderRadius: 20 }}
+              />
+            </>
+          ) : null}
+          {transcribing ? (
+            <Text
+              style={[styles.clockText, { color: colors.textSoft }]}
+              accessibilityLiveRegion="polite"
+            >
+              {t(lang, "dictationWorking")}
+            </Text>
+          ) : null}
+          {!recording && !generating && dictation.supported ? (
+            <IconButton
+              name="mic"
+              size={40}
+              variant="surface"
+              disabled={transcribing}
+              accessibilityLabel={t(lang, "dictate")}
+              onPress={() => void dictation.start()}
+              style={{
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: colors.border,
+                opacity: transcribing ? 0.5 : 1,
+              }}
+            />
+          ) : null}
+          {recording ? null : generating ? (
             <IconButton
               name="stop"
               size={40}
@@ -389,6 +466,10 @@ const styles = StyleSheet.create({
   },
   left: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
   right: { flexDirection: "row", alignItems: "center", gap: 8 },
+  clock: { flexDirection: "row", alignItems: "center", gap: 6 },
+  recDot: { width: 8, height: 8, borderRadius: 4 },
+  clockText: { fontSize: 13, fontVariant: ["tabular-nums"] },
+  dictationError: { fontSize: 13, marginTop: 8 },
   modelPill: {
     flexDirection: "row",
     alignItems: "center",

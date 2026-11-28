@@ -165,20 +165,45 @@ type StepInput = {
   stepNumber: number;
   model?: LanguageModel;
   messages?: ModelMessage[];
+  /** The steps already taken this reply, as the AI SDK passes them. */
+  steps?: ReadonlyArray<{ toolCalls?: ReadonlyArray<unknown> }>;
 };
+
+/**
+ * Tighter limits for some replies than the plain step count.
+ *
+ * - `openRouterSteps`: the step budget for models reached through OpenRouter,
+ *   when it is smaller than `steps`. Each tool round is a whole model call —
+ *   3.7 s on DeepSeek V4.1, 7 s on Sonnet 5, against about a second for the
+ *   tools — and DeepSeek V4.1 spent a median of 4 rounds a reply (p90 11) on
+ *   the 2026-11-28 export, where Sonnet spent 2.
+ * - `maxToolCalls`: once this many calls have run, the next step answers.
+ *   Rounds alone don't bound calls, because a round can hold any number.
+ */
+export type StepBudget = { openRouterSteps?: number; maxToolCalls?: number };
+
+function callsSoFar(steps: StepInput["steps"]): number {
+  return (steps ?? []).reduce((n, s) => n + (s.toolCalls?.length ?? 0), 0);
+}
 
 /**
  * `prepareStep` for a budget of `steps`: warns two steps and one step before
  * the end, and makes the last step an answer. `stepNumber` counts from 0, so
- * the last step is `steps - 1`.
+ * the last step is `steps - 1`. With a `budget`, a non-Claude reply ends
+ * sooner, and any reply answers once its tool calls are spent.
  */
-export function stepGuard(steps: number) {
-  return ({ stepNumber, model, messages }: StepInput) => {
-    const last = steps - 1;
+export function stepGuard(steps: number, budget: StepBudget = {}) {
+  return ({ stepNumber, model, messages, steps: taken }: StepInput) => {
+    const callsSpent =
+      budget.maxToolCalls !== undefined &&
+      callsSoFar(taken) >= budget.maxToolCalls;
     if (isAnthropicModel(model) || !messages) {
-      return stepNumber >= last ? { toolChoice: "none" as const } : {};
+      return stepNumber >= steps - 1 || callsSpent
+        ? { toolChoice: "none" as const }
+        : {};
     }
-    if (stepNumber >= last) {
+    const last = Math.min(steps, budget.openRouterSteps ?? steps) - 1;
+    if (stepNumber >= last || callsSpent) {
       return {
         toolChoice: "none" as const,
         activeTools: [] as never[],

@@ -214,8 +214,27 @@ export const REPLY_STEPS = 12;
  * which DeepSeek ignored — see `stepGuard` in convex/agents/steps.ts.
  */
 export function answerOnFinalStep(steps: number) {
-  return stepGuard(steps);
+  return stepGuard(steps, {
+    openRouterSteps: OPENROUTER_REPLY_STEPS,
+    maxToolCalls: MAX_TOOL_CALLS,
+  });
 }
+
+/**
+ * The step budget for Quick and Thoughtful (models through OpenRouter): five
+ * rounds of lookups, then the answer. Lower than REPLY_STEPS for speed — each
+ * round is a whole model call, 4–7 s — and safe to lower now that the last
+ * step always answers, the tools recover from an empty result in the same
+ * call, and the first round is fetched before the model starts (see
+ * convex/prefetch.ts). Claude keeps REPLY_STEPS: it averaged two rounds anyway.
+ *
+ * The STUDY_STEPS warning above still stands for Claude. For these models,
+ * re-measure rounds and replies against real study turns before going lower.
+ */
+export const OPENROUTER_REPLY_STEPS = 6;
+
+/** Tool calls per reply, across all rounds. See `withCallBudget`. */
+export const MAX_TOOL_CALLS = 14;
 
 /** Whether one entry names the corpus, under any of its spellings. */
 export function isCorpusLensName(tradition: string): boolean {

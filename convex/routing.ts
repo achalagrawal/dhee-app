@@ -170,10 +170,14 @@ async function recordClassifierUsage(
  * Never throws: whatever goes wrong, the turn answers on the base tier, the
  * way it would have before Auto existed.
  */
+
+/** What Auto decided for a turn: the tier, and the kind when it was read. */
+export type Route = { tier: AnsweringTier; kind?: RouteDecision["kind"] };
+
 export async function routeSavedTurn(
   ctx: ActionCtx,
   args: { threadId: string; userId: Id<"users">; promptMessageId: string },
-): Promise<AnsweringTier> {
+): Promise<Route> {
   const started = Date.now();
   try {
     const { page } = await listMessages(ctx, components.agent, {
@@ -182,7 +186,7 @@ export async function routeSavedTurn(
       paginationOpts: { cursor: null, numItems: 12 },
     });
     const prompt = page.find((m) => m._id === args.promptMessageId);
-    if (!prompt) return "quick";
+    if (!prompt) return { tier: "quick" };
     const previousUser = page
       .filter((m) => m.order < prompt.order && m.message?.role === "user")
       .sort((a, b) => b.order - a.order)[0];
@@ -221,10 +225,10 @@ export async function routeSavedTurn(
         ...(usage as { usage: ClassifierUsage; providerMetadata: unknown }),
       });
     }
-    return decision.tier;
+    return { tier: decision.tier, kind: decision.kind };
   } catch (error) {
     console.error("auto routing failed; answering on quick", error);
-    return "quick";
+    return { tier: "quick" };
   }
 }
 
@@ -240,7 +244,7 @@ export async function routeIncognitoTurn(
     text: string;
     previousText?: string;
   },
-): Promise<AnsweringTier> {
+): Promise<Route> {
   try {
     let usage: { usage: ClassifierUsage; providerMetadata: unknown } | null =
       null;
@@ -261,9 +265,9 @@ export async function routeIncognitoTurn(
         ...(usage as { usage: ClassifierUsage; providerMetadata: unknown }),
       });
     }
-    return decision.tier;
+    return { tier: decision.tier, kind: decision.kind };
   } catch (error) {
     console.error("auto routing failed; answering on quick", error);
-    return "quick";
+    return { tier: "quick" };
   }
 }

@@ -28,6 +28,7 @@ import {
   query,
 } from "./_generated/server";
 import {
+  MAX_TOOL_CALLS,
   REPLY_STEPS,
   STUDY_STEPS,
   answerOnFinalStep,
@@ -41,7 +42,14 @@ import {
   rescueModel,
 } from "./agents/config";
 import { availableModelTiers } from "./agents/availability";
+import { isLightKind } from "./agents/router";
 import { resolveModelTier } from "./agents/models";
+import {
+  planPrefetch,
+  prefetchNote,
+  runPrefetch,
+  withPrefetchNote,
+} from "./agents/prefetch";
 import { answerOnlyMessages, withoutToolParts } from "./agents/steps";
 import {
   MEMORY_EXTRACTION_IDLE_MS,
@@ -59,6 +67,7 @@ import {
   routeIncognitoTurn,
   routeSavedTurn,
 } from "./routing";
+import { mdTools, withCallBudget } from "./tools/md";
 import { requireUserId } from "./users";
 
 // Chat surface. Every entry point is user-scoped: a thread belongs to the
@@ -465,7 +474,10 @@ export const incognitoReply = action({
     const previousUser = [...messages]
       .reverse()
       .filter((m) => m.role === "user")[1];
-    const tier =
+    // The first round of lookups runs while Auto routes, so it costs no wait
+    // of its own; the route's kind then decides what of it the model sees.
+    const prefetching = runPrefetch(planPrefetch(latest?.text ?? ""));
+    const route =
       resolveModelTier(
         personalization.preferredModel,
         availableModelTiers(),
@@ -475,15 +487,22 @@ export const incognitoReply = action({
             text: latest?.text ?? "",
             ...(previousUser ? { previousText: previousUser.text } : {}),
           })
-        : personalization.preferredModel;
+        : undefined;
+    const tier = route ? route.tier : personalization.preferredModel;
+    const note = prefetchNote(await prefetching, route?.kind);
     const result = await dhee.generateText(
       ctx,
       { userId },
       {
         system,
-        messages: history,
+        messages: note ? [...history, note] : history,
         // Study mode is a setting, and settings apply in incognito.
-        ...replyOptionsFor(personalization.traditions, tier),
+        ...replyOptionsFor(
+          personalization.traditions,
+          tier,
+          undefined,
+          route?.kind,
+        ),
       },
       sandboxed,
     );
@@ -541,8 +560,14 @@ export function replyOptionsFor(
   traditions: string[] | undefined,
   preferredModel?: string,
   threadId?: string,
+  /** Auto's reading of the question, when Auto chose the tier. */
+  kind?: string,
 ) {
   const steps = isCorpusLens(traditions) ? STUDY_STEPS : REPLY_STEPS;
+  const openrouter = {
+    ...(threadId ? { session_id: threadId } : {}),
+    ...(isLightKind(kind) ? { reasoning: LIGHT_REASONING } : {}),
+  };
   return {
     // Keeps a conversation on one OpenRouter provider, so its prompt cache is
     // still there on the next turn. Without it OpenRouter picks a provider per
@@ -558,8 +583,11 @@ export function replyOptionsFor(
     // OpenRouter, which is the opposite of what incognito promises. Ignored by
     // the Anthropic provider (Reflective); Reflective's fallback to Quick goes
     // through OpenRouter and gets it.
-    ...(threadId
-      ? { providerOptions: { openrouter: { session_id: threadId } } }
+    //
+    // A light question (a term, a page, a draft) also thinks less before it
+    // answers — see LIGHT_REASONING.
+    ...(Object.keys(openrouter).length > 0
+      ? { providerOptions: { openrouter } }
       : {}),
     // The tier this person chose. Named per call rather than left to the
     // Agent's constructor default, because the choice is per person and the
@@ -573,8 +601,21 @@ export function replyOptionsFor(
     // Whatever the budget, its last step answers rather than calls a tool —
     // see `answerOnFinalStep`.
     prepareStep: answerOnFinalStep(steps),
+    // A fresh set of the tools for this reply, sharing one budget of calls:
+    // the step budget bounds rounds, and this bounds what a round can hold.
+    tools: withCallBudget(mdTools, MAX_TOOL_CALLS),
   };
 }
+
+/**
+ * Reasoning effort for a question Auto read as light. Reasoning is most of a
+ * DeepSeek reply's output, so most of its writing time: on the 2026-11-28
+ * eval, `low` cut the median reply from 27 s to 21.5 s with quality unchanged
+ * on everything but deep study questions, where the judge's score fell from
+ * 4.2 to 3.2. Auto sends those to the deep tier anyway, so only light kinds
+ * get it; a fixed tier keeps the model's default.
+ */
+export const LIGHT_REASONING = { effort: "low" } as const;
 
 /** Whether any step of a turn wrote text a person can read. */
 export function wroteAnything(steps: ReadonlyArray<{ text: string }>): boolean {
@@ -661,14 +702,20 @@ export const streamReply = internalAction({
       ctx.runQuery(internal.users.personalizationForUser, { userId }),
     ]);
     const replyScript = detectReplyScript(promptText ?? "");
+    // The first round of lookups runs while Auto routes, so it costs no wait
+    // of its own; the route's kind then decides what of it the model sees.
+    // See convex/agents/prefetch.ts.
+    const prefetching = runPrefetch(planPrefetch(promptText ?? ""));
     // Auto picks a tier for this turn; any other choice is used as stored.
-    const tier =
+    const route =
       resolveModelTier(
         personalization.preferredModel,
         availableModelTiers(),
       ) === "auto"
         ? await routeSavedTurn(ctx, { threadId, userId, promptMessageId })
-        : personalization.preferredModel;
+        : undefined;
+    const tier = route ? route.tier : personalization.preferredModel;
+    const note = prefetchNote(await prefetching, route?.kind);
     const system = buildSystemPrompt({
       contextBlock,
       ...personalization,
@@ -681,11 +728,25 @@ export const streamReply = internalAction({
         {
           promptMessageId,
           system,
-          ...replyOptionsFor(personalization.traditions, tier, threadId),
+          ...replyOptionsFor(
+            personalization.traditions,
+            tier,
+            threadId,
+            route?.kind,
+          ),
         },
         {
           saveStreamDeltas: { chunking: "word", throttleMs: 100 },
           contextOptions: REPLY_CONTEXT_OPTIONS,
+          // Only in the model's view: the note is never saved to the thread.
+          ...(note
+            ? {
+                contextHandler: async (
+                  _ctx: unknown,
+                  parts: Parameters<typeof withPrefetchNote>[0],
+                ) => withPrefetchNote(parts, note),
+              }
+            : {}),
         },
       );
       await result.consumeStream();

@@ -40,6 +40,8 @@ import {
   languageModelFor,
   rescueModel,
 } from "./agents/config";
+import { availableModelTiers } from "./agents/availability";
+import { resolveModelTier } from "./agents/models";
 import { answerOnlyMessages, withoutToolParts } from "./agents/steps";
 import {
   MEMORY_EXTRACTION_IDLE_MS,
@@ -52,6 +54,11 @@ import {
   deleteSharesForUser,
   revokeSharesTouching,
 } from "./share";
+import {
+  deleteRoutesForThread,
+  routeIncognitoTurn,
+  routeSavedTurn,
+} from "./routing";
 import { requireUserId } from "./users";
 
 // Chat surface. Every entry point is user-scoped: a thread belongs to the
@@ -455,6 +462,20 @@ export const incognitoReply = action({
       storageOptions: { saveMessages: "none" },
       contextOptions: { recentMessages: 0, searchOptions: { limit: 0 } },
     } as const;
+    const previousUser = [...messages]
+      .reverse()
+      .filter((m) => m.role === "user")[1];
+    const tier =
+      resolveModelTier(
+        personalization.preferredModel,
+        availableModelTiers(),
+      ) === "auto"
+        ? await routeIncognitoTurn(ctx, {
+            userId,
+            text: latest?.text ?? "",
+            ...(previousUser ? { previousText: previousUser.text } : {}),
+          })
+        : personalization.preferredModel;
     const result = await dhee.generateText(
       ctx,
       { userId },
@@ -462,10 +483,7 @@ export const incognitoReply = action({
         system,
         messages: history,
         // Study mode is a setting, and settings apply in incognito.
-        ...replyOptionsFor(
-          personalization.traditions,
-          personalization.preferredModel,
-        ),
+        ...replyOptionsFor(personalization.traditions, tier),
       },
       sandboxed,
     );
@@ -643,6 +661,14 @@ export const streamReply = internalAction({
       ctx.runQuery(internal.users.personalizationForUser, { userId }),
     ]);
     const replyScript = detectReplyScript(promptText ?? "");
+    // Auto picks a tier for this turn; any other choice is used as stored.
+    const tier =
+      resolveModelTier(
+        personalization.preferredModel,
+        availableModelTiers(),
+      ) === "auto"
+        ? await routeSavedTurn(ctx, { threadId, userId, promptMessageId })
+        : personalization.preferredModel;
     const system = buildSystemPrompt({
       contextBlock,
       ...personalization,
@@ -655,11 +681,7 @@ export const streamReply = internalAction({
         {
           promptMessageId,
           system,
-          ...replyOptionsFor(
-            personalization.traditions,
-            personalization.preferredModel,
-            threadId,
-          ),
+          ...replyOptionsFor(personalization.traditions, tier, threadId),
         },
         {
           saveStreamDeltas: { chunking: "word", throttleMs: 100 },
@@ -932,6 +954,7 @@ export const deleteThread = mutation({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .collect();
     for (const row of feedback) await ctx.db.delete(row._id);
+    await deleteRoutesForThread(ctx, threadId);
     // A share of a deleted thread points at messages that are going away, and
     // there would be no screen left to revoke it from.
     await deleteSharesForThread(ctx, threadId);
@@ -967,6 +990,11 @@ export const deleteAllThreads = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     for (const row of feedback) await ctx.db.delete(row._id);
+    const routes = await ctx.db
+      .query("turnRoutes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const row of routes) await ctx.db.delete(row._id);
     await deleteSharesForUser(ctx, userId);
     return page.length;
   },

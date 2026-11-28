@@ -1,9 +1,10 @@
-import { DEFAULT_MODEL_TIER, MODEL_TIERS, type ModelTier } from "./models";
+import { MODEL_TIERS, type ModelTier } from "./models";
 
 /**
  * The tiers that can answer right now, on this deployment.
  *
- * The open-weight tiers (Quick, Thoughtful) always can: they go through
+ * Auto always can — it routes among the others. The open-weight tiers
+ * (Quick, Thoughtful) always can: they go through
  * OpenRouter with the same key as everything else. Reflective needs the
  * Anthropic key to be set: it is the account's own key, set on production
  * alone (see convex/agents/config.ts), so a preview or dev backend without it
@@ -16,7 +17,8 @@ import { DEFAULT_MODEL_TIER, MODEL_TIERS, type ModelTier } from "./models";
 export function availableModelTiers(): ModelTier[] {
   return MODEL_TIERS.filter(
     (tier) =>
-      tier === DEFAULT_MODEL_TIER ||
+      tier === "auto" ||
+      tier === "quick" ||
       tier === "thoughtful" ||
       (tier === "reflective" && Boolean(process.env.ANTHROPIC_API_KEY)),
   );

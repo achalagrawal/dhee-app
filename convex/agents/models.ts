@@ -19,10 +19,25 @@
 // closed model left, Reflective, is reached through Anthropic's own API with a
 // fallback to the default when it fails.
 
-export type ModelTier = "quick" | "thoughtful" | "reflective";
+/** A tier with a model behind it: what actually writes a reply. */
+export type AnsweringTier = "quick" | "thoughtful" | "reflective";
 
-// In the order the picker shows them: fastest first, most considered last.
+/**
+ * What a person can choose. `auto` has no model of its own: each turn it picks
+ * one of the answering tiers (see convex/agents/router.ts).
+ */
+export type ModelTier = "auto" | AnsweringTier;
+
+// In the order the picker shows them: Auto first, then fastest to most
+// considered.
 export const MODEL_TIERS: readonly ModelTier[] = [
+  "auto",
+  "quick",
+  "thoughtful",
+  "reflective",
+] as const;
+
+export const ANSWERING_TIERS: readonly AnsweringTier[] = [
   "quick",
   "thoughtful",
   "reflective",
@@ -41,7 +56,7 @@ export const MODEL_TIERS: readonly ModelTier[] = [
  * this is only ever a string to us. `pnpm smoke` runs a full turn against the
  * default and is the cheapest way to catch one.
  */
-export const MODEL_SLUGS: Record<ModelTier, string> = {
+export const MODEL_SLUGS: Record<AnsweringTier, string> = {
   // The dated build, not `~deepseek/deepseek-v4-flash-latest`. The rolling
   // alias re-points when DeepSeek ships a new build — a model change with no
   // deploy, no diff, and no eval run. Upgrading the pin is deliberate: bump
@@ -84,19 +99,32 @@ export const MODEL_SLUGS: Record<ModelTier, string> = {
 
 /**
  * What someone gets before they choose, and what a signed-out or
- * not-yet-migrated profile falls back to — and what answers when the tier they
- * chose cannot.
+ * not-yet-migrated profile falls back to.
  *
- * Quick, since 2026-11-24. It began as an emergency move when Reflective was
- * cut off, and stayed as a decision: the default is an open-weight model, so
- * no single provider can take Dhee down for people who never chose otherwise.
- * It must always be available; `availableModelTiers` in config.ts never drops
- * it.
+ * Auto, since 2026-11-28, at Achal's call: most people never open the picker,
+ * so the default is where the quality of the product is decided. Before that,
+ * from 2026-11-24, it was Quick — an emergency move when Reflective was cut
+ * off that stayed as a decision. Auto keeps that decision's point: its light
+ * turns are on an open-weight model, and its deep turns fall back to Quick
+ * when Reflective cannot answer, so no single provider can take Dhee down for
+ * people who never chose otherwise.
  */
-export const DEFAULT_MODEL_TIER: ModelTier = "quick";
+export const DEFAULT_MODEL_TIER: ModelTier = "auto";
+
+/**
+ * The tier that answers when nothing else can: an unrouted Auto turn, a
+ * Reflective call that failed, a rescue with no Anthropic key. Quick, the
+ * open-weight model reached with the same key as everything else. It must
+ * always be available; `availableModelTiers` never drops it.
+ */
+export const BASE_TIER: AnsweringTier = "quick";
 
 /** Narrow an unvalidated string — a stored preference, a client argument. */
 export function isModelTier(value: unknown): value is ModelTier {
+  return value === "auto" || isAnsweringTier(value);
+}
+
+export function isAnsweringTier(value: unknown): value is AnsweringTier {
   return value === "quick" || value === "thoughtful" || value === "reflective";
 }
 
@@ -122,10 +150,23 @@ export function resolveModelTier(
     : DEFAULT_MODEL_TIER;
 }
 
+/**
+ * The tier that writes a reply for a stored preference, when no routing has
+ * happened: an Auto preference answers on the base tier. Callers that route
+ * Auto turns pass the routed tier instead of the stored preference.
+ */
+export function answeringTierFor(
+  stored: string | undefined,
+  available: readonly ModelTier[],
+): AnsweringTier {
+  const tier = resolveModelTier(stored, available);
+  return tier === "auto" ? BASE_TIER : tier;
+}
+
 /** The slug for a stored preference, given the tiers available right now. */
 export function modelSlugFor(
   stored: string | undefined,
   available: readonly ModelTier[],
 ): string {
-  return MODEL_SLUGS[resolveModelTier(stored, available)];
+  return MODEL_SLUGS[answeringTierFor(stored, available)];
 }

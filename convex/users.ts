@@ -19,6 +19,7 @@ import { availableModelTiers } from "./agents/availability";
 // Exactly the tiers that exist today — what a client may write, and what the
 // picker queries return.
 const modelTierValidator = v.union(
+  v.literal("auto"),
   v.literal("quick"),
   v.literal("thoughtful"),
   v.literal("reflective"),

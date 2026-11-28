@@ -16,12 +16,14 @@ import type { StringKey } from "./i18n";
 // Written out rather than built from the tier key, so a tier without strings is
 // a type error here instead of a blank row in the picker.
 const NAME_KEYS = {
+  auto: "modelAutoName",
   quick: "modelQuickName",
   thoughtful: "modelThoughtfulName",
   reflective: "modelReflectiveName",
 } as const satisfies Record<ModelTier, StringKey>;
 
 const DESC_KEYS = {
+  auto: "modelAutoDesc",
   quick: "modelQuickDesc",
   thoughtful: "modelThoughtfulDesc",
   reflective: "modelReflectiveDesc",
@@ -47,6 +49,7 @@ export function modelPillLabel(tier: ModelTier): string {
 }
 
 const PILL: Record<ModelTier, string> = {
+  auto: "Auto",
   quick: "Quick",
   thoughtful: "Thoughtful",
   reflective: "Reflective",

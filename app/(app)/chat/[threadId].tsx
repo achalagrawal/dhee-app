@@ -28,7 +28,8 @@ import { ShareSheet } from "../../../src/components/ShareSheet";
 import { ThreadMenuSheet } from "../../../src/components/ThreadMenuSheet";
 import { Icon, IconButton } from "../../../src/components/ui";
 import { activityTrail } from "../../../src/lib/activity";
-import { t } from "../../../src/lib/i18n";
+import { type StringKey, t } from "../../../src/lib/i18n";
+import type { AnsweringTier } from "../../../convex/agents/models";
 import { composerKeyAction } from "../../../src/lib/keyboard";
 import { useTheme } from "../../../src/lib/ThemeContext";
 import { type Colors } from "../../../src/lib/theme";
@@ -47,6 +48,12 @@ import { useLanguage } from "../../../src/lib/useLanguage";
 const FOLLOW_THRESHOLD = 240;
 
 const keyExtractor = (m: UIMessage) => m.key;
+
+const AUTO_ANSWERED = {
+  quick: "modelAutoAnsweredQuick",
+  thoughtful: "modelAutoAnsweredThoughtful",
+  reflective: "modelAutoAnsweredReflective",
+} as const satisfies Record<AnsweringTier, StringKey>;
 
 type FailureReason = "error" | "rate";
 
@@ -119,6 +126,17 @@ export default function Chat() {
     api.chat.threadMarks,
     threadId ? { threadId } : "skip",
   );
+  // Which tier Auto picked for each turn, by the turn's order, for the label
+  // under the reply. Turns answered on a tier someone chose have no row.
+  const routes = useQuery(
+    api.routing.threadRoutes,
+    threadId ? { threadId } : "skip",
+  );
+  const routeMap = useMemo(() => {
+    const m = new Map<number, AnsweringTier>();
+    for (const r of routes ?? []) m.set(r.order, r.tier);
+    return m;
+  }, [routes]);
   const editedKeys = useMemo(() => new Set(marks?.edited ?? []), [marks]);
   const stoppedKeys = useMemo(() => new Set(marks?.stopped ?? []), [marks]);
 
@@ -364,6 +382,9 @@ export default function Chat() {
         lang={lang}
         styles={styles}
         rating={feedbackMap.get(item.key) ?? null}
+        answeredBy={
+          item.role === "assistant" ? routeMap.get(item.order) : undefined
+        }
         onRate={rate}
         onRegenerate={generating ? undefined : regenerate}
         edited={editedKeys.has(item.key)}
@@ -380,6 +401,7 @@ export default function Chat() {
       lang,
       styles,
       feedbackMap,
+      routeMap,
       rate,
       generating,
       regenerate,
@@ -618,6 +640,7 @@ const Message = memo(function Message({
   lang,
   styles,
   rating,
+  answeredBy,
   onRate,
   onRegenerate,
   edited,
@@ -633,6 +656,8 @@ const Message = memo(function Message({
   lang: ReturnType<typeof useLanguage>;
   styles: ReturnType<typeof makeStyles>;
   rating: "up" | "down" | null;
+  /** The tier Auto picked for this reply; undefined when no routing happened. */
+  answeredBy?: AnsweringTier;
   onRate: (messageKey: string, rating: "up" | "down") => void;
   /** Undefined while a reply is generating — try again is unavailable then. */
   onRegenerate?: () => void;
@@ -801,6 +826,11 @@ const Message = memo(function Message({
                 <Icon name="refresh" size={15} color={colors.textFaint} />
               </Pressable>
             ) : null}
+            {answeredBy ? (
+              <Text style={styles.routeLabel}>
+                {t(lang, AUTO_ANSWERED[answeredBy])}
+              </Text>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -920,6 +950,12 @@ function makeStyles(colors: Colors) {
       borderRadius: 8,
     },
     copyLabel: { color: colors.textFaint, fontSize: 12.5, ...font.regular },
+    routeLabel: {
+      color: colors.textFaint,
+      fontSize: 12,
+      marginLeft: 6,
+      ...font.regular,
+    },
     actionBtn: { padding: 8, borderRadius: 8 },
     // Error
     errorCard: {

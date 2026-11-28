@@ -78,7 +78,11 @@ export const VARIANTS: Record<string, PromptVariant> = {
     id: "no-altitude",
     why: "Ablation: remove the 'answer from a higher dimension' passage — the product's core move. Expected to gut widenedTheFrame while leaving the checks green; if it doesn't, the judge isn't measuring what we think it measures.",
     transform: (base) =>
-      cut(base, "**Answer from a higher dimension", "**Depth, not length.**"),
+      cut(
+        base,
+        "**Answer from a higher dimension",
+        "**Answer first. Depth, not length.**",
+      ),
   },
   "more-ground": {
     id: "more-ground",

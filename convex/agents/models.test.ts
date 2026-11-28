@@ -6,6 +6,7 @@ import {
   answeringTierFor,
   isAnsweringTier,
   isModelTier,
+  isOpenModelSlug,
   MODEL_SLUGS,
   MODEL_TIERS,
   modelSlugFor,
@@ -142,5 +143,13 @@ describe("availableModelTiers", () => {
     expect(availableModelTiers()).toContain(DEFAULT_MODEL_TIER);
     expect(availableModelTiers()).toContain(BASE_TIER);
     expect(availableModelTiers()).toContain("thoughtful");
+  });
+});
+
+describe("isOpenModelSlug", () => {
+  it("is false for Claude and true for everything else", () => {
+    expect(isOpenModelSlug(MODEL_SLUGS.reflective)).toBe(false);
+    expect(isOpenModelSlug(MODEL_SLUGS.quick)).toBe(true);
+    expect(isOpenModelSlug("deepseek/deepseek-v4.1")).toBe(true);
   });
 });

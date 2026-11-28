@@ -38,7 +38,7 @@ describe("prompt variants", () => {
   it("no-altitude removes the higher-dimension passage and keeps brevity", () => {
     const out = VARIANTS["no-altitude"]!.transform(DHEE_INSTRUCTIONS);
     expect(out).not.toContain("Answer from a higher dimension");
-    expect(out).toContain("**Depth, not length.**");
+    expect(out).toContain("**Answer first. Depth, not length.**");
   });
 
   it("more-ground adds the corpus-grounded block before the अनुसन्धान", () => {

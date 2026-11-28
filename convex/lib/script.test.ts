@@ -157,3 +157,19 @@ describe("replyScriptInstruction", () => {
     );
   });
 });
+
+describe("replyScriptInstruction — a stated language", () => {
+  it("outranks the script of the message, in every branch", () => {
+    for (const script of ["latin", "devanagari", "telugu"] as const) {
+      expect(replyScriptInstruction(script)).toContain(
+        "keep replying in that language until they ask otherwise",
+      );
+    }
+  });
+
+  it("treats English with darshan words in it as English", () => {
+    expect(replyScriptInstruction("latin")).toContain(
+      "An English sentence with a few darshan words in it",
+    );
+  });
+});

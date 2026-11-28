@@ -72,7 +72,7 @@ export const searchExactPhrase = createTool({
 });
 
 export const lookupDefinition = createTool({
-  description: `Look up how the source tradition precisely defines one of its own terms. Use this to sharpen your own understanding when a search result hinges on a term you want to be accurate about. The definitions come back dense and technical. Look up a single base term (सहअस्तित्व, संबंध, जीवन), not a phrase; other spellings are tried for you. Alongside the term you asked for, the result names related terms in the lexicon, which you can look up in turn if one of them is what you actually meant. A definition's pageno is a page of the lexicon itself: cite it as the paribhasha, never as a page of another book, and don't pass it to readPage.`,
+  description: `Look up how the source tradition precisely defines one of its own terms. Use this to sharpen your own understanding when a search result hinges on a term you want to be accurate about. The definitions come back dense and technical. Look up a single base term (सहअस्तित्व, संबंध, जीवन), not a phrase; other spellings are tried for you. Alongside the term you asked for, the result names related terms in the lexicon, which you can look up in turn if one of them is what you actually meant. Definitions come from Paribhasha Sanhita (परिभाषा संहिता), and a definition's pageno is a page of that book: cite it as परिभाषा संहिता, never as a page of another book, and don't pass it to readPage.`,
   inputSchema: z.object({
     word: z
       .string()

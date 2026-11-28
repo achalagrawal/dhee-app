@@ -163,6 +163,14 @@ export function answeringTierFor(
   return tier === "auto" ? BASE_TIER : tier;
 }
 
+/**
+ * Whether a slug is a model other than Claude: those answer with
+ * OPEN_MODEL_RULES added to the prompt (convex/agents/dhee.ts).
+ */
+export function isOpenModelSlug(slug: string): boolean {
+  return !slug.startsWith("anthropic/");
+}
+
 /** The slug for a stored preference, given the tiers available right now. */
 export function modelSlugFor(
   stored: string | undefined,

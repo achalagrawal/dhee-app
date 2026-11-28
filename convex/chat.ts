@@ -43,7 +43,11 @@ import {
 } from "./agents/config";
 import { availableModelTiers } from "./agents/availability";
 import { isLightKind } from "./agents/router";
-import { resolveModelTier } from "./agents/models";
+import {
+  isOpenModelSlug,
+  modelSlugFor,
+  resolveModelTier,
+} from "./agents/models";
 import {
   planPrefetch,
   prefetchNote,
@@ -456,10 +460,6 @@ export const incognitoReply = action({
     // message, which is the one being replied to.
     const latest = [...messages].reverse().find((m) => m.role === "user");
     const replyScript = detectReplyScript(latest?.text ?? "");
-    const system = buildSystemPrompt({
-      ...personalization,
-      ...(replyScript ? { replyScript } : {}),
-    });
     const history: ModelMessage[] = messages.map((m) => ({
       role: m.role,
       content: m.text,
@@ -490,6 +490,11 @@ export const incognitoReply = action({
         : undefined;
     const tier = route ? route.tier : personalization.preferredModel;
     const note = prefetchNote(await prefetching, route?.kind);
+    const system = buildSystemPrompt({
+      ...personalization,
+      ...(replyScript ? { replyScript } : {}),
+      openModel: isOpenModelSlug(modelSlugFor(tier, availableModelTiers())),
+    });
     const result = await dhee.generateText(
       ctx,
       { userId },
@@ -720,6 +725,7 @@ export const streamReply = internalAction({
       contextBlock,
       ...personalization,
       ...(replyScript ? { replyScript } : {}),
+      openModel: isOpenModelSlug(modelSlugFor(tier, availableModelTiers())),
     });
     try {
       const result = await dhee.streamText(

@@ -206,12 +206,13 @@ Spec: `specs/sharing.md`. Closes #98 and #65.
 
 ## Epic 16 — Safety
 
-| Feature                                       | Status | Notes                                                                                              |
-| --------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
-| Crisis detection → safety banner              | ✅     | Server-side in `sendMessage`; EN + HI + Hinglish. Banner → `/support`                              |
-| Safety & limitations page (crisis resources)  | ✅     | `docs/legal/safety.md` → `/safety`; linked from terms + sign-in. Numbers need periodic re-checking |
-| Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName`                                                   |
-| "Not a medical or crisis service" disclaimers | 🟡     | Sign-in + legal done; onboarding still missing it                                                  |
+| Feature                                       | Status | Notes                                                                                                                                                                |
+| --------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Crisis detection → safety banner              | ✅     | Server-side in `sendMessage`; EN + HI + Hinglish. Banner → `/support`                                                                                                |
+| Safety & limitations page (crisis resources)  | ✅     | `docs/legal/safety.md` → `/safety`; linked from terms + sign-in. Numbers need periodic re-checking                                                                   |
+| Distress wording in replies                   | ✅     | Prompt: check in even on abstract self-harm questions, Tele-MANAS in the reply, a doctor early. Eval case `corpus/abstract-self-harm`. Number must match `safety.md` |
+| Trusted / emergency contacts                  | ⬜     | `state.trustedContacts/trustedEmail/trustedName`                                                                                                                     |
+| "Not a medical or crisis service" disclaimers | 🟡     | Sign-in + legal done; onboarding still missing it                                                                                                                    |
 
 ## Epic 17 — Marketing & static site (web)
 

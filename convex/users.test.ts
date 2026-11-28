@@ -123,13 +123,13 @@ describe("users — model tier", () => {
       vi.stubEnv("ANTHROPIC_API_KEY", "");
       expect(await as.query(api.users.modelChoices, {})).toEqual({
         tier: DEFAULT_MODEL_TIER,
-        available: ["quick", "thoughtful"],
+        available: ["auto", "quick", "thoughtful"],
       });
       // With it, the stored choice comes back exactly as it was made.
       vi.stubEnv("ANTHROPIC_API_KEY", "set");
       expect(await as.query(api.users.modelChoices, {})).toEqual({
         tier: "reflective",
-        available: ["quick", "thoughtful", "reflective"],
+        available: ["auto", "quick", "thoughtful", "reflective"],
       });
     } finally {
       vi.unstubAllEnvs();

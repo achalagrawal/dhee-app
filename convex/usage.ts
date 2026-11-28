@@ -20,9 +20,11 @@ export const usageKind = v.union(
   v.literal("extraction"),
   v.literal("incognito"),
   v.literal("eval"),
+  v.literal("routing"),
 );
 
-export type UsageKind = "chat" | "title" | "extraction" | "incognito" | "eval";
+export type UsageKind =
+  "chat" | "title" | "extraction" | "incognito" | "eval" | "routing";
 
 /**
  * The userId the eval harness runs under. Not a users id — the harness has no

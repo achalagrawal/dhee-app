@@ -3,12 +3,12 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { wrapLanguageModel, type LanguageModelMiddleware } from "ai";
 import type { Config } from "@convex-dev/agent";
 import { internal } from "../_generated/api";
-import { BACKGROUND_MODEL } from "../config";
+import { BACKGROUND_MODEL, ROUTER_MODEL } from "../config";
 import {
-  DEFAULT_MODEL_TIER,
+  BASE_TIER,
   MODEL_SLUGS,
-  resolveModelTier,
-  type ModelTier,
+  answeringTierFor,
+  type AnsweringTier,
 } from "./models";
 import { availableModelTiers } from "./availability";
 import { withFallback } from "./fallback";
@@ -237,7 +237,7 @@ export const MODEL_BY_TIER = {
   quick: quickModel,
   thoughtful: thoughtfulModel,
   reflective: reflectiveModel,
-} as const satisfies Record<ModelTier, unknown>;
+} as const satisfies Record<AnsweringTier, unknown>;
 
 /**
  * The model that writes a reply when the one asked could not: the turn ended
@@ -251,9 +251,12 @@ export function rescueModel() {
     : thoughtfulModel;
 }
 
-/** The model for a stored preference, falling back to the default tier. */
+/**
+ * The model for a stored preference or a routed tier, falling back to the
+ * base tier. An Auto preference that was not routed answers on the base tier.
+ */
 export function languageModelFor(stored: string | undefined) {
-  return MODEL_BY_TIER[resolveModelTier(stored, availableModelTiers())];
+  return MODEL_BY_TIER[answeringTierFor(stored, availableModelTiers())];
 }
 
 /**
@@ -284,14 +287,24 @@ export function evalModelSlugFor(spec: string): string {
 }
 
 // What the Agent is constructed with, and what every call that doesn't name a
-// model gets. Kept pointing at the default tier so the two cannot drift.
-export const languageModel = MODEL_BY_TIER[DEFAULT_MODEL_TIER];
+// model gets: the base tier, which is what an unrouted turn answers on.
+export const languageModel = MODEL_BY_TIER[BASE_TIER];
 
 // Titling and memory extraction, on an open-weight model (BACKGROUND_MODEL in
 // convex/config.ts says which and why). Kept on open weights by decision:
 // what Dhee remembers about people must not depend on a provider that can
 // cut the account off. No cache directives: DeepSeek caches on its own terms.
 export const backgroundModel = openrouter.chat(BACKGROUND_MODEL, shared);
+
+/**
+ * Auto's classifier (convex/agents/router.ts), on `slug`. Reasoning is off:
+ * the job is a one-word label, and with DeepSeek's default thinking the call
+ * took about three seconds — a third of them past the router's timeout — in a
+ * place where every second is a second before the reply starts.
+ */
+export function classifierModel(slug: string = ROUTER_MODEL) {
+  return openrouter.chat(slug, { ...shared, reasoning: { effort: "none" } });
+}
 
 // Shared config applied to every Dhee-family agent. Embedding model is
 // intentionally omitted — cross-thread vector recall isn't in MVP scope.
@@ -319,7 +332,7 @@ export const defaultAgentConfig = {
         model: args.model,
         provider: args.provider,
         providerMetadata: args.providerMetadata,
-        fallbackModel: MODEL_SLUGS[DEFAULT_MODEL_TIER],
+        fallbackModel: MODEL_SLUGS[BASE_TIER],
       });
       await ctx.runMutation(internal.usage.record, {
         ...toUsageRecord({

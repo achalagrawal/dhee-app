@@ -22,6 +22,7 @@ const USER_OWNED_TABLES = [
   "contextBlocks",
   "threadMeta",
   "messageFeedback",
+  "turnRoutes",
 ] as const;
 
 // Threads live in the agent component and are deleted asynchronously, so ids

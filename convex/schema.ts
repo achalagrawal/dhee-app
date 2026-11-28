@@ -210,6 +210,8 @@ export default defineSchema({
       v.literal("extraction"),
       v.literal("incognito"),
       v.literal("eval"),
+      // Auto's classifier call, which picks the model for a turn.
+      v.literal("routing"),
     ),
     model: v.string(),
     provider: v.optional(v.string()),
@@ -242,5 +244,34 @@ export default defineSchema({
   })
     .index("by_message", ["messageId"])
     .index("by_thread", ["threadId"])
+    .index("by_user", ["userId"]),
+
+  // Where Auto sent each turn (convex/agents/router.ts): one row per prompt,
+  // replaced when the turn is regenerated. Read back for two things — the
+  // next turn's follow-up rule, which stays on the previous turn's tier, and
+  // the "Auto · Reflective" label under a reply.
+  //
+  // Like `llmUsage`, no message text: `kind` is the router's category, not
+  // anything the person wrote. Cleared with its thread and with the account.
+  turnRoutes: defineTable({
+    userId: v.id("users"),
+    threadId: v.string(),
+    /** The prompt's `order` in the thread, which its reply shares. */
+    order: v.number(),
+    tier: v.union(
+      v.literal("quick"),
+      v.literal("thoughtful"),
+      v.literal("reflective"),
+    ),
+    kind: v.string(),
+    by: v.union(
+      v.literal("rule"),
+      v.literal("classifier"),
+      v.literal("fallback"),
+    ),
+    latencyMs: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_thread_and_order", ["threadId", "order"])
     .index("by_user", ["userId"]),
 });

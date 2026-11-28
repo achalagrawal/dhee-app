@@ -6,6 +6,7 @@ import type { Id } from "./_generated/dataModel";
 import { MEMORY_EXTRACTION_INTERVAL_TURNS } from "./config";
 import {
   REPLY_CONTEXT_OPTIONS,
+  TITLE_CONTEXT_OPTIONS,
   replyOptionsFor,
   rescueContext,
   wroteAnything,
@@ -1203,6 +1204,14 @@ describe("chat — message feedback", () => {
       rating: null,
     });
     expect(await as.query(api.chat.threadFeedback, { threadId })).toEqual([]);
+  });
+});
+
+test("a title is written from the opening exchange, without tool traffic", () => {
+  // The agent's default read 100 messages, corpus pages and all.
+  expect(TITLE_CONTEXT_OPTIONS).toEqual({
+    recentMessages: 4,
+    excludeToolMessages: true,
   });
 });
 

@@ -200,10 +200,23 @@ function claudeModel(slug: string) {
 //
 // Wrapped so DeepSeek's own tool-call markup never reaches a reply as text —
 // see convex/agents/specialTokens.ts.
-export const quickModel = wrapLanguageModel({
+const quickOnOpenRouter = wrapLanguageModel({
   model: openrouter.chat(MODEL_SLUGS.quick, shared),
   middleware: stripSpecialTokens,
 });
+
+// Claude, answering for an open-weight tier when OpenRouter cannot — the
+// account cut off, out of credit, or down, as on 2026-11-24 when every Quick
+// reply failed. Only while the Anthropic key is set; without it the
+// OpenRouter error is what surfaces. Not for Reflective, whose own fallback
+// is Quick: the two would otherwise call each other.
+const anthropicAvailable = () => Boolean(process.env.ANTHROPIC_API_KEY);
+
+export const quickModel = withFallback(
+  quickOnOpenRouter,
+  claudeModel(MODEL_SLUGS.reflective),
+  anthropicAvailable,
+);
 
 // The `reflective` tier: Claude on Anthropic's API, falling back to Quick when
 // the call fails before it starts — the credit has run out, the key was
@@ -212,7 +225,7 @@ export const quickModel = wrapLanguageModel({
 // handler below books such a reply to Quick's model, not Sonnet's.
 export const reflectiveModel = withFallback(
   claudeModel(MODEL_SLUGS.reflective),
-  quickModel,
+  quickOnOpenRouter,
 );
 
 // The `thoughtful` tier: Kimi K3.1 Pro through OpenRouter, built the way
@@ -224,13 +237,19 @@ export const reflectiveModel = withFallback(
 // 2026-11-24: at `max` the eval measured $0.048 a reply, more than Sonnet 5
 // cost. `high` has not been evaluated; watch the `llmUsage` ledger and
 // feedback, and run the eval at `high` before treating it as settled.
-export const thoughtfulModel = wrapLanguageModel({
+const thoughtfulOnOpenRouter = wrapLanguageModel({
   model: openrouter.chat(MODEL_SLUGS.thoughtful, {
     ...shared,
     reasoning: { effort: "high" },
   }),
   middleware: stripSpecialTokens,
 });
+
+export const thoughtfulModel = withFallback(
+  thoughtfulOnOpenRouter,
+  claudeModel(MODEL_SLUGS.reflective),
+  anthropicAvailable,
+);
 
 /** The model each tier answers with. */
 export const MODEL_BY_TIER = {
@@ -273,7 +292,10 @@ export function languageModelFor(stored: string | undefined) {
  * than one that failed.
  */
 export function evalModelFor(spec: string) {
-  if (spec === "quick" || spec === "thoughtful") return MODEL_BY_TIER[spec];
+  // Without their Claude fallback, for the same reason Reflective goes
+  // without its own: a run must measure the model it names.
+  if (spec === "quick") return quickOnOpenRouter;
+  if (spec === "thoughtful") return thoughtfulOnOpenRouter;
   if (spec === "reflective") return claudeModel(MODEL_SLUGS.reflective);
   if (spec.startsWith("anthropic/")) return claudeModel(spec);
   return openrouter.chat(spec, shared);
@@ -333,6 +355,7 @@ export const defaultAgentConfig = {
         provider: args.provider,
         providerMetadata: args.providerMetadata,
         fallbackModel: MODEL_SLUGS[BASE_TIER],
+        claudeFallbackModel: MODEL_SLUGS.reflective,
       });
       await ctx.runMutation(internal.usage.record, {
         ...toUsageRecord({

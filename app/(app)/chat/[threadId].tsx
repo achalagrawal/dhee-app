@@ -49,6 +49,10 @@ const FOLLOW_THRESHOLD = 240;
 
 const keyExtractor = (m: UIMessage) => m.key;
 
+// Turns after which a thread suggests starting a new conversation. On the
+// 2026-11-28 export the longest single thread ran to 588 questions.
+const LONG_THREAD_TURNS = 30;
+
 const AUTO_ANSWERED = {
   quick: "modelAutoAnsweredQuick",
   thoughtful: "modelAutoAnsweredThoughtful",
@@ -308,6 +312,17 @@ export default function Chat() {
   // the more recent thing the person did, and it carries the better retry.
   const activeFailure = failure ?? streamFailure;
 
+  // A thread this long is replayed from its last twenty messages on every
+  // turn, with nothing before them (REPLY_CONTEXT_OPTIONS in convex/chat.ts):
+  // the start of it has already dropped out of what Dhee reads, and each
+  // reply costs more than in a fresh one. So past LONG_THREAD_TURNS the
+  // thread suggests starting a new conversation. A suggestion only — issue
+  // #172 has the compaction that would make it unnecessary.
+  const longThread = useMemo(() => {
+    const last = results[results.length - 1];
+    return (last?.order ?? 0) >= LONG_THREAD_TURNS;
+  }, [results]);
+
   const retryFailure = useCallback(() => {
     if (!activeFailure) return;
     const { retry } = activeFailure;
@@ -500,6 +515,26 @@ export default function Chat() {
                     <Pressable onPress={retryFailure} style={styles.retryBtn}>
                       <Text style={styles.retryText}>
                         {t(lang, "tryAgain")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                {longThread && !generating && !activeFailure ? (
+                  <View style={styles.errorCard}>
+                    <View style={styles.errorBody}>
+                      <Text style={styles.errorTitle}>
+                        {t(lang, "longThreadTitle")}
+                      </Text>
+                      <Text style={styles.errorText}>
+                        {t(lang, "longThreadBody")}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => router.push("/home")}
+                      style={styles.retryBtn}
+                    >
+                      <Text style={styles.retryText}>
+                        {t(lang, "longThreadAction")}
                       </Text>
                     </Pressable>
                   </View>

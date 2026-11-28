@@ -99,6 +99,17 @@ describe("withFallback", () => {
     expect(doGenerate).not.toHaveBeenCalled();
   });
 
+  it("surfaces the primary's error while the fallback is switched off", async () => {
+    // Quick and Thoughtful fall back to Claude only while the Anthropic key
+    // is set; without it, OpenRouter's own error is the one worth seeing.
+    const error = creditExhausted();
+    const fallback = answering("fallback");
+    const doGenerate = vi.spyOn(fallback, "doGenerate");
+    const model = withFallback(failing(error), fallback, () => false);
+    await expect(model.doGenerate(options())).rejects.toBe(error);
+    expect(doGenerate).not.toHaveBeenCalled();
+  });
+
   it("keeps the primary's name, which the usage ledger reads", () => {
     const model = withFallback(
       failing(creditExhausted()),

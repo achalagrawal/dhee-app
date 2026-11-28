@@ -120,6 +120,10 @@ const strings = {
     // Model tiers. Names stay abstract; the descriptions carry the trade.
     modelAutoName: "Dhee Auto",
     modelAutoDesc: "Picks how deeply to think for each question.",
+    longThreadTitle: "This conversation is getting long",
+    longThreadBody:
+      "Dhee reads only the most recent part of it now. A new conversation gives your next question its full attention.",
+    longThreadAction: "New conversation",
     // Under a reply Auto answered: which way it went. Short, since it sits
     // beside the copy and feedback buttons.
     modelAutoAnsweredQuick: "Auto · Quick",
@@ -380,6 +384,10 @@ const strings = {
     // itself does — while the descriptions are written in Hindi.
     modelAutoName: "Dhee Auto",
     modelAutoDesc: "हर सवाल के लिए तय करता है कि कितनी गहराई से सोचना है।",
+    longThreadTitle: "यह बातचीत लंबी हो गई है",
+    longThreadBody:
+      "अब Dhee इसका केवल हाल का हिस्सा ही पढ़ता है। नई बातचीत में आपके अगले सवाल पर पूरा ध्यान रहेगा।",
+    longThreadAction: "नई बातचीत",
     modelAutoAnsweredQuick: "Auto · Quick",
     modelAutoAnsweredThoughtful: "Auto · Thoughtful",
     modelAutoAnsweredReflective: "Auto · Reflective",

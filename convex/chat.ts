@@ -878,6 +878,12 @@ export const editAndResend = mutation({
   },
 });
 
+/** What a title is written from: the last few messages, no tool traffic. */
+export const TITLE_CONTEXT_OPTIONS = {
+  recentMessages: 4,
+  excludeToolMessages: true,
+} as const;
+
 export const titleThread = internalAction({
   args: { threadId: v.string() },
   returns: v.null(),
@@ -910,7 +916,15 @@ export const titleThread = internalAction({
         prompt:
           "Write a title and one-sentence summary for the conversation so far.",
       },
-      { storageOptions: { saveMessages: "none" } },
+      {
+        storageOptions: { saveMessages: "none" },
+        // The opening exchange is what a title names. Left to the agent's
+        // default, this read 100 messages with every tool call and corpus
+        // page in them — on the 2026-11-28 export, titling cost more per call
+        // than some replies, and sent study material to a call that only
+        // needs the question.
+        contextOptions: TITLE_CONTEXT_OPTIONS,
+      },
     );
 
     await updateThreadMetadata(ctx, components.agent, {

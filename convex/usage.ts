@@ -44,6 +44,12 @@ export type ReportedUsage = {
   outputTokens?: number;
   reasoningTokens?: number;
   cachedInputTokens?: number;
+  /** AI SDK v6's breakdown of `inputTokens`, where the provider gives one. */
+  inputTokenDetails?: {
+    noCacheTokens?: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+  };
 };
 
 export type UsageRecord = {
@@ -56,7 +62,80 @@ export type UsageRecord = {
   cachedInputTokens?: number;
   reasoningTokens?: number;
   costUsd?: number;
+  estimatedCostUsd?: number;
 };
+
+/**
+ * Anthropic's list prices, in dollars per million tokens, for the Claude
+ * models the app calls directly. Checked 2026-11-28.
+ *
+ * Only for `estimatedCostUsd`, never `costUsd`. Anthropic's API reports no
+ * cost, so since Reflective moved there on 2026-11-24 its rows carried tokens
+ * and nothing else — about 70% of that week's spend invisible in the ledger.
+ * An estimate in its own field closes that gap without passing itself off as
+ * a bill: `costUsd` stays "what a provider charged", and a stale entry here
+ * shows up as a drift between the two sums, not as a wrong measurement. Add a
+ * model here when MODEL_SLUGS gains one; a slug missing from this table is
+ * left unestimated, which is visible.
+ *
+ * `cacheWrite` is the five-minute TTL's rate (1.25x input), the only one the
+ * cache middleware in convex/agents/config.ts asks for.
+ */
+export const CLAUDE_PRICES: Record<
+  string,
+  { input: number; cacheWrite: number; cacheRead: number; output: number }
+> = {
+  "anthropic/claude-sonnet-5-5": {
+    input: 2,
+    cacheWrite: 2.5,
+    cacheRead: 0.1,
+    output: 10,
+  },
+};
+
+/**
+ * A Claude call's cost from its tokens and CLAUDE_PRICES, or undefined for a
+ * model not in the table.
+ *
+ * `promptTokens` is the total, cache reads and writes included (that is how
+ * the Anthropic provider reports it). The split comes from the usage's own
+ * breakdown when there is one, else from `cachedInputTokens` and the
+ * provider's `cacheCreationInputTokens`.
+ */
+export function estimateClaudeCostUsd(args: {
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  usage: ReportedUsage;
+  providerMetadata?: unknown;
+}): number | undefined {
+  const price = CLAUDE_PRICES[args.model];
+  if (!price) return undefined;
+  const details = args.usage.inputTokenDetails;
+  const anthropic =
+    typeof args.providerMetadata === "object" && args.providerMetadata !== null
+      ? ((args.providerMetadata as Record<string, unknown>).anthropic as
+          Record<string, unknown> | undefined)
+      : undefined;
+  const read =
+    finite(details?.cacheReadTokens) ??
+    finite(args.usage.cachedInputTokens) ??
+    0;
+  const write =
+    finite(details?.cacheWriteTokens) ??
+    finite(anthropic?.cacheCreationInputTokens) ??
+    0;
+  const fresh =
+    finite(details?.noCacheTokens) ??
+    Math.max(0, args.promptTokens - read - write);
+  return (
+    (fresh * price.input +
+      write * price.cacheWrite +
+      read * price.cacheRead +
+      args.completionTokens * price.output) /
+    1_000_000
+  );
+}
 
 function finite(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value)
@@ -75,8 +154,9 @@ function finite(value: unknown): number | undefined {
  * stale.
  *
  * Claude calls go to Anthropic's API directly since 2026-11-24, and Anthropic
- * does not report a cost, so those rows carry tokens and no cost — by the same
- * reasoning. Their spend is in the Anthropic Console.
+ * does not report a cost, so those rows carry no `costUsd` — by the same
+ * reasoning. They carry `estimatedCostUsd` instead (see CLAUDE_PRICES), and
+ * the bill itself is in the Anthropic Console.
  */
 export function costFromProviderMetadata(
   metadata: unknown,
@@ -103,13 +183,25 @@ export function answeringModel(args: {
   provider?: string;
   providerMetadata: unknown;
   fallbackModel: string;
+  /** The Claude model that answers for an open-weight tier OpenRouter failed. */
+  claudeFallbackModel?: string;
 }): { model: string; provider?: string } {
-  const viaOpenRouter =
+  const has = (key: string) =>
     typeof args.providerMetadata === "object" &&
     args.providerMetadata !== null &&
-    "openrouter" in args.providerMetadata;
-  if (args.model.startsWith("anthropic/") && viaOpenRouter) {
+    key in args.providerMetadata;
+  if (args.model.startsWith("anthropic/") && has("openrouter")) {
     return { model: args.fallbackModel, provider: "openrouter" };
+  }
+  // The other direction: an open-weight tier's call that Claude answered,
+  // because OpenRouter failed (convex/agents/config.ts).
+  if (
+    args.claudeFallbackModel &&
+    !args.model.startsWith("anthropic/") &&
+    has("anthropic") &&
+    !has("openrouter")
+  ) {
+    return { model: args.claudeFallbackModel, provider: "anthropic.messages" };
   }
   return {
     model: args.model,
@@ -138,17 +230,33 @@ export function toUsageRecord(args: {
   const cost = costFromProviderMetadata(args.providerMetadata);
   const cached = finite(usage.cachedInputTokens);
   const reasoning = finite(usage.reasoningTokens);
+  const promptTokens =
+    finite(usage.promptTokens) ?? finite(usage.inputTokens) ?? 0;
+  const completionTokens =
+    finite(usage.completionTokens) ?? finite(usage.outputTokens) ?? 0;
+  // Only where no provider billed a cost: an estimate never sits beside a
+  // real figure for the same call.
+  const estimate =
+    cost === undefined
+      ? estimateClaudeCostUsd({
+          model: args.model,
+          promptTokens,
+          completionTokens,
+          usage,
+          providerMetadata: args.providerMetadata,
+        })
+      : undefined;
   return {
     kind: args.kind,
     model: args.model,
     ...(args.provider ? { provider: args.provider } : {}),
     ...(args.agentName ? { agentName: args.agentName } : {}),
-    promptTokens: finite(usage.promptTokens) ?? finite(usage.inputTokens) ?? 0,
-    completionTokens:
-      finite(usage.completionTokens) ?? finite(usage.outputTokens) ?? 0,
+    promptTokens,
+    completionTokens,
     ...(cached === undefined ? {} : { cachedInputTokens: cached }),
     ...(reasoning === undefined ? {} : { reasoningTokens: reasoning }),
     ...(cost === undefined ? {} : { costUsd: cost }),
+    ...(estimate === undefined ? {} : { estimatedCostUsd: estimate }),
   };
 }
 
@@ -199,6 +307,7 @@ export const record = internalMutation({
     cachedInputTokens: v.optional(v.number()),
     reasoningTokens: v.optional(v.number()),
     costUsd: v.optional(v.number()),
+    estimatedCostUsd: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {

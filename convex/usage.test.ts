@@ -1,8 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 import { BACKGROUND_MODEL, CHAT_MODEL } from "./config";
 import {
+  CLAUDE_PRICES,
   answeringModel,
   classifyAgentCall,
+  estimateClaudeCostUsd,
   costFromProviderMetadata,
   EVAL_USER_ID,
   toUsageRecord,
@@ -49,6 +51,118 @@ describe("answeringModel", () => {
         fallbackModel,
       }),
     ).toEqual({ model: CHAT_MODEL, provider: "openrouter" });
+  });
+});
+
+describe("answeringModel — Claude answering for an open-weight tier", () => {
+  const claude = "anthropic/claude-sonnet-5-5";
+
+  test("books a Quick call Claude answered to Claude", () => {
+    // OpenRouter failed and the Claude fallback answered: the ledger must not
+    // file Sonnet's tokens under DeepSeek's name.
+    expect(
+      answeringModel({
+        model: CHAT_MODEL,
+        provider: "openrouter.chat",
+        providerMetadata: { anthropic: { cacheCreationInputTokens: 0 } },
+        fallbackModel: CHAT_MODEL,
+        claudeFallbackModel: claude,
+      }),
+    ).toEqual({ model: claude, provider: "anthropic.messages" });
+  });
+
+  test("leaves a Quick call OpenRouter answered alone", () => {
+    expect(
+      answeringModel({
+        model: CHAT_MODEL,
+        provider: "openrouter.chat",
+        providerMetadata: { openrouter: {} },
+        fallbackModel: CHAT_MODEL,
+        claudeFallbackModel: claude,
+      }),
+    ).toEqual({ model: CHAT_MODEL, provider: "openrouter.chat" });
+  });
+});
+
+describe("estimateClaudeCostUsd", () => {
+  const model = "anthropic/claude-sonnet-5-5";
+
+  test("prices fresh input, cache writes, cache reads and output separately", () => {
+    // 1,000 fresh + 2,000 written + 10,000 read = 13,000 prompt tokens, as
+    // the Anthropic provider totals them; 500 out.
+    const cost = estimateClaudeCostUsd({
+      model,
+      promptTokens: 13_000,
+      completionTokens: 500,
+      usage: {
+        inputTokenDetails: {
+          noCacheTokens: 1_000,
+          cacheWriteTokens: 2_000,
+          cacheReadTokens: 10_000,
+        },
+      },
+    });
+    const { input, cacheWrite, cacheRead, output } = CLAUDE_PRICES[model]!;
+    expect(cost).toBeCloseTo(
+      (1_000 * input + 2_000 * cacheWrite + 10_000 * cacheRead + 500 * output) /
+        1e6,
+      10,
+    );
+  });
+
+  test("works out the split from cachedInputTokens and provider metadata", () => {
+    const fromDetails = estimateClaudeCostUsd({
+      model,
+      promptTokens: 13_000,
+      completionTokens: 500,
+      usage: {
+        inputTokenDetails: {
+          noCacheTokens: 1_000,
+          cacheWriteTokens: 2_000,
+          cacheReadTokens: 10_000,
+        },
+      },
+    });
+    const fromFallbacks = estimateClaudeCostUsd({
+      model,
+      promptTokens: 13_000,
+      completionTokens: 500,
+      usage: { cachedInputTokens: 10_000 },
+      providerMetadata: { anthropic: { cacheCreationInputTokens: 2_000 } },
+    });
+    expect(fromFallbacks).toBeCloseTo(fromDetails!, 10);
+  });
+
+  test("leaves a model with no listed price unestimated", () => {
+    expect(
+      estimateClaudeCostUsd({
+        model: "anthropic/claude-opus-5-5",
+        promptTokens: 1000,
+        completionTokens: 100,
+        usage: {},
+      }),
+    ).toBeUndefined();
+  });
+
+  test("a Claude row gets an estimate, never a billed cost", () => {
+    const record = toUsageRecord({
+      kind: "chat",
+      model,
+      usage: { inputTokens: 5_000, outputTokens: 200 },
+    });
+    expect(record.costUsd).toBeUndefined();
+    expect(record.estimatedCostUsd).toBeGreaterThan(0);
+  });
+
+  test("an OpenRouter row keeps its billed cost and gets no estimate", () => {
+    const record = toUsageRecord({
+      kind: "chat",
+      model: CHAT_MODEL,
+      usage: { inputTokens: 5_000, outputTokens: 200 },
+      providerMetadata: { openrouter: { usage: { cost: 0.001 } } },
+    });
+    expect(record.costUsd).toBe(0.001);
+    expect(record).not.toHaveProperty("estimatedCostUsd");
   });
 });
 

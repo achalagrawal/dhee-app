@@ -227,6 +227,11 @@ export default defineSchema({
     // from a price table here: a figure derived from a stale table that looks
     // like a measurement is worse than an absent one.
     costUsd: v.optional(v.number()),
+    // For calls no provider billed — Claude on Anthropic's API — the cost
+    // from token counts and a price table (`CLAUDE_PRICES` in convex/usage.ts).
+    // Kept apart from `costUsd` for the reason given above: it is an estimate,
+    // and must never be mistaken for a bill. Sum the two for total spend.
+    estimatedCostUsd: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_created", ["createdAt"])

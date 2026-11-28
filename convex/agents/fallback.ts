@@ -30,6 +30,9 @@ function isAbort(error: unknown, signal: AbortSignal | undefined): boolean {
 export function withFallback(
   primary: LanguageModelV3,
   fallback: LanguageModelV3,
+  // Read per call. For a fallback that can only answer while a key is set:
+  // without it, the primary's own error is the more useful one to surface.
+  enabled: () => boolean = () => true,
 ): LanguageModelV3 {
   const run = async <T>(
     call: (model: LanguageModelV3) => PromiseLike<T>,
@@ -38,7 +41,7 @@ export function withFallback(
     try {
       return await call(primary);
     } catch (error) {
-      if (isAbort(error, signal)) throw error;
+      if (isAbort(error, signal) || !enabled()) throw error;
       // Loud on purpose: a fallback is a reply someone did not get from the
       // model they chose, and the logs are where a run of them shows up.
       console.error(

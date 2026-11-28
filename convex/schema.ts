@@ -210,6 +210,8 @@ export default defineSchema({
       v.literal("extraction"),
       v.literal("incognito"),
       v.literal("eval"),
+      // Speech to text for voice input. No audio and no transcript is kept.
+      v.literal("transcription"),
       // Auto's classifier call, which picks the model for a turn.
       v.literal("routing"),
     ),

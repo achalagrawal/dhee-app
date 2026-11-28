@@ -515,6 +515,17 @@ export function runChecks(r: ReplyUnderTest, e: Expectations): Check[] {
     return [{ id: "non-empty", ok: false, detail: "the reply was empty" }];
   }
 
+  // A model's own control markup written out as text — DeepSeek's
+  // `<｜DSML｜ invoke…>`, which people saw as random symbols. The production
+  // models strip it (convex/agents/specialTokens.ts); this catches a model,
+  // or a raw slug under evaluation, that gets past that.
+  const markup = /<​?｜/.exec(r.reply);
+  checks.push({
+    id: "no-markup",
+    ok: !markup,
+    detail: markup ? r.reply.slice(markup.index, markup.index + 40) : undefined,
+  });
+
   if (e.termsOfArt === "discouraged") {
     const terms = termsOfArtIn(r.reply, { echoAllowance: r.probe });
     checks.push({
